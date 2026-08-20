@@ -1,0 +1,11 @@
+import { AppShell } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireUser } from "@/lib/auth";
+import { updateSettings } from "@/app/actions/work";
+
+const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const timeZones = ["America/Chicago", "America/New_York", "America/Denver", "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu", "UTC"];
+export const dynamic = "force-dynamic";
+export default async function SettingsPage() { const profile = await requireUser(); return <AppShell isAdmin={profile.role === "ADMIN"}><PageHeader eyebrow="Preferences" title="Settings" description="Your time zone and week-start day determine how every cap is calculated." /><Card className="max-w-2xl"><CardHeader><CardTitle>Work schedule</CardTitle></CardHeader><CardContent><form action={updateSettings} className="grid gap-5"><label className="grid gap-1.5 text-sm font-medium">Display name<input name="displayName" defaultValue={profile.display_name ?? ""} maxLength={100} className="h-10 rounded-lg border bg-transparent px-3" /></label><label className="grid gap-1.5 text-sm font-medium">Time zone<select name="timeZone" defaultValue={profile.time_zone} className="h-10 rounded-lg border bg-transparent px-3">{[...new Set([profile.time_zone, ...timeZones])].map((zone) => <option key={zone}>{zone}</option>)}</select></label><label className="grid gap-1.5 text-sm font-medium">Week starts on<select name="weekStartsOn" defaultValue={profile.week_starts_on} className="h-10 rounded-lg border bg-transparent px-3">{weekdays.map((day, value) => <option key={day} value={value}>{day}</option>)}</select></label><label className="grid gap-1.5 text-sm font-medium">Global weekly limit (minutes)<input name="globalWeeklyLimitMinutes" type="number" min={1} max={10080} defaultValue={profile.global_weekly_limit_minutes ?? ""} className="h-10 rounded-lg border bg-transparent px-3" placeholder="Leave blank for no cap" /></label><div><Button type="submit">Save settings</Button></div></form></CardContent></Card></AppShell>; }

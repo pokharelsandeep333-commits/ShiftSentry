@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+
+  @@map("app_role")
+}
+
+model Profile {
+  id                       String       @id @db.Uuid
+  email                    String       @unique
+  displayName              String?      @map("display_name")
+  role                     Role         @default(USER)
+  timeZone                 String       @default("America/Chicago") @map("time_zone")
+  weekStartsOn             Int          @default(0) @map("week_starts_on")
+  globalWeeklyLimitMinutes Int?         @map("global_weekly_limit_minutes")
+  disabledAt               DateTime?    @map("disabled_at") @db.Timestamptz(6)
+  createdAt                DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  jobs                     Job[]
+  shifts                   Shift[]
+  auditEvents              AuditEvent[] @relation("AuditActor")
+
+  @@map("profiles")
+}
+
+model Job {
+  id                       String   @id @default(uuid()) @db.Uuid
+  userId                   String   @map("user_id") @db.Uuid
+  name                     String
+  color                    String   @default("#9486ff")
+  weeklyLimitMinutes       Int?     @map("weekly_limit_minutes")
+  hourlyRateCents          Int      @default(0) @map("hourly_rate_cents")
+  taxRateBasisPoints       Int      @default(0) @map("tax_rate_basis_points")
+  archivedAt               DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                     Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shifts                   Shift[]
+  deductions               JobDeduction[]
+
+  @@index([userId, archivedAt])
+  @@map("jobs")
+}
+
+model Shift {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  startsAt  DateTime @map("starts_at") @db.Timestamptz(6)
+  endsAt    DateTime @map("ends_at") @db.Timestamptz(6)
+  notes     String?
+  hourlyRateCents        Int      @default(0) @map("hourly_rate_cents")
+  taxRateBasisPoints     Int      @default(0) @map("tax_rate_basis_points")
+  deductionsSnapshot     Json     @default("[]") @map("deductions_snapshot")
+  grossCents             Int      @default(0) @map("gross_cents")
+  taxCents               Int      @default(0) @map("tax_cents")
+  deductionCents         Int      @default(0) @map("deduction_cents")
+  netCents               Int      @default(0) @map("net_cents")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@index([userId, startsAt])
+  @@index([jobId, startsAt])
+  @@map("shifts")
+}
+
+model JobDeduction {
+  id              String   @id @default(uuid()) @db.Uuid
+  jobId           String   @map("job_id") @db.Uuid
+  name            String
+  rateBasisPoints Int      @map("rate_basis_points")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  job             Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@map("job_deductions")
+}
+
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String?  @map("actor_id") @db.Uuid
+  targetUserId String? @map("target_user_id") @db.Uuid
+  action      String
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor       Profile? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([targetUserId, createdAt])
+  @@map("audit_events")
+}
