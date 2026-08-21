@@ -8,6 +8,7 @@ import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ClipboardClock, M
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { AccountMenu } from "@/components/account-menu";
 
 const navigation = [
   { href: "/", label: "Overview", icon: ChartNoAxesCombined },
@@ -67,7 +68,7 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
   </>;
 }
 
-export function AppShell({ children, isAdmin = false, isDemo = false }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean }) {
+export function AppShell({ children, isAdmin = false, isDemo = false, userEmail }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string }) {
   const pathname = usePathname();
   const desktopItems = isAdmin ? [...navigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : navigation;
 
@@ -80,7 +81,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false }: { childr
       </div>
     </aside>
     <div className="min-w-0">
-      <header className="px-3 pt-3 sm:px-5 lg:px-6"><div className="mx-auto flex h-16 max-w-[96rem] items-center justify-between rounded-[1.25rem] border bg-[var(--background)]/72 px-2.5 shadow-lg shadow-black/[0.03] backdrop-blur-xl sm:px-3"><div className="flex items-center gap-2"><MobileNavigation pathname={pathname} isAdmin={isAdmin} /><Link href="/" className="flex items-center gap-2 font-display font-semibold lg:hidden"><span className="grid size-8 place-items-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)]"><CalendarDays className="size-4" /></span>ShiftSaaS</Link></div><div className="ml-auto flex items-center gap-1.5"><ThemeToggle /><Link href="/shifts/new"><Button size="sm" className="rounded-xl"><Plus className="size-4" />Add shift</Button></Link></div></div></header>
+      <header className="px-3 pt-3 sm:px-5 lg:px-6"><div className="mx-auto flex h-16 max-w-[96rem] items-center justify-between rounded-[1.25rem] border bg-[var(--background)]/72 px-2.5 shadow-lg shadow-black/[0.03] backdrop-blur-xl sm:px-3"><div className="flex items-center gap-2"><MobileNavigation pathname={pathname} isAdmin={isAdmin} /><Link href="/" className="flex items-center gap-2 font-display font-semibold lg:hidden"><span className="grid size-8 place-items-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)]"><CalendarDays className="size-4" /></span>ShiftSaaS</Link></div><div className="ml-auto flex items-center gap-1.5"><ThemeToggle /><Link href="/shifts/new"><Button size="sm" className="rounded-xl"><Plus className="size-4" />Add shift</Button></Link>{!isDemo && <AccountMenu email={userEmail} />}</div></div></header>
       <main className="mx-auto max-w-[96rem] p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8 lg:pb-12">{children}</main>
     </div>
   </div>;

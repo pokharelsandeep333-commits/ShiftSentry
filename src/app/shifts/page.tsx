@@ -18,7 +18,7 @@ export default async function ShiftsPage() {
   const supabase = await createServerSupabaseClient();
   const { data: shifts } = await supabase.from("shifts").select("id,starts_at,ends_at,notes,jobs(name,color)").eq("user_id", profile.id).order("starts_at", { ascending: false }).limit(100);
 
-  return <AppShell isAdmin={profile.role === "ADMIN"}>
+  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
     <PageHeader eyebrow="Shift log" title="All shifts" description="Future entries are included in projected cap warnings." actions={<Link href="/shifts/new"><Button><CalendarClock className="size-4" />Add shift</Button></Link>} />
     <Card>
       <CardContent className="p-2 sm:p-3">{shifts?.length ? shifts.map((shift) => {

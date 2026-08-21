@@ -15,7 +15,7 @@ export default async function SettingsPage() {
   const profile = await requireUser();
   const selectedTimeZones = [...new Set([profile.time_zone, ...timeZones])];
 
-  return <AppShell isAdmin={profile.role === "ADMIN"}>
+  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
     <PageHeader eyebrow="Preferences" title="Settings" description="Your time zone and week-start day determine how every cap is calculated." />
     <Card className="max-w-2xl">
       <CardHeader><CardTitle>Work schedule</CardTitle></CardHeader>

@@ -32,7 +32,7 @@ export function DashboardView({ data, isAdmin = false }: { data: DashboardData; 
   const capVariant = globalPercent >= 100 ? "danger" : globalPercent >= 80 ? "warning" : "success";
   const capColor = globalPercent >= 100 ? "bg-[var(--danger)]" : globalPercent >= 80 ? "bg-[var(--warning)]" : "bg-[var(--success)]";
 
-  return <AppShell isAdmin={isAdmin} isDemo={data.isDemo}>
+  return <AppShell isAdmin={isAdmin} isDemo={data.isDemo} userEmail={data.viewer.email}>
     <Reveal>
       <div className="mb-7 flex flex-col justify-between gap-4 sm:mb-8 sm:flex-row sm:items-end">
         <div>
