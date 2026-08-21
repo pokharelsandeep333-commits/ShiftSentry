@@ -1,5 +1,6 @@
 "use client";
 
+import { useTransition } from "react";
 import Link from "next/link";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { LogOut, Settings, UserRound } from "lucide-react";
@@ -12,6 +13,13 @@ function accountInitial(email: string) {
 export function AccountMenu({ email = "" }: { email?: string }) {
   const initial = accountInitial(email);
   const accountLabel = email || "Account";
+  const [isSigningOut, startSignOut] = useTransition();
+
+  function handleSignOut() {
+    startSignOut(async () => {
+      await signOut();
+    });
+  }
 
   return <DropdownMenu.Root>
     <DropdownMenu.Trigger asChild>
@@ -32,13 +40,9 @@ export function AccountMenu({ email = "" }: { email?: string }) {
           </Link>
         </DropdownMenu.Item>
         <DropdownMenu.Separator className="my-1 h-px bg-[var(--border)]" />
-        <form action={signOut}>
-          <DropdownMenu.Item asChild>
-            <button type="submit" className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--danger)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] focus:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]">
-              <LogOut className="size-4" />Log out
-            </button>
-          </DropdownMenu.Item>
-        </form>
+        <DropdownMenu.Item disabled={isSigningOut} onSelect={handleSignOut} className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--danger)] outline-none transition-colors hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] focus:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] data-[disabled]:cursor-wait data-[disabled]:opacity-60">
+          <LogOut className="size-4" />{isSigningOut ? "Logging out…" : "Log out"}
+        </DropdownMenu.Item>
       </DropdownMenu.Content>
     </DropdownMenu.Portal>
   </DropdownMenu.Root>;
