@@ -1,12 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@supabase/server/core";
 import { cookies } from "next/headers";
 import { requireSupabaseConfig } from "./config";
+import type { Database } from "./database.types";
 
 export async function createServerSupabaseClient() {
-  const { url, anonKey } = requireSupabaseConfig();
+  const { url, publishableKey } = requireSupabaseConfig();
   const cookieStore = await cookies();
-  return createServerClient(url, anonKey, {
+  return createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() { return cookieStore.getAll(); },
       setAll(values) {
@@ -18,7 +19,12 @@ export async function createServerSupabaseClient() {
 
 export function createAdminSupabaseClient() {
   const { url } = requireSupabaseConfig();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for this administrative action.");
-  return createServiceClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  if (!secretKey) throw new Error("SUPABASE_SECRET_KEY is required for this administrative action.");
+  return createAdminClient<Database>({
+    env: {
+      url,
+      secretKeys: { default: secretKey },
+    },
+  });
 }
