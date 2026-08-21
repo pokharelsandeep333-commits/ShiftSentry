@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "📋 Review dependency changes"
-        uses: actions/dependency-review-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.7.3
+        uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
 
