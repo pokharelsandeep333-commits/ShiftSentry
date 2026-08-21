@@ -202,9 +202,6 @@ The live EC2 configuration source is intentionally outside this repository:
 /home/ubuntu/sandeepcloud/docker-compose.yml
 /home/ubuntu/sandeepcloud/nginx.conf
 ~~~
-
-Shared Nginx is the only public service. It terminates Cloudflare-origin TLS and proxies **sentry.sandeeppokharel.com.np** to the internal-only **shiftsentry:3000** service. The root-only runtime environment and Watchtower registry credential remain separate from Compose and Nginx.
-
 ---
 
 Built for clearer weeks, calmer planning, and better work-life boundaries.
