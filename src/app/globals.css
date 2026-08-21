@@ -1,6 +1,9 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/outfit";
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --background: #f7f8fa;
   --foreground: #121826;
   --card: #ffffff;
@@ -12,16 +15,23 @@
   --success: #12b76a;
   --warning: #f79009;
   --danger: #f04438;
+  --surface-raised: color-mix(in srgb, var(--card) 92%, white);
+  --surface-subtle: color-mix(in srgb, var(--muted) 76%, var(--card));
+  --primary-soft: color-mix(in srgb, var(--primary) 13%, transparent);
+  --primary-glow: color-mix(in srgb, var(--primary) 24%, transparent);
+  --shadow-color: 229 231 235;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", sans-serif;
+  --font-display: "Outfit Variable", Outfit, "Inter Variable", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 .dark {
+  color-scheme: dark;
   --background: #101318;
   --foreground: #f5f7fa;
   --card: #171b22;
@@ -33,12 +43,153 @@
   --success: #32d583;
   --warning: #fdb022;
   --danger: #f97066;
+  --surface-raised: color-mix(in srgb, var(--card) 88%, white);
+  --surface-subtle: color-mix(in srgb, var(--muted) 82%, var(--card));
+  --primary-soft: color-mix(in srgb, var(--primary) 16%, transparent);
+  --primary-glow: color-mix(in srgb, var(--primary) 28%, transparent);
+  --shadow-color: 0 0 0;
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 5% -10%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 29rem),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 26rem),
+    var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  letter-spacing: -0.01em;
 }
 
 * { border-color: var(--border); }
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+  color: var(--foreground);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.035em;
+}
+
+.app-canvas {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--foreground) 2.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--foreground) 2.5%, transparent) 1px, transparent 1px);
+  background-position: center;
+  background-size: 34px 34px;
+}
+
+.premium-card {
+  border-color: color-mix(in srgb, var(--border) 88%, var(--primary));
+  box-shadow: 0 22px 55px -34px rgb(var(--shadow-color) / 0.68), inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+
+.field-control,
+.field-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 74%, transparent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.035), 0 1px 2px rgb(var(--shadow-color) / 0.05);
+  transition: border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease, transform 220ms ease;
+}
+
+.field-control {
+  height: 2.75rem;
+  border-radius: 0.9rem;
+  padding: 0.5rem 0.85rem;
+}
+
+.field-textarea {
+  min-height: 7rem;
+  border-radius: 1rem;
+  padding: 0.75rem 0.85rem;
+}
+
+.field-control:focus,
+.field-textarea:focus {
+  border-color: color-mix(in srgb, var(--primary) 64%, var(--border));
+  outline: none;
+  background: var(--card);
+  box-shadow: 0 0 0 4px var(--primary-soft), 0 12px 24px -20px var(--primary-glow);
+}
+
+.field-label {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.field-label > span {
+  color: var(--foreground);
+}
+
+.login-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(1px);
+  pointer-events: none;
+  animation: ambient-drift 10s ease-in-out infinite alternate;
+}
+
+.login-orb--one {
+  width: 22rem;
+  height: 22rem;
+  top: 8%;
+  right: -8rem;
+  background: rgb(255 255 255 / 0.13);
+}
+
+.login-orb--two {
+  width: 15rem;
+  height: 15rem;
+  bottom: 7%;
+  left: 7%;
+  animation-delay: -4s;
+  background: color-mix(in srgb, #c5bfff 44%, transparent);
+}
+
+@keyframes ambient-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-1.25rem, 1rem, 0) scale(1.08); }
+}
+
+@keyframes select-in {
+  from { opacity: 0; transform: translateY(-0.35rem) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes select-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-0.2rem) scale(0.98); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23667085' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+.dark select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2398a2b3' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+}
+
+.dark option {
+  background-color: var(--card);
+  color: var(--foreground);
+}

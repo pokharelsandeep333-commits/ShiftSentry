@@ -1,0 +1,22 @@
+# ============================================================
+# 🔄 Dependabot — maintenance pull requests only
+# ============================================================
+# Every week it checks the application packages, Docker base
+# images, and pinned GitHub Actions. CI evaluates its PRs; this
+# file never deploys code or changes the Supabase database.
+# ============================================================
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

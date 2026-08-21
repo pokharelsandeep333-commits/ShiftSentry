@@ -1,0 +1,14 @@
+.git
+.github
+.next
+.env
+.env.*
+node_modules
+coverage
+build
+*.bak
+*.log
+*.pem
+*.tsbuildinfo
+.DS_Store
+.agents
