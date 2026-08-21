@@ -15,15 +15,9 @@
   <img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" />
 </p>
 
-<br />
-
 ## 📖 Overview
 
 ShiftSaaS is a premium, responsive workspace for people balancing one or more jobs. It brings scheduled shifts, completed work, pay, deductions, and weekly limits into one calm view—so users can spot a problem before it becomes one.
-
-The app is intentionally product-focused: polished interactions, accessible controls, and practical safeguards without changing the user's work routine.
-
-## ✨ What ShiftSaaS Helps You Do
 
 | Capability | How it helps |
 | --- | --- |
@@ -39,49 +33,41 @@ The app is intentionally product-focused: polished interactions, accessible cont
 | Area | Technology |
 | --- | --- |
 | App framework | Next.js 16 App Router, React 19, TypeScript |
-| Styling and interaction | Tailwind CSS v4, Motion, Radix Select, Inter, Outfit |
-| Data and authentication | Supabase, Row Level Security, `@supabase/server` |
+| Styling and interaction | Tailwind CSS v4, Motion, Radix Select and Dropdown Menu, Inter, Outfit |
+| Data and authentication | Supabase Auth, PostgreSQL, Row Level Security, @supabase/ssr and @supabase/server |
 | Server administration | Prisma 7 with PostgreSQL |
 | Charts and dates | Recharts, date-fns, date-fns-tz |
-| Validation and tests | Zod, Node.js test runner via `tsx` |
-| Deployment | Docker, EC2-compatible standalone build |
+| Validation and tests | Zod, Node.js test runner via tsx |
+| Delivery | Docker, GitHub Actions, EC2, Cloudflare, Watchtower |
 
 ## 🏗️ Architecture
 
-```mermaid
+~~~mermaid
 flowchart LR
-  User[Browser] --> UI[Next.js App Router\nPremium workspace]
-  UI --> Actions[Server actions and route handlers]
-  UI --> Auth[Supabase Auth\nCookie session]
-  Actions --> RLS[Supabase Postgres\nRow Level Security]
-  Auth --> RLS
-  Admin[Server-only administration] --> Prisma[Prisma + direct database URL]
-  Admin --> Secret[Supabase secret-key client]
-  Prisma --> RLS
-  Secret --> RLS
-```
+  Browser[Browser] --> Next[Next.js App Router]
+  Next --> Actions[Server actions and route handlers]
+  Browser --> Auth[Supabase Auth]
+  Actions --> Database[Supabase Postgres with RLS]
+  Auth --> Database
+  Admin[Server-only admin operations] --> Prisma[Prisma]
+  Admin --> SecretClient[Supabase secret-key client]
+  Prisma --> Database
+  SecretClient --> Database
+~~~
 
-Browser-facing features and user server actions operate through Supabase and its row-level security policies. Prisma and the secret-key Supabase client are reserved for trusted server-side administration; neither belongs in a browser bundle.
+Browser-facing features use Supabase's publishable key and Row Level Security. Prisma and the secret-key client are server-only administrative tools; neither belongs in a browser bundle.
 
 ## 📁 Project Structure
 
-```text
+~~~text
 src/
-├── app/                    # App Router pages, server actions, auth callbacks
-│   ├── admin/              # Protected administration workspace
-│   ├── jobs/               # Job and pay configuration
-│   ├── login/              # Email, Google, and GitHub authentication
-│   ├── settings/           # Personal weekly-limit preferences
-│   └── shifts/             # Shift logging and planning
-├── components/
-│   ├── dashboard/          # Dashboard views and charts
-│   └── ui/                 # Shared accessible UI primitives
-└── lib/                    # Auth, validation, calculations, Supabase, types
-
-prisma/                     # Prisma schema and configuration
-supabase/migrations/        # Immutable, timestamped Supabase SQL migrations
-public/                     # Static assets
-```
+├── app/                    App Router pages, actions, callback, and health route
+├── components/             Shared dashboard, navigation, and UI primitives
+├── lib/                    Auth, Supabase, validation, calculations, and types
+prisma/                     Prisma schema
+supabase/migrations/        Immutable timestamped production SQL migrations
+.github/workflows/          CI, scheduled audit, and scheduled CodeQL workflows
+~~~
 
 ## 🚀 Local Setup
 
@@ -89,87 +75,135 @@ public/                     # Static assets
 
 - Node.js 24 or a compatible runtime supported by Next.js 16
 - A Supabase project with email, Google, and GitHub sign-in enabled
-- Docker (optional, for production-image testing)
+- Docker, only if testing the production image locally
 
-### 1. Install dependencies
+### 1. Install and configure
 
-```bash
+~~~powershell
 npm install
-```
-
-### 2. Configure environment variables
-
-Copy the template and replace only the placeholder values:
-
-```powershell
 Copy-Item .env.example .env.local
-```
+~~~
 
-`.env.local` requires the Supabase project URL, the modern publishable key, the server-only secret key, a direct PostgreSQL `DATABASE_URL`, and an initial administrator email allowlist. Never commit this file or expose its values in client code.
+Fill in the five placeholders in **.env.local**. The two **NEXT_PUBLIC_SUPABASE_*** values are safe for the browser; **SUPABASE_SECRET_KEY**, **DATABASE_URL**, and **ADMIN_EMAIL_ALLOWLIST** are server-only. Never commit the file.
 
-### 3. Apply the database schema
+### 2. Configure Supabase Auth
 
-For a new database, apply every SQL file in `supabase/migrations/` in timestamp order:
+Set the Supabase Auth **Site URL** to **https://sentry.sandeeppokharel.com.np** and add both application callbacks to the **Redirect URL allow list**:
 
-```text
-202608200001_initial_schema.sql
-202608200002_earnings_tracking.sql
-202608200003_security_auth_hardening.sql
-```
-
-These Supabase SQL files are the migration source of truth. Do not run `prisma migrate`, rerun an applied migration, or apply the initial migrations to a database that already has the schema.
-
-### 4. Configure Supabase Auth
-
-In Supabase, set the Site URL to `http://localhost:3000` and allow this application callback:
-
-```text
+~~~text
 http://localhost:3000/auth/callback
-```
+https://sentry.sandeeppokharel.com.np/auth/callback
+~~~
 
-Enable Email, Google, and GitHub under **Authentication → Sign In / Providers**. The Google and GitHub OAuth applications must use Supabase's provider callback, `https://<project-ref>.supabase.co/auth/v1/callback`; the ShiftSaaS callback stays in the Supabase redirect allowlist.
+Enable Email, Google, and GitHub under **Authentication → Sign In / Providers**. Each OAuth provider points back to Supabase's provider callback, **https://&lt;project-ref&gt;.supabase.co/auth/v1/callback**; Supabase then redirects to this app's allowed callback.
 
-### 5. Generate, test, and start
+### 3. Verify and run
 
-```bash
+~~~powershell
 npm run db:generate
 npm run test:earnings
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000). Without Supabase configuration, the root route intentionally renders a read-only dashboard preview; authenticated pages require Supabase.
-
-## 🧪 Verification
-
-Run the full project check before opening a pull request:
-
-```bash
-npm run test:earnings
+npm run test:auth
 npx tsc --noEmit
 npm run lint
 npm run build
-```
+npm run dev
+~~~
 
-## 🔐 Security and Data Boundaries
+Open [http://localhost:3000](http://localhost:3000). Without Supabase configuration, the root route intentionally renders a read-only dashboard preview.
 
-- Row Level Security protects user-facing Supabase data access.
-- The proxy refreshes Supabase's cookie-based session before protected server-rendered pages use it.
-- Admin access is checked both by the proxy and again inside privileged routes and actions.
-- `SUPABASE_SECRET_KEY`, `DATABASE_URL`, and Prisma stay server-only.
-- Applied SQL migrations are immutable. Create a new timestamped migration for future schema changes.
+## 🗃️ Database Migrations
 
-## 🐳 Docker and EC2 Deployment
+The immutable Supabase SQL migrations in [supabase/migrations](supabase/migrations/) are the database source of truth:
 
-The production image receives only the two browser-safe `NEXT_PUBLIC_SUPABASE_*` values during its build. Keep `SUPABASE_SECRET_KEY`, `DATABASE_URL`, and administrator configuration in the server runtime environment; never bake them into an image.
+~~~text
+202608200001_initial_schema.sql
+202608200002_earnings_tracking.sql
+202608200003_security_auth_hardening.sql
+~~~
 
-Build and run the production container locally:
+For a fresh development database, apply them in timestamp order. For production, GitHub Actions compares the repository history with Supabase, previews pending migrations, and applies only verified new SQL migrations after release approval. Never use Prisma migrate, edit an applied migration, rerun the initial schema, or reset the production database.
 
-```bash
-docker build -t shiftsaas .
-docker run --env-file .env.local -p 3000:3000 shiftsaas
-```
+## 🔁 Pull Requests and CI/CD
 
-For the existing Cloudflare and shared-Nginx EC2 host, the live configuration source is `/home/ubuntu/sandeepcloud/docker-compose.yml` and `/home/ubuntu/sandeepcloud/nginx.conf`. ShiftSaaS joins that shared Docker network without exposing port 3000; the existing Nginx container terminates HTTPS and Watchtower updates the private image.
+~~~mermaid
+flowchart LR
+  Branch[Feature branch] --> PR[Pull request to main]
+  PR --> Checks[CI quality and security checks]
+  Checks --> Merge[Merge to main]
+  Merge --> Approval[GitHub production approval]
+  Approval --> Image[Push immutable SHA image]
+  Image --> Migration[Verify and apply pending Supabase SQL]
+  Migration --> Stable[Promote exact image to stable]
+  Stable --> Watchtower[EC2 Watchtower pulls and restarts ShiftSaaS]
+~~~
+
+### Daily pull-request workflow
+
+~~~powershell
+git switch main
+git pull --ff-only origin main
+git switch -c codex/short-change-name
+
+# Make the change, then run the same main checks locally.
+npm run db:generate
+npm run test:earnings
+npm run test:auth
+npx tsc --noEmit
+npm run lint
+npm run build
+
+git status
+git add <changed-files>
+git commit -m "docs: describe the change"
+git push -u origin codex/short-change-name
+~~~
+
+Create a pull request from that branch to **main** in GitHub. Review the Actions results, address any failure in a new commit, and merge only after the required checks are green.
+
+If the GitHub CLI is installed and authenticated, this optional command opens the same PR:
+
+~~~powershell
+gh pr create --base main --head codex/short-change-name --fill
+~~~
+
+| Trigger | What runs |
+| --- | --- |
+| Pull request to **main** | Gitleaks, Prisma generation/validation, earnings and auth tests, TypeScript, lint, production build, Docker build verification, production dependency audit, Dependency Review, and CodeQL. |
+| Push to **main** | All shared gates except PR-only Dependency Review, followed by the protected production release job. |
+| Weekly schedules | Dependabot opens update PRs for npm, Docker, and GitHub Actions; dependency audit runs Monday; CodeQL runs Wednesday. |
+
+The release job waits for the GitHub **production** environment approval, pushes **sha-&lt;commit&gt;**, runs **supabase migration list**, runs **supabase db push --dry-run**, applies only verified pending migrations, and promotes that exact image to **stable**. Watchtower checks the private image every five minutes. Dependabot does not deploy or migrate the database by itself.
+
+## 🔐 Secret Boundaries
+
+| Location | Permitted values |
+| --- | --- |
+| Docker build arguments | **NEXT_PUBLIC_SUPABASE_URL**, **NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY** only |
+| GitHub production secrets | Docker Hub username/token, both public Supabase values, **SUPABASE_DB_URL** for migration checks |
+| EC2 runtime environment | Both public values plus **SUPABASE_SECRET_KEY**, **DATABASE_URL**, and **ADMIN_EMAIL_ALLOWLIST** |
+| EC2 Watchtower Docker config | A separate Docker Hub pull-only token |
+
+**NEXT_PUBLIC_*** values are intentionally embedded in the browser build and are not secrets. The secret key, database URL, Docker tokens, and administrator allowlist must never be committed, printed in CI logs, passed as Docker build arguments, or stored in image layers.
+
+## 🐳 Docker and EC2
+
+Build the production image locally with only browser-safe build arguments:
+
+~~~powershell
+$env:NEXT_PUBLIC_SUPABASE_URL = "https://your-project.supabase.co"
+$env:NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_your_key"
+docker build --build-arg NEXT_PUBLIC_SUPABASE_URL="$env:NEXT_PUBLIC_SUPABASE_URL" --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$env:NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" --tag shiftsaas:local .
+docker run --env-file .env.local -p 3000:3000 shiftsaas:local
+~~~
+
+The live EC2 configuration source is intentionally outside this repository:
+
+~~~text
+/home/ubuntu/sandeepcloud/docker-compose.yml
+/home/ubuntu/sandeepcloud/nginx.conf
+~~~
+
+Shared Nginx is the only public service. It terminates Cloudflare-origin TLS and proxies **sentry.sandeeppokharel.com.np** to the internal-only **shiftsentry:3000** service. The root-only runtime environment and Watchtower registry credential remain separate from Compose and Nginx.
 
 ---
 
