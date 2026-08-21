@@ -15,7 +15,7 @@ export default async function JobsPage() {
   const supabase = await createServerSupabaseClient();
   const { data: jobs } = await supabase.from("jobs").select("id,name,color,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,job_deductions(id,name,rate_basis_points)").eq("user_id", profile.id).is("archived_at", null).order("name");
 
-  return <AppShell isAdmin={profile.role === "ADMIN"}>
+  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
     <PageHeader eyebrow="Jobs" title="Jobs, pay, and deductions" description="Rates are saved onto each new shift, so changing them never changes past earnings." />
     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
       <Card>
