@@ -2,20 +2,11 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/database.types";
-
-function externalOrigin(request: Request, fallback: URL) {
-  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-
-  if (!forwardedHost) return fallback.origin;
-
-  const protocol = forwardedProtocol === "https" ? "https" : fallback.protocol.replace(":", "");
-  return `${protocol}://${forwardedHost}`;
-}
+import { publicRequestOrigin } from "@/lib/request-origin";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const origin = externalOrigin(request, url);
+  const origin = publicRequestOrigin(request);
   const code = url.searchParams.get("code");
   const flowId = url.searchParams.get("sb_flow_id");
   const next = url.searchParams.get("next") ?? "/";

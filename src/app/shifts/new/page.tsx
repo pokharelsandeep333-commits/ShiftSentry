@@ -15,7 +15,7 @@ export default async function NewShiftPage() {
   const supabase = await createServerSupabaseClient();
   const { data: jobs } = await supabase.from("jobs").select("id,name").eq("user_id", profile.id).is("archived_at", null).order("name");
 
-  return <AppShell isAdmin={profile.role === "ADMIN"}>
+  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
     <PageHeader eyebrow="Shift log" title="Add a shift" description="Scheduled future shifts count toward projected weekly hours." actions={<Link href="/shifts"><Button variant="outline">Cancel</Button></Link>} />
     <Card className="max-w-2xl">
       <CardHeader><CardTitle>Shift details</CardTitle></CardHeader>

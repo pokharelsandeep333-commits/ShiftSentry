@@ -64,8 +64,8 @@ jobs:
         run: npm run db:generate
       - name: "🗃️ Validate Prisma schema"
         run: npx prisma validate
-      - name: "🧪 Run earnings tests"
-        run: npm run test:earnings
+      - name: "🧪 Run earnings and auth tests"
+        run: npm run test:earnings && npm run test:auth
       - name: "🔎 Type-check"
         run: npx tsc --noEmit
       - name: "🔍 Lint"
