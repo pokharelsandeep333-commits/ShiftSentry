@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:earnings": "tsx --test src/lib/earnings.test.ts",
+    "test:earnings": "tsx --test src/lib/earnings.test.ts src/lib/greeting.test.ts",
     "test:auth": "tsx --test src/lib/request-origin.test.ts",
     "db:generate": "prisma generate",
     "audit:production": "npm audit --omit=dev --json | node scripts/check-production-audit.mjs"
