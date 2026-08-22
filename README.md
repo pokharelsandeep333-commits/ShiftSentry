@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>ShiftSaaS</h1>
+  <h1>ShiftSentry</h1>
   <p><b>Plan work with confidence. Track shifts, forecast weekly hours, and stay ahead of every limit.</b></p>
   <br />
   <p>
@@ -18,7 +18,7 @@
 
 ## 📖 Overview
 
-ShiftSaaS is a premium, responsive workspace for people balancing one or more jobs. It brings scheduled shifts, completed work, pay, deductions, and weekly limits into one calm view—so users can spot a problem before it becomes one.
+ShiftSentry is a premium, responsive workspace for people balancing one or more jobs. It brings scheduled shifts, completed work, pay, deductions, and weekly limits into one calm view—so users can spot a problem before it becomes one.
 
 <br />
 

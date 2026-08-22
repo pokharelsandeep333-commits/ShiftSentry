@@ -61,6 +61,6 @@ export function LoginForm() {
     <Button className="w-full" disabled={busy}>{busy && <LoaderCircle className="size-4 animate-spin" />}{mode === "signin" ? "Sign in" : "Create account"}</Button>
     <div className="relative py-2 text-center text-xs text-[var(--muted-foreground)] before:absolute before:left-0 before:right-0 before:top-1/2 before:border-t"><span className="relative bg-[var(--card)] px-3">or continue with</span></div>
     <div className="grid grid-cols-2 gap-3"><Button type="button" variant="outline" className="h-11" onClick={() => oauth("google")} disabled={busy}><GoogleMark />Google</Button><Button type="button" variant="outline" className="h-11" onClick={() => oauth("github")} disabled={busy}><GitHubMark />GitHub</Button></div>
-    <p className="pt-2 text-center text-sm text-[var(--muted-foreground)]">{mode === "signin" ? "New to ShiftSaaS?" : "Already have an account?"} <button type="button" className="font-semibold text-[var(--primary)] transition-opacity hover:opacity-75" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "Create one" : "Sign in"}</button></p>
+    <p className="pt-2 text-center text-sm text-[var(--muted-foreground)]">{mode === "signin" ? "New to ShiftSentry?" : "Already have an account?"} <button type="button" className="font-semibold text-[var(--primary)] transition-opacity hover:opacity-75" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "Create one" : "Sign in"}</button></p>
   </motion.form>;
 }

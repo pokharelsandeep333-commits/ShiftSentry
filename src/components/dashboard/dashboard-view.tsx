@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
 import { formatCents } from "@/lib/earnings";
+import { greetingForDate } from "@/lib/greeting";
 import { formatHours, formatMinutes } from "@/lib/utils";
 import type { DashboardData } from "@/lib/types";
 
@@ -37,7 +38,7 @@ export function DashboardView({ data, isAdmin = false }: { data: DashboardData; 
       <div className="mb-7 flex flex-col justify-between gap-4 sm:mb-8 sm:flex-row sm:items-end">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--primary)]">{data.isDemo ? "Workspace preview" : "Weekly overview"}</p>
-          <h1 className="font-display text-3xl font-semibold sm:text-4xl">Good {new Date().getHours() < 12 ? "morning" : "afternoon"}, {data.viewer.name ?? "there"}.</h1>
+          <h1 className="font-display text-3xl font-semibold sm:text-4xl">{greetingForDate(new Date(), data.viewer.timeZone)}, {data.viewer.name ?? "there"}.</h1>
           <p className="mt-2.5 text-sm leading-6 text-[var(--muted-foreground)]">Your week starts on {new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date(2026, 7, 16 + data.viewer.weekStartsOn))} in {data.viewer.timeZone}.</p>
         </div>
         {data.isDemo && <Badge variant="muted" className="rounded-xl px-3 py-1.5"><Sparkles className="mr-1.5 size-3.5" />Sample data</Badge>}
