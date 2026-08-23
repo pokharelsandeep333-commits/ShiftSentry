@@ -92,15 +92,27 @@ supabase/migrations/        Immutable timestamped production SQL migrations
 ### 1. Install & Configure
 
 ```powershell
+git clone https://github.com/pokharelsandeep333-commits/ShiftSentry.git
+cd ShiftSentry
 npm install
 Copy-Item .env.example .env.local
 ```
 
 Fill in the five placeholders in `.env.local`. The two `NEXT_PUBLIC_SUPABASE_*` values are safe for the browser; `SUPABASE_SECRET_KEY`, `DATABASE_URL`, and `ADMIN_EMAIL_ALLOWLIST` are server-only. Never commit the file.
 
-### 2. Configure Supabase Auth
+### 2. Initialize Database
 
-Set the Supabase Auth **Site URL** to `https://sentry.sandeeppokharel.com.np` and add both application callbacks to the **Redirect URL allow list**:
+You must apply the database schema to your Supabase project before running the app.
+
+```powershell
+npx supabase login
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push
+```
+
+### 3. Configure Supabase Auth
+
+Set the Supabase Auth **Site URL** to `http://localhost:3000` (for local development) and add both application callbacks to the **Redirect URL allow list**:
 
 ```text
 http://localhost:3000/auth/callback
@@ -109,7 +121,7 @@ https://sentry.sandeeppokharel.com.np/auth/callback
 
 Enable Email, Google, and GitHub under **Authentication → Sign In / Providers**. Each OAuth provider points back to Supabase's provider callback, `https://<project-ref>.supabase.co/auth/v1/callback`; Supabase then redirects to this app's allowed callback.
 
-### 3. Verify & Run
+### 4. Verify & Run
 
 ```powershell
 npm run db:generate
