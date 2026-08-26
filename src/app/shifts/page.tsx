@@ -31,6 +31,7 @@ export default async function ShiftsPage() {
           <div className="min-w-48 flex-1"><p className="font-semibold">{job?.name ?? "Archived job"}</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.starts_at, profile.time_zone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.ends_at, profile.time_zone, "h:mm a")}</p>{shift.notes && <p className="mt-1.5 line-clamp-1 text-sm text-[var(--muted-foreground)]">{shift.notes}</p>}</div>
           <span className="rounded-xl bg-[var(--surface-subtle)] px-3 py-1.5 text-sm font-semibold">{formatMinutes(duration)}</span>
           <Badge variant={future ? "default" : "muted"} className="rounded-xl px-3 py-1.5">{future ? "Scheduled" : "Logged"}</Badge>
+          <Link href={`/shifts/${shift.id}/edit`} className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]">Edit</Link>
           <form action={deleteShift}><input type="hidden" name="id" value={shift.id} /><Button variant="ghost" size="sm">Delete</Button></form>
         </div>;
       }) : <p className="p-10 text-center text-sm text-[var(--muted-foreground)]">No shifts yet.</p>}</CardContent>

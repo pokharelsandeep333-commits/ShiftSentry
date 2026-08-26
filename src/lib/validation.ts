@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const resourceIdSchema = z.string().uuid("Invalid resource identifier.");
+
 export const weekStartsOnSchema = z.coerce.number().int().min(0).max(6);
 
 export const profileSettingsSchema = z.object({

@@ -17,3 +17,15 @@ export function publicRequestOrigin(request: Request) {
     return fallback.origin;
   }
 }
+
+export function safeInternalRedirect(value: string | null, fallback = "/") {
+  if (!value) return fallback;
+
+  try {
+    const base = "https://internal.invalid";
+    const url = new URL(value, base);
+    return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : fallback;
+  } catch {
+    return fallback;
+  }
+}
