@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { publicRequestOrigin } from "./request-origin";
+import { publicRequestOrigin, safeInternalRedirect } from "./request-origin";
 
 test("uses the public forwarded HTTPS origin behind a proxy", () => {
   const request = new Request("http://0.0.0.0:3000/auth/callback", {
@@ -23,4 +23,11 @@ test("rejects malformed forwarded hosts", () => {
   });
 
   assert.equal(publicRequestOrigin(request), "http://localhost:3000");
+});
+
+test("accepts only origin-relative post-auth redirects", () => {
+  assert.equal(safeInternalRedirect("/shifts?view=week#today"), "/shifts?view=week#today");
+  assert.equal(safeInternalRedirect("//attacker.example"), "/");
+  assert.equal(safeInternalRedirect("/\\attacker.example"), "/");
+  assert.equal(safeInternalRedirect("https://attacker.example"), "/");
 });
