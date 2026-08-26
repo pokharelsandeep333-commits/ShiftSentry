@@ -2,7 +2,6 @@
 
 import * as Select from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export type SelectOption = { value: string; label: string };
@@ -17,8 +16,6 @@ type PremiumSelectProps = {
 };
 
 export function PremiumSelect({ name, defaultValue, options, labelledBy, required = false, className }: PremiumSelectProps) {
-  const reduceMotion = useReducedMotion();
-
   return <Select.Root name={name} defaultValue={defaultValue} required={required}>
     <Select.Trigger
       aria-labelledby={labelledBy}
@@ -26,9 +23,9 @@ export function PremiumSelect({ name, defaultValue, options, labelledBy, require
     >
       <Select.Value />
       <Select.Icon asChild>
-        <motion.span animate={reduceMotion ? undefined : { rotate: 0 }} className="grid size-6 shrink-0 place-items-center rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
+        <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-[var(--primary-soft)] text-[var(--primary)]">
           <ChevronDown className="size-4 transition-transform duration-300 group-data-[state=open]:rotate-180" />
-        </motion.span>
+        </span>
       </Select.Icon>
     </Select.Trigger>
     <Select.Portal>

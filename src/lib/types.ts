@@ -17,6 +17,23 @@ export type EarningsSummary = {
   netCents: number;
 };
 
+export type MonthlyJobAllocationSeries = {
+  id: string;
+  key: string;
+  name: string;
+  color: string;
+};
+
+export type MonthlyJobAllocation = {
+  series: MonthlyJobAllocationSeries[];
+  months: {
+    key: string;
+    label: string;
+    netCents: Record<string, number>;
+    loggedMinutes: Record<string, number>;
+  }[];
+};
+
 export type ShiftSummary = {
   id: string;
   jobId: string;
@@ -41,9 +58,8 @@ export type DashboardData = {
   scheduledMinutes: number;
   jobs: JobSummary[];
   upcomingShifts: ShiftSummary[];
-  history: { label: string; loggedMinutes: number; limitMinutes: number | null }[];
   alerts: ThresholdAlert[];
   earnings: EarningsSummary;
-  earningsHistory: { label: string; netCents: number }[];
+  monthlyJobAllocation: MonthlyJobAllocation;
   isDemo?: boolean;
 };

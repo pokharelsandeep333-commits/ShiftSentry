@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BriefcaseBusiness, ChartNoAxesCombined, ClipboardClock, Menu, Moon, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
@@ -40,13 +39,12 @@ function NavigationLink({ item, active, onNavigate }: { item: NavigationItem; ac
       <Icon className="size-4" />
     </span>
     {item.label}
-    {active && <motion.span layoutId="navigation-active" className="absolute right-2 size-1.5 rounded-full bg-[var(--primary)]" transition={{ type: "spring", stiffness: 420, damping: 32 }} />}
+    {active && <span className="absolute right-2 size-1.5 rounded-full bg-[var(--primary)]" />}
   </Link>;
 }
 
 function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: boolean }) {
   const [open, setOpen] = useState(false);
-  const reduceMotion = useReducedMotion();
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -62,6 +60,7 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
     if (!open) return;
 
     const previousOverflow = document.body.style.overflow;
+    const menuTrigger = menuTriggerRef.current;
     document.body.style.overflow = "hidden";
     window.requestAnimationFrame(() => closeButtonRef.current?.focus());
 
@@ -93,17 +92,16 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
       document.removeEventListener("keydown", onKeyDown);
       if (shouldRestoreFocus.current) {
         shouldRestoreFocus.current = false;
-        menuTriggerRef.current?.focus();
+        menuTrigger?.focus();
       }
     };
   }, [open]);
 
   return <>
     <Button ref={menuTriggerRef} variant="ghost" size="icon" className="shrink-0 lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation menu" aria-expanded={open} aria-controls="mobile-navigation"><Menu className="size-5" /></Button>
-    <AnimatePresence>
-      {open && <>
-        <motion.button type="button" aria-label="Close navigation menu" className="fixed inset-0 z-40 bg-black/45 lg:hidden" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => closeMenu(true)} />
-        <motion.aside ref={panelRef} id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Mobile navigation" className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,calc(100vw-1rem))] flex-col border-r border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[var(--card)] p-3 shadow-2xl shadow-black/30 lg:hidden" initial={reduceMotion ? false : { opacity: 0, x: -28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -28 }} transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}>
+    {open && <>
+        <button type="button" aria-label="Close navigation menu" className="fixed inset-0 z-40 bg-black/45 lg:hidden" onClick={() => closeMenu(true)} />
+        <aside ref={panelRef} id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Mobile navigation" className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,calc(100vw-1rem))] flex-col border-r border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[var(--card)] p-3 shadow-2xl shadow-black/30 lg:hidden">
           <div className="flex items-center justify-between px-2 py-2">
             <Link href="/" onClick={() => closeMenu()} aria-label="Go to ShiftSentry overview"><Brand /></Link>
             <Button ref={closeButtonRef} variant="ghost" size="icon" onClick={() => closeMenu(true)} aria-label="Close navigation menu"><X className="size-5" /></Button>
@@ -112,9 +110,8 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
             {mobileItems.map((item) => <NavigationLink key={item.href} item={item} active={pathname === item.href || (item.href === "/admin" && pathname.startsWith("/admin"))} onNavigate={() => closeMenu()} />)}
           </nav>
           <div className="mt-auto rounded-2xl border bg-[var(--surface-subtle)] p-4 text-sm text-[var(--muted-foreground)]">Your schedule is private to your account.</div>
-        </motion.aside>
+        </aside>
       </>}
-    </AnimatePresence>
   </>;
 }
 
