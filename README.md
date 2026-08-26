@@ -9,7 +9,6 @@
     <img alt="Tailwind CSS v4" src="https://img.shields.io/badge/Tailwind_CSS-v4-38BDF8?style=flat-square&logo=tailwindcss&logoColor=white&labelColor=38BDF8" />
     <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Auth_%2B_RLS-3ECF8E?style=flat-square&logo=supabase&logoColor=white&labelColor=3ECF8E" />
     <img alt="Prisma" src="https://img.shields.io/badge/Prisma-7-2D3748?style=flat-square&logo=prisma&logoColor=white&labelColor=2D3748" />
-    <img alt="Motion" src="https://img.shields.io/badge/Motion-13-8B5CF6?style=flat-square&logo=framer&logoColor=white&labelColor=8B5CF6" />
     <img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white&labelColor=2496ED" />
   </p>
 </div>
@@ -40,7 +39,7 @@ ShiftSentry is a premium, responsive workspace for people balancing one or more 
 | Area | Technologies Used |
 | :--- | :--- |
 | **App Framework** | Next.js 16 App Router, React 19, TypeScript |
-| **Styling & Interaction** | Tailwind CSS v4, Motion, Radix Select and Dropdown Menu, Inter, Outfit |
+| **Styling & Interaction** | Tailwind CSS v4, Radix Select and Dropdown Menu, Inter, Outfit |
 | **Data & Auth** | Supabase Auth, PostgreSQL, Row Level Security, `@supabase/ssr`, `@supabase/server` |
 | **Server Admin** | Prisma 7 with PostgreSQL |
 | **Charts & Dates** | Recharts, `date-fns`, `date-fns-tz` |
