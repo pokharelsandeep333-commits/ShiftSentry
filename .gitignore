@@ -46,3 +46,6 @@ next-env.d.ts
 mcp_config.json
 
 .env.local
+
+.claude/skills/
+.claude/settings.local.json
