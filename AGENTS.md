@@ -25,7 +25,7 @@ Use strict TypeScript and the **@/** alias for **src/** imports. Follow the exis
 
 Preserve the existing purple design tokens in **src/app/globals.css** and build product UI from the shared primitives in **src/components/ui/** before adding page-specific styles. Use the local Inter body face and Outfit display face consistently; do not introduce a competing visual system or a cinematic effect that distracts from work.
 
-Use Motion for restrained, purposeful transitions and one-time reveals only. Every new animation must respect **prefers-reduced-motion**, avoid video, particles, and cursor effects, and remain responsive at mobile widths. Keep both Radix Select and Radix Dropdown Menu controls keyboard-accessible—Tab, arrow keys, Enter/Space, Escape, and click-outside behavior must continue to work—and do not replace them with native controls in the premium workspace.
+This project ships no animation library; animations were removed because they felt laggy. `Reveal` in **src/components/ui/reveal.tsx** is an intentional pass-through wrapper—do not restore animation to it. If a transition is genuinely warranted, write it in CSS, respect **prefers-reduced-motion**, avoid video, particles, and cursor effects, and keep it responsive at mobile widths. Keep both Radix Select and Radix Dropdown Menu controls keyboard-accessible—Tab, arrow keys, Enter/Space, Escape, and click-outside behavior must continue to work—and do not replace them with native controls in the premium workspace.
 
 ## Testing Guidelines
 
