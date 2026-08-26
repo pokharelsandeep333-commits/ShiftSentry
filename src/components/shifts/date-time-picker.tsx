@@ -16,6 +16,9 @@ type DateTimePickerProps = {
   error?: string;
 };
 
+const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+const dayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+
 function parseDate(date: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   if (!match) return null;
@@ -52,11 +55,11 @@ function calendarDays(month: Date) {
 }
 
 function monthLabel(month: Date) {
-  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(month);
+  return monthFormatter.format(month);
 }
 
 function dayLabel(day: Date) {
-  return new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(day);
+  return dayFormatter.format(day);
 }
 
 export function DateTimePicker({ label, name, value, onChange, error }: DateTimePickerProps) {
@@ -64,6 +67,7 @@ export function DateTimePicker({ label, name, value, onChange, error }: DateTime
   const helpId = `${name}-help`;
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const ignoreNextTriggerClickRef = useRef(false);
   const normalizedValue = formatShiftDateAndTime(value.date, value.time);
   const [inputState, setInputState] = useState(() => ({ source: normalizedValue, value: normalizedValue }));
   const displayValue = inputState.source === normalizedValue ? inputState.value : normalizedValue;
@@ -143,6 +147,24 @@ export function DateTimePicker({ label, name, value, onChange, error }: DateTime
     setOpen(true);
   }
 
+  function handleTriggerPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+
+    // Opening on press removes the click/tap delay and leaves the text field focused.
+    // The following click is intentionally ignored so this does not immediately close again.
+    event.preventDefault();
+    ignoreNextTriggerClickRef.current = true;
+    openPicker();
+  }
+
+  function handleTriggerClick() {
+    if (ignoreNextTriggerClickRef.current) {
+      ignoreNextTriggerClickRef.current = false;
+      return;
+    }
+    openPicker();
+  }
+
   function selectDate(date: Date) {
     const next = { ...pickerValue, date: dateValue(date) };
     setEntryError("");
@@ -191,7 +213,7 @@ export function DateTimePicker({ label, name, value, onChange, error }: DateTime
           aria-describedby={fieldError ? helpId : undefined}
           className="field-control pr-12"
         />
-        <Button ref={triggerRef} type="button" variant="ghost" size="icon" aria-label={`Choose ${label.toLowerCase()} date and time`} aria-expanded={open} aria-haspopup="dialog" className="absolute right-1 top-1/2 size-9 -translate-y-1/2" onClick={openPicker}><CalendarDays className="size-4" /></Button>
+        <Button ref={triggerRef} type="button" variant="ghost" size="icon" aria-label={`Choose ${label.toLowerCase()} date and time`} aria-expanded={open} aria-haspopup="dialog" className="absolute right-1 top-1/2 size-9 -translate-y-1/2 touch-manipulation" onPointerDown={handleTriggerPointerDown} onClick={handleTriggerClick}><CalendarDays className="size-4" /></Button>
       </div>
       {open && <div role="dialog" aria-label={`${label} date and time picker`} className={cn("absolute z-50 mt-2 w-[min(34rem,calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_24%,var(--border))] bg-[var(--card)] p-3 shadow-2xl shadow-black/20", name === "endsAt" ? "right-0" : "left-0")}>
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
