@@ -4,22 +4,32 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { addJobDeduction, archiveJob, createJob, deleteJobDeduction, unarchiveJob, updateJobDetails } from "@/app/actions/work";
+import { addJobDeduction, archiveJob, createJob, deleteJob, deleteJobDeduction, unarchiveJob, updateJobDetails } from "@/app/actions/work";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
-import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/earnings";
 import { formatMinutes } from "@/lib/utils";
+import { SavedToast } from "@/components/saved-toast";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobsPage() {
-  const profile = await requireUser();
+/**
+ * PostgREST returns an embedded aggregate as a one-row array. A job with no
+ * shifts can be deleted outright; one with shifts is held by the ON DELETE
+ * RESTRICT foreign key on shifts.job_id.
+ */
+function shiftCount(job: { shifts: { count: number }[] }) {
+  return job.shifts[0]?.count ?? 0;
+}
+
+export default async function JobsPage({ searchParams }: { searchParams: Promise<{ saved?: string | string[] }> }) {
+  const [profile, { saved }] = await Promise.all([requireUser(), searchParams]);
   const supabase = await createServerSupabaseClient();
-  const { data: allJobs } = await supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,job_deductions(id,name,rate_basis_points)").eq("user_id", profile.id).order("name");
+  const { data: allJobs } = await supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,job_deductions(id,name,rate_basis_points),shifts(count)").eq("user_id", profile.id).order("name");
   const jobs = (allJobs ?? []).filter((job) => !job.archived_at);
   const archivedJobs = (allJobs ?? []).filter((job) => job.archived_at);
 
   return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
+    {saved === "1" && <SavedToast message="Job created" />}
     <PageHeader eyebrow="Jobs" title="Jobs, pay, and deductions" description="Rates are saved onto each new shift, so changing them never changes past earnings." />
     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
       <Card>
@@ -34,10 +44,10 @@ export default async function JobsPage() {
       </Card>
       {archivedJobs.length > 0 && <Card>
         <CardHeader><CardTitle>Archived jobs</CardTitle></CardHeader>
-        <CardContent className="space-y-2"><p className="text-sm leading-6 text-[var(--muted-foreground)]">Archived jobs are hidden from your dashboard and excluded from hours and earnings. Restore one to start logging shifts against it again.</p>{archivedJobs.map((job) => <div key={job.id} className="flex items-center gap-3 rounded-2xl border border-dashed bg-[var(--surface-subtle)]/50 px-4 py-3">
+        <CardContent className="space-y-2"><p className="text-sm leading-6 text-[var(--muted-foreground)]">Archived jobs are hidden from your dashboard and excluded from hours and earnings. Restore one to start logging shifts against it again. A job can only be deleted once it has no shifts, so its earnings history is never lost.</p>{archivedJobs.map((job) => <div key={job.id} className="flex items-center gap-3 rounded-2xl border border-dashed bg-[var(--surface-subtle)]/50 px-4 py-3">
           <span className="size-3 shrink-0 rounded-full opacity-60" style={{ background: job.color }} />
           <div className="min-w-0 flex-1"><p className="truncate font-medium">{job.name}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{formatCents(job.hourly_rate_cents)}/hr · archived {new Date(job.archived_at!).toLocaleDateString()}</p></div>
-          <Badge variant="muted">Archived</Badge>
+          {shiftCount(job) ? <span className="text-xs font-medium text-[var(--muted-foreground)]">{shiftCount(job)} shift{shiftCount(job) === 1 ? "" : "s"} logged</span> : <form action={deleteJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Delete" confirmLabel="Delete job?" /></form>}
           <form action={unarchiveJob}><input type="hidden" name="id" value={job.id} /><Button variant="outline" size="sm">Restore</Button></form>
         </div>)}</CardContent>
       </Card>}
