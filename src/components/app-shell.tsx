@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BriefcaseBusiness, ChartNoAxesCombined, ClipboardClock, Menu, Moon, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
@@ -99,9 +100,12 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
 
   return <>
     <Button ref={menuTriggerRef} variant="ghost" size="icon" className="shrink-0 lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation menu" aria-expanded={open} aria-controls="mobile-navigation"><Menu className="size-5" /></Button>
-    {open && <>
+    {/* The header wrapping this trigger sets `backdrop-blur`, which makes it the
+        containing block for `position: fixed` descendants. Rendered in place, the
+        overlay and panel would be clipped to the header box. Portal to `body`. */}
+    {open && createPortal(<>
         <button type="button" aria-label="Close navigation menu" className="fixed inset-0 z-40 bg-black/45 lg:hidden" onClick={() => closeMenu(true)} />
-        <aside ref={panelRef} id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Mobile navigation" className="fixed inset-y-0 left-0 z-50 flex w-[min(22rem,calc(100vw-1rem))] flex-col border-r border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[var(--card)] p-3 shadow-2xl shadow-black/30 lg:hidden">
+        <aside ref={panelRef} id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Mobile navigation" className="fixed left-0 top-0 z-50 flex h-screen w-[min(22rem,calc(100vw-1rem))] flex-col overflow-y-auto overscroll-contain border-r border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[var(--card)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pt-[max(0.75rem,env(safe-area-inset-top))] shadow-2xl shadow-black/30 supports-[height:100dvh]:h-[100dvh] lg:hidden">
           <div className="flex items-center justify-between px-2 py-2">
             <Link href="/" onClick={() => closeMenu()} aria-label="Go to ShiftSentry overview"><Brand /></Link>
             <Button ref={closeButtonRef} variant="ghost" size="icon" onClick={() => closeMenu(true)} aria-label="Close navigation menu"><X className="size-5" /></Button>
@@ -111,7 +115,7 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
           </nav>
           <div className="mt-auto rounded-2xl border bg-[var(--surface-subtle)] p-4 text-sm text-[var(--muted-foreground)]">Your schedule is private to your account.</div>
         </aside>
-      </>}
+      </>, document.body)}
   </>;
 }
 
