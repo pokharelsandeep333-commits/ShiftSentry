@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PremiumSelect } from "@/components/ui/premium-select";
+import { SavedToast } from "@/components/saved-toast";
 import { requireUser } from "@/lib/auth";
 import { updateSettings } from "@/app/actions/work";
 
@@ -11,11 +12,12 @@ const timeZones = ["America/Chicago", "America/New_York", "America/Denver", "Ame
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
-  const profile = await requireUser();
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string | string[] }> }) {
+  const [profile, { saved }] = await Promise.all([requireUser(), searchParams]);
   const selectedTimeZones = [...new Set([profile.time_zone, ...timeZones])];
 
   return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
+    {saved === "1" && <SavedToast message="Settings saved" />}
     <PageHeader eyebrow="Preferences" title="Settings" description="Your time zone and week-start day determine how every cap is calculated." />
     <Card className="max-w-2xl">
       <CardHeader><CardTitle>Work schedule</CardTitle></CardHeader>
