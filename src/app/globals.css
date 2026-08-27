@@ -52,6 +52,14 @@
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
+  /* viewport-fit=cover lets the page paint under the notch and home indicator;
+     inset the app chrome back out of those areas. Fixed overlays are positioned
+     against the viewport, so they must apply env() themselves. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
   background:
     radial-gradient(circle at 5% -10%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 29rem),
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 26rem),
