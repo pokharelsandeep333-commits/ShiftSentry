@@ -56,6 +56,7 @@ Server Actions (`src/app/actions/work.ts`) validate with Zod (`src/lib/validatio
 - `sync_shift_earnings_snapshot` **overwrites** `hourly_rate_cents`, `tax_rate_basis_points`, `deductions_snapshot`, and all four `*_cents` columns on every shift insert/update. Values the action sends are advisory; the trigger is authoritative. `calculateEarnings()` in TS must match its rounding (`round(gross * rate / 10000)` per deduction, summed).
 - `enforce_shift_weekly_limits` re-checks the ≤24h span, job ownership, and global/per-job weekly caps, taking `pg_advisory_xact_lock` per user so two concurrent shifts cannot race past a cap.
 - `enforce_job_compensation_rate` keeps tax + deductions ≤ 100%.
+- `shifts_no_duplicate_span` (unique index) rejects a second shift with the same `(user_id, job_id, starts_at, ends_at)`. A double-click could outrun the form's `disabled={pending}` guard and double the logged hours; the weekly-limit trigger only caught it when a cap was set.
 
 Changing an earnings or limit rule means changing the TS helper, its test, **and** a new migration.
 
@@ -67,6 +68,7 @@ Shifts are stored as UTC `timestamptz` but every total is computed in the user's
 
 - `allocateShiftMinutes` (`src/lib/time.ts`) splits a shift at user-local midnights, preserving exact duration — an overnight shift contributes to two days.
 - `weekStartFor` / `weekEndFor` honour the per-profile `week_starts_on` (0–6).
+- **Archived jobs are excluded everywhere.** The dashboard shift query inner-joins `jobs!inner(...)` and filters `.is("jobs.archived_at", null)`, so an archived job drops out of weekly hours, weekly earnings, and the monthly chart together. Filtering at the query level is deliberate — doing it in TS previously let earnings leak while hours did not.
 - `getDashboardData` (`src/lib/dashboard.ts`) issues one shift query spanning both the current week and the 6-month `monthlyAllocationWindow`, then allocates minutes per local day for weekly totals, earned-to-date (clipped at `now`), and the monthly chart. Adding a dashboard metric means extending that single pass, not adding a query.
 
 ### Rendering

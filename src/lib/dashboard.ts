@@ -4,7 +4,7 @@ import type { DashboardData, JobSummary, ThresholdAlert } from "@/lib/types";
 import { calculateEarnings, type DeductionSnapshot } from "@/lib/earnings";
 import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-allocation";
 
-type ShiftRow = { id: string; job_id: string; starts_at: string; ends_at: string; notes: string | null; hourly_rate_cents: number; tax_rate_basis_points: number; deductions_snapshot: DeductionSnapshot[]; jobs: { name: string; color: string } | null };
+type ShiftRow = { id: string; job_id: string; starts_at: string; ends_at: string; notes: string | null; hourly_rate_cents: number; tax_rate_basis_points: number; deductions_snapshot: DeductionSnapshot[]; jobs: { name: string; color: string } };
 type JobRow = { id: string; name: string; color: string; weekly_limit_minutes: number | null };
 
 function thresholdAlerts(globalLimit: number | null, logged: number, scheduled: number, jobs: JobSummary[]): ThresholdAlert[] {
@@ -31,7 +31,7 @@ export async function getDashboardData(profile: { id: string; email: string; dis
   const supabase = await createServerSupabaseClient();
   const [jobsResult, shiftsResult] = await Promise.all([
     supabase.from("jobs").select("id,name,color,weekly_limit_minutes").eq("user_id", profile.id).is("archived_at", null).order("created_at"),
-    supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,jobs(name,color)").eq("user_id", profile.id).lt("starts_at", shiftQueryEnd.toISOString()).gt("ends_at", allocationWindow.start.toISOString()).order("starts_at"),
+    supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,jobs!inner(name,color)").eq("user_id", profile.id).is("jobs.archived_at", null).lt("starts_at", shiftQueryEnd.toISOString()).gt("ends_at", allocationWindow.start.toISOString()).order("starts_at"),
   ]);
   if (jobsResult.error) throw jobsResult.error;
   if (shiftsResult.error) throw shiftsResult.error;
@@ -64,7 +64,7 @@ export async function getDashboardData(profile: { id: string; email: string; dis
         if (allocationWeekStart.getTime() === weekStart.getTime()) { earnings.grossCents += earned.grossCents; earnings.taxCents += earned.taxCents; earnings.deductionCents += earned.deductionCents; earnings.netCents += earned.netCents; if (job) job.earnedNetCents += earned.netCents; }
       }
     }
-    if (startsAt > now && startsAt < weekEnd) upcomingShifts.push({ id: shift.id, jobId: shift.job_id, jobName: shift.jobs?.name ?? "Archived job", jobColor: shift.jobs?.color ?? "#98a2b3", startsAt: shift.starts_at, endsAt: shift.ends_at, notes: shift.notes });
+    if (startsAt > now && startsAt < weekEnd) upcomingShifts.push({ id: shift.id, jobId: shift.job_id, jobName: shift.jobs.name, jobColor: shift.jobs.color, startsAt: shift.starts_at, endsAt: shift.ends_at, notes: shift.notes });
   });
 
   const loggedMinutes = jobs.reduce((total, job) => total + job.usedMinutes, 0);
@@ -72,8 +72,8 @@ export async function getDashboardData(profile: { id: string; email: string; dis
   const monthlyJobAllocation = buildMonthlyJobAllocation({
     shifts: shifts.map((shift) => ({
       jobId: shift.job_id,
-      jobName: shift.jobs?.name ?? "Archived job",
-      jobColor: shift.jobs?.color ?? "#98a2b3",
+      jobName: shift.jobs.name,
+      jobColor: shift.jobs.color,
       startsAt: new Date(shift.starts_at),
       endsAt: new Date(shift.ends_at),
       hourlyRateCents: shift.hourly_rate_cents,
