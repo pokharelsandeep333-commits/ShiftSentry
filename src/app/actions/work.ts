@@ -110,7 +110,7 @@ export async function createJob(formData: FormData) {
   const parsed = jobSchema.safeParse({ name: formData.get("name"), color: formData.get("color"), weeklyLimitMinutes: limitMinutes, hourlyRateCents: cents(formData.get("hourlyRate")), taxRateBasisPoints: basisPoints(formData.get("taxRate"), "tax rate") });
   if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid job.");
   const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("jobs").insert({ user_id: profile.id, name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints });
-  if (error) fail("Unable to create the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); redirect("/jobs");
+  if (error) fail("Unable to create the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); redirect("/jobs?saved=1");
 }
 
 export async function updateJobDetails(formData: FormData) {
@@ -134,6 +134,23 @@ export async function deleteJobDeduction(formData: FormData) { await requireUser
 
 export async function archiveJob(formData: FormData) { const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("jobs").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", profile.id); if (error) fail("Unable to archive the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); }
 
+export async function deleteJob(formData: FormData) {
+  const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient();
+  const [{ data: job }, { count, error: countError }] = await Promise.all([
+    supabase.from("jobs").select("id,archived_at").eq("id", id).eq("user_id", profile.id).maybeSingle(),
+    supabase.from("shifts").select("id", { count: "exact", head: true }).eq("job_id", id).eq("user_id", profile.id),
+  ]);
+  if (!job) fail("This job could not be found.");
+  if (!job.archived_at) fail("Archive the job before deleting it.");
+  if (countError) fail("Unable to delete the job. Please try again.");
+  // shifts.job_id is ON DELETE RESTRICT so the database refuses this anyway; the
+  // explicit check turns a constraint violation into a message worth reading.
+  if (count) fail("This job still has shifts logged against it. Delete those shifts first.");
+  const { error } = await supabase.from("jobs").delete().eq("id", id).eq("user_id", profile.id);
+  if (error) fail("Unable to delete the job. Please try again.");
+  revalidatePath("/"); revalidatePath("/jobs");
+}
+
 export async function unarchiveJob(formData: FormData) { const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("jobs").update({ archived_at: null }).eq("id", id).eq("user_id", profile.id); if (error) fail("Unable to restore the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); }
 
-export async function updateSettings(formData: FormData) { const profile = await requireUser(); const limitHours = String(formData.get("globalWeeklyLimitHours") ?? ""); const limitMinutes = limitHours ? Math.round(Number(limitHours) * 60) : null; const parsed = profileSettingsSchema.safeParse({ displayName: formData.get("displayName"), timeZone: formData.get("timeZone"), weekStartsOn: formData.get("weekStartsOn"), globalWeeklyLimitMinutes: limitMinutes }); if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid settings."); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("profiles").update({ display_name: parsed.data.displayName || null, time_zone: parsed.data.timeZone, week_starts_on: parsed.data.weekStartsOn, global_weekly_limit_minutes: parsed.data.globalWeeklyLimitMinutes ?? null }).eq("id", profile.id); if (error) fail("Unable to update settings. Please try again."); revalidatePath("/"); revalidatePath("/settings"); redirect("/"); }
+export async function updateSettings(formData: FormData) { const profile = await requireUser(); const limitHours = String(formData.get("globalWeeklyLimitHours") ?? ""); const limitMinutes = limitHours ? Math.round(Number(limitHours) * 60) : null; const parsed = profileSettingsSchema.safeParse({ displayName: formData.get("displayName"), timeZone: formData.get("timeZone"), weekStartsOn: formData.get("weekStartsOn"), globalWeeklyLimitMinutes: limitMinutes }); if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid settings."); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("profiles").update({ display_name: parsed.data.displayName || null, time_zone: parsed.data.timeZone, week_starts_on: parsed.data.weekStartsOn, global_weekly_limit_minutes: parsed.data.globalWeeklyLimitMinutes ?? null }).eq("id", profile.id); if (error) fail("Unable to update settings. Please try again."); revalidatePath("/"); revalidatePath("/settings"); redirect("/settings?saved=1"); }

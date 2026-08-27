@@ -20,7 +20,8 @@ type ShiftFormProps = {
   mode: "create" | "edit";
   jobs: ShiftFormJob[];
   initialShift?: {
-    id: string;
+    /** Present when editing; a duplicate prefills every field but the id. */
+    id?: string;
     jobId: string;
     startsAt: string;
     endsAt: string;
@@ -103,7 +104,7 @@ export function ShiftForm({ mode, jobs, initialShift }: ShiftFormProps) {
   const endError = fieldMessage(activeProblem, state, dismissServerMessage, "endsAt");
 
   return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="grid gap-5">
-    {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id} />}
+    {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id ?? ""} />}
     <div className="field-label"><span id="job-label">Job</span><PremiumSelect name="jobId" defaultValue={initialShift?.jobId ?? jobs[0]?.id ?? ""} options={jobs.map((job) => ({ value: job.id, label: job.archived ? `${job.name} (archived)` : job.name }))} labelledBy="job-label" required /></div>
     <div className="grid gap-5 lg:grid-cols-2">
       <DateTimePicker label="Start" name="startsAt" value={startsAt} onChange={updateStart} error={startError} />

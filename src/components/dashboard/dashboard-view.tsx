@@ -6,6 +6,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, Clock3, Sparkles, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
@@ -81,14 +82,18 @@ export function DashboardView({ data, isAdmin = false }: { data: DashboardData; 
 
     <section className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <Reveal><MonthlyAllocationChart allocation={data.monthlyJobAllocation} metric="hours" /></Reveal>
-      <Reveal delay={0.06}><Card className="h-full hover:-translate-y-0.5"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">Add a job to start tracking its limit.</p>}</CardContent></Card></Reveal>
+      <Reveal delay={0.06}><Card className="h-full hover:-translate-y-0.5"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <EmptyState message="Add a job to start tracking its limit." href="/jobs" cta="Create your first job" />}</CardContent></Card></Reveal>
     </section>
 
     <section className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-      <Reveal><Card className="h-full hover:-translate-y-0.5"><CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>Coming up</CardTitle><CardDescription>Your next scheduled shifts</CardDescription></div><Link href="/shifts" className="rounded-xl px-3 py-2 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)]">See all</Link></div></CardHeader><CardContent className="space-y-1">{data.upcomingShifts.length ? data.upcomingShifts.map((shift) => <div key={shift.id} className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-[var(--surface-subtle)]"><span className="grid size-10 place-items-center rounded-xl" style={{ background: `${shift.jobColor}22`, color: shift.jobColor }}><Clock3 className="size-4" /></span><div className="min-w-0 flex-1"><p className="font-semibold">{shift.jobName}</p><p className="truncate text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.startsAt, data.viewer.timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.endsAt, data.viewer.timeZone, "h:mm a")}</p></div><ArrowRight className="size-4 text-[var(--muted-foreground)]" /></div>) : <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">Nothing scheduled this week.</p>}</CardContent></Card></Reveal>
+      <Reveal><Card className="h-full hover:-translate-y-0.5"><CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>Coming up</CardTitle><CardDescription>Your next scheduled shifts</CardDescription></div><Link href="/shifts" className="rounded-xl px-3 py-2 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--primary-soft)]">See all</Link></div></CardHeader><CardContent className="space-y-1">{data.upcomingShifts.length ? data.upcomingShifts.map((shift) => <Link key={shift.id} href={`/shifts/${shift.id}/edit`} className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-[var(--surface-subtle)]"><span className="grid size-10 place-items-center rounded-xl" style={{ background: `${shift.jobColor}22`, color: shift.jobColor }}><Clock3 className="size-4" /></span><div className="min-w-0 flex-1"><p className="font-semibold">{shift.jobName}</p><p className="truncate text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.startsAt, data.viewer.timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.endsAt, data.viewer.timeZone, "h:mm a")}</p></div><ArrowRight className="size-4 text-[var(--muted-foreground)]" /></Link>) : <EmptyState message="Nothing scheduled this week." href="/shifts/new" cta="Schedule your first shift" />}</CardContent></Card></Reveal>
       <Reveal delay={0.06}><Card className="h-full hover:-translate-y-0.5"><CardHeader><CardTitle>How projections work</CardTitle><CardDescription>Stay ahead instead of reacting late.</CardDescription></CardHeader><CardContent className="space-y-2 text-sm"><ProjectionStep icon={CheckCircle2} color="var(--success)">Past and current shifts count as logged time.</ProjectionStep><ProjectionStep icon={CalendarClock} color="var(--primary)">Future shifts are included in your projected total.</ProjectionStep><ProjectionStep icon={AlertTriangle} color="var(--warning)">We alert you at 80%, 90%, and 100%.</ProjectionStep></CardContent></Card></Reveal>
     </section>
   </AppShell>;
+}
+
+function EmptyState({ message, href, cta }: { message: string; href: string; cta: string }) {
+  return <div className="rounded-2xl border border-dashed px-5 py-8 text-center"><p className="text-sm leading-6 text-[var(--muted-foreground)]">{message}</p><Link href={href} className="mt-4 inline-block"><Button size="sm">{cta}</Button></Link></div>;
 }
 
 function Metric({ label, value, success = false }: { label: string; value: string; success?: boolean }) {
