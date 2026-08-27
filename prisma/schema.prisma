@@ -69,6 +69,7 @@ model Shift {
   user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
   job       Job      @relation(fields: [jobId], references: [id], onDelete: Restrict)
 
+  @@unique([userId, jobId, startsAt, endsAt], map: "shifts_no_duplicate_span")
   @@index([userId, startsAt])
   @@index([jobId, startsAt])
   @@map("shifts")
