@@ -43,6 +43,7 @@ function shiftDatabaseError(message: string): ShiftActionState {
   if (normalized.includes("global weekly limit")) return shiftError("This shift exceeds your global weekly limit.", "endsAt");
   if (normalized.includes("job weekly limit")) return shiftError("This shift exceeds this job's weekly limit.", "endsAt");
   if (normalized.includes("longer than zero") || normalized.includes("valid interval")) return shiftError("End time must be after start time.", "endsAt");
+  if (normalized.includes("shifts_no_duplicate_span") || normalized.includes("duplicate key")) return shiftError("You already logged this exact shift.", "startsAt");
   return shiftError("We couldn't save this shift. Please try again.");
 }
 
