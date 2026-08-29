@@ -1,11 +1,14 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { fromZonedTime } from "date-fns-tz";
 import { createShift, updateShift, type ShiftActionState } from "@/app/actions/work";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker, type ShiftDateTimeParts } from "@/components/shifts/date-time-picker";
 import { PremiumSelect } from "@/components/ui/premium-select";
+import { calculateEarnings, formatCents, type DeductionSnapshot } from "@/lib/earnings";
 import { combineShiftDateAndTime, parseShiftDateTimeInput, synchronizedEndDate } from "@/lib/shift-date-time";
+import { formatMinutes } from "@/lib/utils";
 
 type ShiftField = "startsAt" | "endsAt";
 
@@ -14,11 +17,16 @@ export type ShiftFormJob = {
   name: string;
   color: string;
   archived?: boolean;
+  hourlyRateCents: number;
+  taxRateBasisPoints: number;
+  deductions: DeductionSnapshot[];
 };
 
 type ShiftFormProps = {
   mode: "create" | "edit";
   jobs: ShiftFormJob[];
+  /** The viewer's IANA zone, so the preview measures the same span the action will store. */
+  timeZone: string;
   initialShift?: {
     /** Present when editing; a duplicate prefills every field but the id. */
     id?: string;
@@ -52,12 +60,40 @@ function fieldMessage(problem: FormProblem | null, state: ShiftActionState, dism
   return undefined;
 }
 
-export function ShiftForm({ mode, jobs, initialShift }: ShiftFormProps) {
+const REPEAT_OPTIONS = [
+  { value: "1", label: "Just this shift" },
+  { value: "2", label: "Repeat weekly × 2" },
+  { value: "4", label: "Repeat weekly × 4" },
+  { value: "6", label: "Repeat weekly × 6" },
+  { value: "8", label: "Repeat weekly × 8" },
+  { value: "12", label: "Repeat weekly × 12" },
+];
+
+/**
+ * Minutes between the two pickers, measured through the viewer's zone so an
+ * overnight shift across a DST boundary previews the same span the server
+ * stores. Returns null until both halves parse into a forward interval.
+ */
+function previewMinutes(startsAt: ShiftDateTimeParts, endsAt: ShiftDateTimeParts, timeZone: string) {
+  const start = combineShiftDateAndTime(startsAt.date, startsAt.time);
+  const end = combineShiftDateAndTime(endsAt.date, endsAt.time);
+  if (!start || !end) return null;
+  const minutes = Math.floor((fromZonedTime(end, timeZone).getTime() - fromZonedTime(start, timeZone).getTime()) / 60_000);
+  return minutes > 0 ? minutes : null;
+}
+
+function PreviewFigure({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return <div><dt className="text-xs font-medium text-[var(--muted-foreground)]">{label}</dt><dd className={accent ? "mt-1 font-display text-lg font-semibold text-[var(--success)]" : "mt-1 font-display text-lg font-semibold"}>{value}</dd></div>;
+}
+
+export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps) {
   const initialStart = partsFromValue(initialShift?.startsAt);
   const initialEnd = partsFromValue(initialShift?.endsAt);
   const [startsAt, setStartsAt] = useState(initialStart);
   const [endsAt, setEndsAt] = useState(initialEnd);
   const [endDateFollowsStart, setEndDateFollowsStart] = useState(() => !initialEnd.date || initialStart.date === initialEnd.date);
+  const [jobId, setJobId] = useState(initialShift?.jobId ?? jobs[0]?.id ?? "");
+  const [repeatWeeks, setRepeatWeeks] = useState(1);
   const [submissionProblem, setSubmissionProblem] = useState<FormProblem | null>(null);
   const [dismissedState, setDismissedState] = useState<ShiftActionState | null>(null);
   const action = mode === "create" ? createShift : updateShift;
@@ -70,6 +106,14 @@ export function ShiftForm({ mode, jobs, initialShift }: ShiftFormProps) {
     return startValue && endValue && endValue <= startValue ? { field: "endsAt" as const, message: "End time must be after start time." } : null;
   }, [endsAt.date, endsAt.time, startsAt.date, startsAt.time]);
   const activeProblem = intervalProblem ?? submissionProblem;
+
+  const preview = useMemo(() => {
+    const minutes = previewMinutes(startsAt, endsAt, timeZone);
+    const job = jobs.find((candidate) => candidate.id === jobId);
+    if (minutes === null || !job) return null;
+    const pay = calculateEarnings(minutes, { hourlyRateCents: job.hourlyRateCents, taxRateBasisPoints: job.taxRateBasisPoints, deductions: job.deductions });
+    return { minutes, pay };
+  }, [endsAt, jobId, jobs, startsAt, timeZone]);
 
   function markEdited() {
     setSubmissionProblem(null);
@@ -105,11 +149,19 @@ export function ShiftForm({ mode, jobs, initialShift }: ShiftFormProps) {
 
   return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="grid gap-5">
     {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id ?? ""} />}
-    <div className="field-label"><span id="job-label">Job</span><PremiumSelect name="jobId" defaultValue={initialShift?.jobId ?? jobs[0]?.id ?? ""} options={jobs.map((job) => ({ value: job.id, label: job.archived ? `${job.name} (archived)` : job.name }))} labelledBy="job-label" required /></div>
+    <div className="field-label"><span id="job-label">Job</span><PremiumSelect name="jobId" defaultValue={jobId} options={jobs.map((job) => ({ value: job.id, label: job.archived ? `${job.name} (archived)` : job.name }))} labelledBy="job-label" onValueChange={(value) => { markEdited(); setJobId(value); }} required /></div>
     <div className="grid gap-5 lg:grid-cols-2">
       <DateTimePicker label="Start" name="startsAt" value={startsAt} onChange={updateStart} error={startError} />
       <DateTimePicker label="End" name="endsAt" value={endsAt} onChange={updateEnd} error={endError} />
     </div>
+    {preview && <dl className="grid grid-cols-2 gap-4 rounded-2xl border bg-[var(--surface-subtle)] p-4 sm:grid-cols-4">
+      <PreviewFigure label="Duration" value={formatMinutes(preview.minutes)} />
+      <PreviewFigure label="Gross" value={formatCents(preview.pay.grossCents)} />
+      <PreviewFigure label="Tax + deductions" value={`−${formatCents(preview.pay.taxCents + preview.pay.deductionCents)}`} />
+      <PreviewFigure label="Net" value={formatCents(preview.pay.netCents)} accent />
+    </dl>}
+    {preview && repeatWeeks > 1 && <p className="-mt-2 text-sm text-[var(--muted-foreground)]">{repeatWeeks} shifts · {formatMinutes(preview.minutes * repeatWeeks)} · {formatCents(preview.pay.netCents * repeatWeeks)} net, if every week fits your caps.</p>}
+    {mode === "create" && <div className="field-label"><span id="repeat-label">Repeat</span><PremiumSelect name="repeatWeeks" defaultValue="1" options={REPEAT_OPTIONS} labelledBy="repeat-label" onValueChange={(value) => setRepeatWeeks(Number(value))} /></div>}
     {generalMessage && <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{generalMessage}</p>}
     <label className="field-label"><span>Notes</span><textarea name="notes" defaultValue={initialShift?.notes ?? ""} maxLength={500} onInput={markEdited} className="field-textarea text-sm" placeholder="Optional notes" /></label>
     <div><Button type="submit" disabled={pending}>{pending ? "Saving…" : mode === "create" ? "Save shift" : "Save changes"}</Button></div>

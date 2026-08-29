@@ -9,21 +9,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { SavedToast } from "@/components/saved-toast";
 import { deleteShift } from "@/app/actions/work";
+import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
 import { formatMinutes } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-/**
- * The same wall-clock time one week later in the viewer's zone. Bumping the
- * local calendar date rather than adding 168 hours keeps a duplicate landing at
- * the same hour even when DST changes inside that week.
- */
 function nextWeekLocal(value: string, timeZone: string) {
-  const [date, time] = formatInTimeZone(value, timeZone, "yyyy-MM-dd'T'HH:mm").split("T");
-  const bumped = new Date(`${date}T00:00:00Z`);
-  bumped.setUTCDate(bumped.getUTCDate() + 7);
-  return `${bumped.toISOString().slice(0, 10)}T${time}`;
+  return addWeeksToLocalDateTime(formatInTimeZone(value, timeZone, "yyyy-MM-dd'T'HH:mm"), 1);
+}
+
+/** Reports what a weekly repeat actually managed to create. */
+function createdMessage(created: number, skipped: number) {
+  if (!created) return "";
+  const added = created === 1 ? "Shift added" : `${created} shifts added`;
+  if (!skipped) return added;
+  return `${added}. ${skipped} skipped — they clash with an existing shift or a weekly cap.`;
 }
 
 function duplicateHref(shift: { job_id: string; starts_at: string; ends_at: string; notes: string | null }, timeZone: string) {
@@ -32,12 +34,15 @@ function duplicateHref(shift: { job_id: string; starts_at: string; ends_at: stri
   return `/shifts/new?${params.toString()}`;
 }
 
-export default async function ShiftsPage() {
+export default async function ShiftsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const profile = await requireUser();
+  const params = await searchParams;
+  const saved = createdMessage(Number(params.created ?? 0), Number(params.skipped ?? 0));
   const supabase = await createServerSupabaseClient();
   const { data: shifts } = await supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,jobs(name,color,archived_at)").eq("user_id", profile.id).order("starts_at", { ascending: false }).limit(100);
 
   return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
+    {saved && <SavedToast message={saved} clearParams={["created", "skipped"]} />}
     <PageHeader eyebrow="Shift log" title="All shifts" description="Future entries are included in projected cap warnings." actions={<Link href="/shifts/new"><Button><CalendarClock className="size-4" />Add shift</Button></Link>} />
     <Card>
       <CardContent className="p-2 sm:p-3">{shifts?.length ? shifts.map((shift) => {

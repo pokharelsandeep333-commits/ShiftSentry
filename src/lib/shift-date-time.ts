@@ -98,6 +98,21 @@ export function formatShiftDateAndTime(date: string, time: string) {
   return formatShiftDateOnly(date);
 }
 
+/**
+ * The same wall-clock time N weeks later. Bumping the local calendar date
+ * rather than adding 168 hours per week keeps a repeat landing at the same hour
+ * even when a DST change falls inside the span. Returns "" for unparseable
+ * input so callers can skip the occurrence.
+ */
+export function addWeeksToLocalDateTime(value: string, weeks: number) {
+  const parsed = parseShiftDateTimeInput(value);
+  if (!parsed || !Number.isInteger(weeks)) return "";
+  const [year, month, day] = parsed.date.split("-").map(Number);
+  const bumped = new Date(Date.UTC(year, month - 1, day));
+  bumped.setUTCDate(bumped.getUTCDate() + weeks * 7);
+  return `${bumped.toISOString().slice(0, 10)}T${parsed.time}`;
+}
+
 export function synchronizedEndDate(startDate: string, endDateFollowsStart: boolean) {
   return endDateFollowsStart && formatShiftDateOnly(startDate) ? startDate : null;
 }
