@@ -3,12 +3,15 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { ServiceWorkerRegistrar } from "@/components/service-worker";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sentry.sandeeppokharel.com.np"),
   title: "ShiftSentry | Plan work with confidence",
   description: "Track shifts, forecast weekly hours, and stay ahead of every limit.",
   applicationName: "ShiftSentry",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "ShiftSentry", statusBarStyle: "black-translucent" },
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
@@ -39,7 +42,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html suppressHydrationWarning lang="en" className="dark h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <ThemeProvider><ToastProvider>{children}</ToastProvider></ThemeProvider>
+        <ThemeProvider><ToastProvider>{children}<ServiceWorkerRegistrar /></ToastProvider></ThemeProvider>
       </body>
     </html>
   );
