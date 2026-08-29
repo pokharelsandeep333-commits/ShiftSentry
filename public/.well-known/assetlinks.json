@@ -1,11 +1,13 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
-      "package_name": "np.com.np.sandeeppokharel.sentry.twa",
+      "package_name": "com.sandeeppokharel.shiftsentry",
       "sha256_cert_fingerprints": [
-        "REPLACE_WITH_SHA256_FINGERPRINT_FROM_BUBBLEWRAP"
+        "4A:C5:85:FA:85:74:7C:4A:F6:E4:B0:48:18:B7:C3:74:7B:D0:28:52:3D:67:8D:AA:E5:47:74:51:B4:C0:1B:10"
       ]
     }
   }
