@@ -100,13 +100,44 @@ function Metric({ label, value, success = false }: { label: string; value: strin
   return <div className={success ? "rounded-2xl border border-[color-mix(in_srgb,var(--success)_20%,var(--border))] bg-[color-mix(in_srgb,var(--success)_10%,transparent)] p-3.5" : "rounded-2xl border bg-[var(--surface-subtle)] p-3.5"}><p className="text-xs font-medium text-[var(--muted-foreground)]">{label}</p><p className={success ? "mt-1.5 font-display text-lg font-semibold text-[var(--success)]" : "mt-1.5 font-display text-lg font-semibold"}>{value}</p></div>;
 }
 
+const BAR_CAP_RADIUS = 8;
+
+// Recharts applies `radius` to every segment of a stack, which turns the middle
+// pieces into pills. Cap only the topmost segment that actually has value this
+// month so the stack still reads as one column.
+function topmostSeriesKey(payload: Record<string, unknown>, seriesKeys: string[]) {
+  for (let index = seriesKeys.length - 1; index >= 0; index -= 1) {
+    if (Number(payload[seriesKeys[index]] ?? 0) > 0) return seriesKeys[index];
+  }
+  return null;
+}
+
+function StackedBarShape({ seriesKey, seriesKeys = [], payload = {}, x = 0, y = 0, width = 0, height = 0, fill }: {
+  seriesKey?: string;
+  seriesKeys?: string[];
+  payload?: Record<string, unknown>;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  fill?: string;
+}) {
+  if (width <= 0 || height <= 0) return null;
+  // Clamp to the segment height, or a thin top slice renders the curve as a smear.
+  const radius = seriesKey === topmostSeriesKey(payload, seriesKeys) ? Math.min(BAR_CAP_RADIUS, width / 2, height) : 0;
+  if (!radius) return <rect x={x} y={y} width={width} height={height} fill={fill} />;
+
+  return <path fill={fill} d={`M${x},${y + height} L${x},${y + radius} Q${x},${y} ${x + radius},${y} L${x + width - radius},${y} Q${x + width},${y} ${x + width},${y + radius} L${x + width},${y + height} Z`} />;
+}
+
 function MonthlyAllocationChart({ allocation, metric }: { allocation: DashboardData["monthlyJobAllocation"]; metric: "earnings" | "hours" }) {
   const isEarnings = metric === "earnings";
   const chartData = allocation.months.map((month) => ({ label: month.label, ...(isEarnings ? month.netCents : month.loggedMinutes) }));
+  const seriesKeys = allocation.series.map((series) => series.key);
   const title = isEarnings ? "Net earnings by job" : "Logged hours by job";
   const description = "Actual monthly allocation for the last six months.";
 
-  return <Card className="h-full hover:-translate-y-0.5"><CardHeader><CardTitle>{title}</CardTitle><CardDescription>{description}</CardDescription></CardHeader><CardContent>{allocation.series.length ? <><div className="mb-4 flex flex-wrap gap-x-4 gap-y-2" aria-label={`${title} legend`}>{allocation.series.map((series) => <span key={series.key} className="flex items-center gap-2 text-xs font-medium text-[var(--muted-foreground)]"><i className="size-2.5 rounded-full" style={{ background: series.color }} />{series.name}</span>)}</div><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData} margin={{ left: -14, right: 8, top: 4 }}><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} /><YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} tickFormatter={(value) => isEarnings ? `$${Math.round(Number(value) / 100)}` : `${formatHours(Number(value))}h`} /><Tooltip cursor={{ fill: "var(--surface-subtle)" }} formatter={(value, name) => [isEarnings ? formatCents(Number(value)) : formatMinutes(Number(value)), name]} contentStyle={chartTooltip} itemStyle={{ color: "var(--foreground)", fontSize: "14px" }} labelStyle={{ color: "var(--muted-foreground)", fontWeight: "500", marginBottom: "4px" }} />{allocation.series.map((series) => <Bar key={series.key} dataKey={series.key} name={series.name} stackId="allocation" fill={series.color} maxBarSize={44} animationDuration={700} />)}</BarChart></ResponsiveContainer></div></> : <p className="py-20 text-center text-sm text-[var(--muted-foreground)]">No worked shifts in this six-month period.</p>}</CardContent></Card>;
+  return <Card className="h-full hover:-translate-y-0.5"><CardHeader><CardTitle>{title}</CardTitle><CardDescription>{description}</CardDescription></CardHeader><CardContent>{allocation.series.length ? <><div className="mb-4 flex flex-wrap gap-x-4 gap-y-2" aria-label={`${title} legend`}>{allocation.series.map((series) => <span key={series.key} className="flex items-center gap-2 text-xs font-medium text-[var(--muted-foreground)]"><i className="size-2.5 rounded-full" style={{ background: series.color }} />{series.name}</span>)}</div><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData} margin={{ left: -14, right: 8, top: 4 }}><CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} /><YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} tickFormatter={(value) => isEarnings ? `$${Math.round(Number(value) / 100)}` : `${formatHours(Number(value))}h`} /><Tooltip cursor={{ fill: "color-mix(in srgb, var(--surface-subtle) 65%, transparent)", radius: 12 }} formatter={(value, name) => [isEarnings ? formatCents(Number(value)) : formatMinutes(Number(value)), name]} contentStyle={chartTooltip} itemStyle={{ color: "var(--foreground)", fontSize: "14px" }} labelStyle={{ color: "var(--muted-foreground)", fontWeight: "500", marginBottom: "4px" }} />{allocation.series.map((series) => <Bar key={series.key} dataKey={series.key} name={series.name} stackId="allocation" fill={series.color} maxBarSize={44} animationDuration={700} shape={<StackedBarShape seriesKey={series.key} seriesKeys={seriesKeys} />} />)}</BarChart></ResponsiveContainer></div></> : <p className="py-20 text-center text-sm text-[var(--muted-foreground)]">No worked shifts in this six-month period.</p>}</CardContent></Card>;
 }
 
 function JobLimit({ job }: { job: DashboardData["jobs"][number] }) {
