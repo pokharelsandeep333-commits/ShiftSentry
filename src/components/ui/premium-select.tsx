@@ -13,10 +13,12 @@ type PremiumSelectProps = {
   labelledBy: string;
   required?: boolean;
   className?: string;
+  /** Optional: mirror the selection into React state. The select stays uncontrolled. */
+  onValueChange?: (value: string) => void;
 };
 
-export function PremiumSelect({ name, defaultValue, options, labelledBy, required = false, className }: PremiumSelectProps) {
-  return <Select.Root name={name} defaultValue={defaultValue} required={required}>
+export function PremiumSelect({ name, defaultValue, options, labelledBy, required = false, className, onValueChange }: PremiumSelectProps) {
+  return <Select.Root name={name} defaultValue={defaultValue} required={required} onValueChange={onValueChange}>
     <Select.Trigger
       aria-labelledby={labelledBy}
       className={cn("field-control group flex items-center justify-between gap-3 text-left text-sm font-medium data-[placeholder]:text-[var(--muted-foreground)]", className)}
