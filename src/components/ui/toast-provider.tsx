@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   return <ToastContext.Provider value={value}>
     {children}
-    <div aria-live="polite" className="pointer-events-none fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-[60] flex w-[min(22rem,calc(100vw-2rem))] flex-col items-end gap-2">
+    <div aria-live="polite" className="pointer-events-none fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] lg:bottom-[max(1rem,env(safe-area-inset-bottom))] z-[60] flex w-[min(22rem,calc(100vw-2rem))] flex-col items-end gap-2">
       {toasts.map((entry) => <div key={entry.id} className="pointer-events-auto flex w-full items-start gap-2.5 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[var(--card)]/96 px-4 py-3 text-sm font-medium shadow-2xl shadow-black/20 backdrop-blur-xl" style={{ animation: `${entry.leaving ? "toast-out 180ms ease-in forwards" : "toast-in 220ms cubic-bezier(0.16,1,0.3,1)"}` }}>
         <span className="mt-1.5 size-2 shrink-0 rounded-full bg-[var(--primary)]" />
         <span className="leading-6">{entry.message}</span>
