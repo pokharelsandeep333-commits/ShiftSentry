@@ -20,6 +20,15 @@ const navigation = [
 
 type NavigationItem = typeof navigation[number];
 
+/**
+ * The sidebar and drawer match the path exactly, so /shifts/new highlights
+ * nothing. That is invisible in a list but obvious in a bottom bar, where one
+ * tab is always expected to be lit, so nested routes light their section here.
+ */
+function isNavigationActive(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
@@ -42,6 +51,36 @@ function NavigationLink({ item, active, onNavigate }: { item: NavigationItem; ac
     {item.label}
     {active && <span className="absolute right-2 size-1.5 rounded-full bg-[var(--primary)]" />}
   </Link>;
+}
+
+function BottomNavigationLink({ item, active }: { item: NavigationItem; active: boolean }) {
+  const Icon = item.icon;
+
+  return <Link href={item.href} aria-current={active ? "page" : undefined} className={cn(
+    "flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 pb-1.5 pt-2 text-[11px] font-semibold leading-none transition-colors",
+    active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
+  )}>
+    <span className={cn("grid h-7 w-12 place-items-center rounded-full transition-colors", active && "bg-[var(--primary-soft)]")}>
+      <Icon className="size-5" />
+    </span>
+    {item.label}
+  </Link>;
+}
+
+/**
+ * Thumb-reachable navigation for phones and tablets, shown at exactly the width
+ * where the sidebar disappears. `env(safe-area-inset-bottom)` keeps the labels
+ * clear of the iOS home indicator and the Android gesture bar -- without it the
+ * bar looks correct in a browser and gets cropped inside the installed app.
+ *
+ * Admin stays in the drawer; these four are the everyday destinations.
+ */
+function BottomNavigation({ pathname }: { pathname: string }) {
+  return <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t bg-[var(--background)]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+    <div className="mx-auto flex max-w-md items-stretch gap-1 px-2 py-1">
+      {navigation.map((item) => <BottomNavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} />)}
+    </div>
+  </nav>;
 }
 
 function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: boolean }) {
@@ -133,7 +172,8 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail 
     </aside>
     <div className="min-w-0">
       <header className="px-3 pt-3 sm:px-5 lg:px-6"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-1 rounded-[1.25rem] border bg-[var(--background)]/90 px-2 shadow-lg shadow-black/[0.03] backdrop-blur-xl sm:h-16 sm:px-3"><div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2"><MobileNavigation pathname={pathname} isAdmin={isAdmin} /><Link href="/" className="min-w-0 lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2" /></Link></div><div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><ThemeToggle /><Link href="/shifts/new" aria-label="Add shift"><Button size="sm" className="size-9 rounded-xl p-0 sm:h-8 sm:w-auto sm:px-3"><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Button></Link>{!isDemo && <AccountMenu email={userEmail} />}</div></div></header>
-      <main className="mx-auto max-w-[96rem] p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8 lg:pb-12">{children}</main>
+      <main className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-6 lg:p-8 lg:pb-12">{children}</main>
+      <BottomNavigation pathname={pathname} />
     </div>
   </div>;
 }
