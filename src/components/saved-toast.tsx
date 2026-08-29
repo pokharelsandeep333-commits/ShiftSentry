@@ -9,15 +9,16 @@ import { useToast } from "@/components/ui/toast-provider";
  * Actions that redirect away from the form they submitted use this instead of
  * holding state across the navigation.
  */
-export function SavedToast({ message }: { message: string }) {
+export function SavedToast({ message, clearParams = ["saved"] }: { message: string; clearParams?: string[] }) {
   const { toast } = useToast();
+  const flags = clearParams.join(",");
 
   useEffect(() => {
     toast(message);
     const url = new URL(window.location.href);
-    url.searchParams.delete("saved");
+    for (const flag of flags.split(",")) url.searchParams.delete(flag);
     window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  }, [message, toast]);
+  }, [flags, message, toast]);
 
   return null;
 }

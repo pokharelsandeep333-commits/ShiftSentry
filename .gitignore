@@ -47,5 +47,11 @@ mcp_config.json
 
 .env.local
 
-.claude/skills/
-.claude/settings.local.json
+# Claude Code local state (skills are vendored via skills-lock.json)
+.claude/
+
+# Editor config: share the project-wide CSS/Tailwind setup, keep personal files out
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tailwind.css-data.json

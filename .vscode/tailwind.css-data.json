@@ -1,0 +1,68 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@theme",
+      "description": "Tailwind v4: defines design tokens as CSS variables that generate utility classes. `@theme inline` emits the variables without wrapping them in the theme layer.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/theme" }
+      ]
+    },
+    {
+      "name": "@source",
+      "description": "Tailwind v4: registers an extra path for class-name scanning, beyond automatic content detection.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/detecting-classes-in-source-files" }
+      ]
+    },
+    {
+      "name": "@utility",
+      "description": "Tailwind v4: defines a custom utility that participates in variants such as `hover:` and `md:`.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/adding-custom-styles#adding-custom-utilities" }
+      ]
+    },
+    {
+      "name": "@variant",
+      "description": "Tailwind v4: applies an existing variant's styles inside a custom CSS rule.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/adding-custom-styles#using-variants" }
+      ]
+    },
+    {
+      "name": "@custom-variant",
+      "description": "Tailwind v4: defines a new variant, e.g. `@custom-variant dark (&:where(.dark, .dark *));`.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/adding-custom-styles#adding-custom-variants" }
+      ]
+    },
+    {
+      "name": "@apply",
+      "description": "Inlines the styles of existing utility classes into a custom CSS rule.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/adding-custom-styles#using-apply-to-inline-existing-utility-classes" }
+      ]
+    },
+    {
+      "name": "@reference",
+      "description": "Tailwind v4: loads a stylesheet's theme for `@apply` inside a separate file (e.g. a component's `<style>` block) without duplicating its output.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/functions-and-directives#reference-directive" }
+      ]
+    },
+    {
+      "name": "@plugin",
+      "description": "Tailwind v4: loads a JavaScript plugin.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/functions-and-directives#plugin-directive" }
+      ]
+    },
+    {
+      "name": "@config",
+      "description": "Tailwind v4: loads a legacy JavaScript config file.",
+      "references": [
+        { "name": "Tailwind docs", "url": "https://tailwindcss.com/docs/functions-and-directives#config-directive" }
+      ]
+    }
+  ]
+}
