@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { fromZonedTime } from "date-fns-tz";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalDeductionRate, type DeductionSnapshot } from "@/lib/earnings";
 import { deductionSchema, jobSchema, profileSettingsSchema, resourceIdSchema, shiftSchema } from "@/lib/validation";
-import { parseShiftDateTimeInput } from "@/lib/shift-date-time";
+import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 
 function fail(message: string): never { throw new Error(message); }
 function cents(value: FormDataEntryValue | null) { const result = parseMoneyToCents(String(value ?? "")); return result === null ? fail("Enter a valid hourly rate, such as 18.50.") : result; }
@@ -73,15 +73,52 @@ function shiftPayload(input: ShiftInput, job: NonNullable<Awaited<ReturnType<typ
   };
 }
 
+/** Weekly repeats the create form offers. Anything else falls back to a single shift. */
+const REPEAT_WEEK_CHOICES = new Set([1, 2, 4, 6, 8, 12]);
+
+function repeatWeeksFrom(formData: FormData) {
+  const weeks = Number(formData.get("repeatWeeks") ?? 1);
+  return REPEAT_WEEK_CHOICES.has(weeks) ? weeks : 1;
+}
+
+/**
+ * The same shift shifted forward by whole weeks, in the viewer's local calendar
+ * so the wall-clock hour survives a DST change. Returns null when the bumped
+ * value cannot be parsed, so the caller skips that week rather than storing a
+ * garbage interval.
+ */
+function occurrenceAt(input: ShiftInput, week: number, timeZone: string): ShiftInput | null {
+  if (week === 0) return input;
+  const startsAt = addWeeksToLocalDateTime(formatInTimeZone(input.startsAt, timeZone, "yyyy-MM-dd'T'HH:mm"), week);
+  const endsAt = addWeeksToLocalDateTime(formatInTimeZone(input.endsAt, timeZone, "yyyy-MM-dd'T'HH:mm"), week);
+  if (!startsAt || !endsAt) return null;
+  return { ...input, startsAt: fromZonedTime(startsAt, timeZone), endsAt: fromZonedTime(endsAt, timeZone) };
+}
+
 export async function createShift(_previousState: ShiftActionState, formData: FormData): Promise<ShiftActionState> {
   const profile = await requireUser();
   const input = parseShiftInput(formData, profile.time_zone);
   if ("error" in input) return input.error;
   const { supabase, job, error: jobError } = await jobSnapshot(profile.id, input.data.jobId);
   if (jobError || !job || job.archived_at) return shiftError("Choose one of your active jobs.");
-  const { error } = await supabase.from("shifts").insert({ user_id: profile.id, ...shiftPayload(input.data, job) });
-  if (error) return shiftDatabaseError(error.message);
-  revalidatePath("/"); revalidatePath("/shifts"); redirect("/shifts");
+
+  // Insert each week on its own so a single collision -- a duplicate span or a
+  // weekly cap -- skips that week instead of failing the whole repeat.
+  const weeks = repeatWeeksFrom(formData);
+  let created = 0;
+  let firstFailure: ShiftActionState | null = null;
+
+  for (let week = 0; week < weeks; week += 1) {
+    const occurrence = occurrenceAt(input.data, week, profile.time_zone);
+    if (!occurrence) { firstFailure ??= shiftError("We couldn't schedule one of the repeats."); continue; }
+    const { error } = await supabase.from("shifts").insert({ user_id: profile.id, ...shiftPayload(occurrence, job) });
+    if (error) firstFailure ??= shiftDatabaseError(error.message);
+    else created += 1;
+  }
+
+  if (!created) return firstFailure ?? shiftError("We couldn't save this shift. Please try again.");
+  revalidatePath("/"); revalidatePath("/shifts");
+  redirect(`/shifts?created=${created}&skipped=${weeks - created}`);
 }
 
 export async function updateShift(_previousState: ShiftActionState, formData: FormData): Promise<ShiftActionState> {
