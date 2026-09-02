@@ -1,4 +1,3 @@
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +27,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const jobs = (allJobs ?? []).filter((job) => !job.archived_at);
   const archivedJobs = (allJobs ?? []).filter((job) => job.archived_at);
 
-  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
+  return <>
     {saved === "1" && <SavedToast message="Job created" />}
     <PageHeader eyebrow="Jobs" title="Jobs, pay, and deductions" description="Rates are saved onto each new shift, so changing them never changes past earnings." />
     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -56,5 +55,5 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <CardContent><form action={createJob} className="grid gap-4"><label className="field-label"><span>Job name</span><input name="name" required maxLength={80} className="field-control" placeholder="e.g. Campus desk" /></label><div className="grid grid-cols-2 gap-3"><label className="field-label"><span>Hourly rate ($)</span><input name="hourlyRate" required inputMode="decimal" placeholder="18.50" className="field-control" /></label><label className="field-label"><span>Tax rate (%)</span><input name="taxRate" required inputMode="decimal" defaultValue="0" className="field-control" /></label></div><label className="field-label"><span>Color</span><input name="color" type="color" defaultValue="#9486ff" className="field-control h-11 cursor-pointer p-1.5" /></label><label className="field-label"><span>Weekly limit (hours)</span><input name="weeklyLimitHours" type="number" min={1} max={168} className="field-control" placeholder="Leave blank for no limit" /></label><p className="rounded-xl bg-[var(--surface-subtle)] px-3 py-2.5 text-xs leading-5 text-[var(--muted-foreground)]">You can add named percentage deductions after creating the job.</p><Button type="submit">Create job</Button></form></CardContent>
       </Card>
     </div>
-  </AppShell>;
+  </>;
 }

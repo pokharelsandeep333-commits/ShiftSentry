@@ -249,7 +249,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      shift_week_count_before: {
+        Args: {
+          p_time_zone: string;
+          p_week_starts_on: number;
+          p_before: string;
+        };
+        Returns: number;
+      };
     };
     Enums: {
       app_role: "USER" | "ADMIN";
