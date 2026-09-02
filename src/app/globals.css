@@ -181,6 +181,19 @@ body {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Loading-boundary placeholders. The `prefers-reduced-motion` block below
+   flattens the pulse to a static block, which is the intent. */
+@keyframes skeleton-pulse {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+.skeleton {
+  border-radius: 0.85rem;
+  background: var(--surface-subtle);
+  animation: skeleton-pulse 1.15s ease-in-out infinite alternate;
+}
+
 @keyframes toast-out {
   from { opacity: 1; transform: translateY(0) scale(1); }
   to { opacity: 0; transform: translateY(0.35rem) scale(0.98); }

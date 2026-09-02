@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -17,9 +18,22 @@ function allowlisted(email: string) {
   return values.includes(email.toLowerCase());
 }
 
-export async function getSignedInProfile(): Promise<Profile | null> {
+/**
+ * Memoised for the request. A layout, its page, and any helper they share all
+ * ask for the profile; without `cache` that is one JWT verification and one
+ * `profiles` round trip each.
+ *
+ * `getClaims` rather than `getUser`: with asymmetric JWT signing keys it
+ * verifies the token locally against a cached JWKS instead of calling
+ * `/auth/v1/user` on every render. On a project still signing with the
+ * symmetric secret it falls back to exactly the `getUser` call this replaced,
+ * so it is never slower and never less strict. `getSession` would be neither --
+ * it trusts the cookie unverified.
+ */
+export const getSignedInProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: claimsResult } = await supabase.auth.getClaims();
+  const user = claimsResult?.claims ? { id: claimsResult.claims.sub, email: claimsResult.claims.email } : null;
   if (!user?.email) return null;
 
   let { data: profile } = await supabase.from("profiles").select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at").eq("id", user.id).maybeSingle();
@@ -39,7 +53,7 @@ export async function getSignedInProfile(): Promise<Profile | null> {
     profile = data;
   }
   return profile as Profile;
-}
+});
 
 export async function requireUser() {
   const profile = await getSignedInProfile();

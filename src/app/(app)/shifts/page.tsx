@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CalendarClock, ChevronRight, Clock3 } from "lucide-react";
 import { addDays } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,24 +83,6 @@ function groupByWeek(shifts: ShiftRow[], timeZone: string, weekStartsOn: number)
   return [...groups.values()];
 }
 
-/**
- * Week 1 is the week of the earliest shift ever logged; each later week holding
- * at least one shift takes the next number, with no gaps for weeks off.
- *
- * That anchoring is why this cannot be computed from the loaded window -- the
- * number of a week depends on every week before it, so numbering needs all of
- * history. Only `starts_at` is fetched for it, which stays cheap.
- */
-function weekNumbering(rows: { starts_at: string }[], timeZone: string, weekStartsOn: number) {
-  const numbers = new Map<string, number>();
-
-  for (const row of rows) {
-    const key = weekStartFor(new Date(row.starts_at), timeZone, weekStartsOn).toISOString();
-    if (!numbers.has(key)) numbers.set(key, numbers.size + 1);
-  }
-  return numbers;
-}
-
 export default async function ShiftsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const profile = await requireUser();
   const params = await searchParams;
@@ -117,22 +98,31 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   // No upper bound: scheduled future shifts always belong on this page. The
   // second query only asks whether anything older exists, so "Load older weeks"
   // never appears when it would do nothing.
-  const [{ data: shifts }, { count: olderCount }, { data: everyStart }] = await Promise.all([
+  const [{ data: shifts }, { count: olderCount }, { data: weeksBefore }] = await Promise.all([
     supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,net_cents,jobs(name,color,archived_at)").eq("user_id", profile.id).gte("starts_at", windowStart.toISOString()).order("starts_at", { ascending: false }),
     supabase.from("shifts").select("id", { count: "exact", head: true }).eq("user_id", profile.id).lt("starts_at", windowStart.toISOString()),
-    supabase.from("shifts").select("starts_at").eq("user_id", profile.id).order("starts_at", { ascending: true }),
+    supabase.rpc("shift_week_count_before", { p_time_zone: profile.time_zone, p_week_starts_on: profile.week_starts_on, p_before: windowStart.toISOString() }),
   ]);
 
   const groups = groupByWeek((shifts ?? []) as ShiftRow[], profile.time_zone, profile.week_starts_on);
-  const weekNumbers = weekNumbering(everyStart ?? [], profile.time_zone, profile.week_starts_on);
   const currentKey = currentWeekStart.toISOString();
 
-  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
+  // `windowStart` is itself a week start, so no week straddles it: every week
+  // before it is counted by the RPC, and every week in `groups` comes after.
+  // `groups` is newest-first, so the last one is the oldest week loaded and
+  // takes the first number after that count.
+  //
+  // The `?? 0` also degrades gracefully if the migration adding the function
+  // has not been applied yet: the log still renders, numbered from week 1
+  // within the window, rather than the page failing outright.
+  const firstWeekNumber = (weeksBefore ?? 0) + 1;
+
+  return <>
     {saved && <SavedToast message={saved} clearParams={["created", "skipped"]} />}
     <PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." actions={<Link href="/shifts/new"><Button><CalendarClock className="size-4" />Add shift</Button></Link>} />
 
     {groups.length
-      ? <div className="space-y-3">{groups.map((group) => <WeekSection key={group.key} group={group} number={weekNumbers.get(group.key)} open={group.key === currentKey} timeZone={profile.time_zone} />)}</div>
+      ? <div className="space-y-3">{groups.map((group, index) => <WeekSection key={group.key} group={group} number={firstWeekNumber + groups.length - 1 - index} open={group.key === currentKey} timeZone={profile.time_zone} />)}</div>
       : <Card><CardContent><p className="p-10 text-center text-sm text-[var(--muted-foreground)]">No shifts in the last {weeks} weeks.</p></CardContent></Card>}
 
     {olderCount ? <div className="mt-6 text-center">
@@ -140,10 +130,10 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
         <Button variant="outline">Load older weeks <span className="font-normal text-[var(--muted-foreground)]">({olderCount} older)</span></Button>
       </Link>
     </div> : null}
-  </AppShell>;
+  </>;
 }
 
-function WeekSection({ group, number, open, timeZone }: { group: WeekGroup; number?: number; open: boolean; timeZone: string }) {
+function WeekSection({ group, number, open, timeZone }: { group: WeekGroup; number: number; open: boolean; timeZone: string }) {
   const lastDay = addDays(group.start, 6);
   const range = `${formatInTimeZone(group.start, timeZone, "MMM d")} – ${formatInTimeZone(lastDay, timeZone, "MMM d")}`;
 
@@ -154,7 +144,7 @@ function WeekSection({ group, number, open, timeZone }: { group: WeekGroup; numb
       <details open={open} className="group">
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-[var(--surface-subtle)] [&::-webkit-details-marker]:hidden">
           <ChevronRight className="size-4 shrink-0 text-[var(--muted-foreground)] transition-transform duration-200 group-open:rotate-90" />
-          <span className="min-w-0 flex-1 font-display font-semibold">{number ? `Week ${number}` : range}{number ? <span className="ml-2 font-sans text-sm font-medium text-[var(--muted-foreground)]">{range}</span> : null}</span>
+          <span className="min-w-0 flex-1 font-display font-semibold">Week {number}<span className="ml-2 font-sans text-sm font-medium text-[var(--muted-foreground)]">{range}</span></span>
           <span className="shrink-0 rounded-xl bg-[var(--surface-subtle)] px-3 py-1.5 text-sm font-semibold">{formatMinutes(group.minutes)}</span>
           <span className="shrink-0 text-sm font-semibold text-[var(--success)]">{formatCents(group.netCents)}</span>
         </summary>

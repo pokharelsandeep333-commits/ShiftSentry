@@ -1,4 +1,3 @@
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +15,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const [profile, { saved }] = await Promise.all([requireUser(), searchParams]);
   const selectedTimeZones = [...new Set([profile.time_zone, ...timeZones])];
 
-  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
+  return <>
     {saved === "1" && <SavedToast message="Settings saved" />}
     <PageHeader eyebrow="Preferences" title="Settings" description="Your time zone and week-start day determine how every cap is calculated." />
     <Card className="max-w-2xl">
@@ -29,5 +28,5 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <div><Button type="submit">Save settings</Button></div>
       </form></CardContent>
     </Card>
-  </AppShell>;
+  </>;
 }
