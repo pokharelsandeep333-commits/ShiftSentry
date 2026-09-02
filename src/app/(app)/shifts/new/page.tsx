@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,11 +38,11 @@ export default async function NewShiftPage({ searchParams }: { searchParams: Pro
   const selectableJobs: ShiftFormJob[] = (jobs ?? []).map((job) => ({ id: job.id, name: job.name, color: job.color, hourlyRateCents: job.hourly_rate_cents, taxRateBasisPoints: job.tax_rate_basis_points, deductions: (job.job_deductions ?? []).map((deduction) => ({ name: deduction.name, rateBasisPoints: deduction.rate_basis_points })) }));
   const initialShift = prefillFromQuery(params, selectableJobs);
 
-  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>
+  return <>
     <PageHeader eyebrow="Shift log" title="Add a shift" description="Scheduled future shifts count toward projected weekly hours." actions={<Link href="/shifts"><Button variant="outline">Cancel</Button></Link>} />
     <Card className="max-w-2xl">
       <CardHeader><CardTitle>Shift details</CardTitle></CardHeader>
       <CardContent>{selectableJobs.length ? <ShiftForm mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="space-y-4 rounded-2xl border border-dashed p-5"><p className="text-sm leading-6 text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs"><Button>Create a job</Button></Link></div>}</CardContent>
     </Card>
-  </AppShell>;
+  </>;
 }
