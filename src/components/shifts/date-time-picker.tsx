@@ -1,247 +1,224 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { DateField, formatDateLabel, shiftCalendarDays } from "@/components/shifts/date-field";
+import { TimeField } from "@/components/shifts/time-field";
+import { formatDurationMinutes, parseDurationToMinutes } from "@/components/shifts/time-parsing";
+import { combineShiftDateAndTime } from "@/lib/shift-date-time";
 import { cn } from "@/lib/utils";
-import { formatShiftDateAndTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 
 export type ShiftDateTimeParts = { date: string; time: string };
+export type ShiftSchedule = { startsAt: ShiftDateTimeParts; endsAt: ShiftDateTimeParts };
 
-type DateTimePickerProps = {
-  label: string;
-  name: "startsAt" | "endsAt";
-  value: ShiftDateTimeParts;
-  onChange: (next: ShiftDateTimeParts, dateChanged: boolean) => void;
-  error?: string;
+type ShiftScheduleFieldsProps = {
+  startsAt: ShiftDateTimeParts;
+  endsAt: ShiftDateTimeParts;
+  /** The viewer's IANA zone, so the duration matches what the action stores. */
+  timeZone: string;
+  onChange: (next: ShiftSchedule) => void;
+  startError?: string;
+  endError?: string;
 };
 
-const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-const dayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+const MAX_SHIFT_MINUTES = 24 * 60;
 
-function parseDate(date: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!match) return null;
-  const candidate = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-  return candidate.getUTCFullYear() === Number(match[1]) && candidate.getUTCMonth() === Number(match[2]) - 1 && candidate.getUTCDate() === Number(match[3]) ? candidate : null;
+function pad(value: number) {
+  return String(value).padStart(2, "0");
 }
 
-function dateValue(date: Date) {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+function partsInZone(instant: Date, timeZone: string): ShiftDateTimeParts {
+  const zoned = toZonedTime(instant, timeZone);
+  return {
+    date: `${zoned.getFullYear()}-${pad(zoned.getMonth() + 1)}-${pad(zoned.getDate())}`,
+    time: `${pad(zoned.getHours())}:${pad(zoned.getMinutes())}`,
+  };
 }
 
-function startOfMonth(date: Date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+function instantOf(parts: ShiftDateTimeParts, timeZone: string) {
+  const value = combineShiftDateAndTime(parts.date, parts.time);
+  return value ? fromZonedTime(value, timeZone) : null;
 }
 
-function currentMonth() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+/**
+ * The end date while the user has not set one themselves. It mirrors the start
+ * date as soon as there is one, so picking a start fills the end in too. Once
+ * both clock times are known a shift may not span more than 24 hours, so an end
+ * at or before the start clock can only mean the next calendar day — which
+ * keeps an overnight shift a two-field edit.
+ */
+function autoEndParts(startsAt: ShiftDateTimeParts, endTime: string): ShiftDateTimeParts {
+  if (!startsAt.date) return { date: "", time: endTime };
+  if (!endTime || !startsAt.time) return { date: startsAt.date, time: endTime };
+  return { date: endTime > startsAt.time ? startsAt.date : shiftCalendarDays(startsAt.date, 1), time: endTime };
 }
 
-function moveMonth(month: Date, amount: number) {
-  return new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + amount, 1));
+/**
+ * Each control sits in a flex column that may shrink to its own minimum and then
+ * wraps. A fixed grid track cannot: the two fieldsets sit side by side, leaving
+ * roughly 269px of content width, and a grid item never shrinks below its own
+ * content -- the date button overflowed its 88px track by 38px and landed on
+ * top of the time field.
+ */
+const FIELD_COLUMN = "grid min-w-[9rem] flex-1 content-start gap-2";
+
+function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+  return <label className="field-label text-xs" htmlFor={htmlFor}><span>{children}</span></label>;
 }
 
-function calendarDays(month: Date) {
-  const firstDay = startOfMonth(month);
-  const firstVisibleDay = new Date(firstDay);
-  firstVisibleDay.setUTCDate(firstDay.getUTCDate() - firstDay.getUTCDay());
-  return Array.from({ length: 42 }, (_, index) => {
-    const day = new Date(firstVisibleDay);
-    day.setUTCDate(firstVisibleDay.getUTCDate() + index);
-    return day;
-  });
-}
+export function ShiftScheduleFields({ startsAt, endsAt, timeZone, onChange, startError, endError }: ShiftScheduleFieldsProps) {
+  const [startEntryError, setStartEntryError] = useState("");
+  const [endEntryError, setEndEntryError] = useState("");
+  const [durationDraft, setDurationDraft] = useState<string | null>(null);
+  // Until the user picks an end date, it trails the start — including rolling
+  // over midnight on its own. Once they pick one, it stays exactly where it is.
+  const [endDateTouched, setEndDateTouched] = useState(false);
 
-function monthLabel(month: Date) {
-  return monthFormatter.format(month);
-}
+  const now = useMemo(() => partsInZone(new Date(), timeZone), [timeZone]);
 
-function dayLabel(day: Date) {
-  return dayFormatter.format(day);
-}
+  const durationMinutes = useMemo(() => {
+    const start = instantOf(startsAt, timeZone);
+    const end = instantOf(endsAt, timeZone);
+    if (!start || !end) return null;
+    const minutes = Math.round((end.getTime() - start.getTime()) / 60_000);
+    return minutes > 0 ? minutes : null;
+  }, [endsAt, startsAt, timeZone]);
 
-export function DateTimePicker({ label, name, value, onChange, error }: DateTimePickerProps) {
-  const inputId = `${name}-input`;
-  const helpId = `${name}-help`;
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const ignoreNextTriggerClickRef = useRef(false);
-  const normalizedValue = formatShiftDateAndTime(value.date, value.time);
-  const [inputState, setInputState] = useState(() => ({ source: normalizedValue, value: normalizedValue }));
-  const displayValue = inputState.source === normalizedValue ? inputState.value : normalizedValue;
-  const [entryError, setEntryError] = useState("");
-  const [open, setOpen] = useState(false);
-  const [month, setMonth] = useState(() => startOfMonth(parseDate(value.date) ?? currentMonth()));
-  const [pickerValue, setPickerValue] = useState<ShiftDateTimeParts>(() => value);
-  const days = useMemo(() => calendarDays(month), [month]);
-  const fieldError = entryError || error;
+  const durationDisplay = durationDraft ?? (durationMinutes === null ? "" : formatDurationMinutes(durationMinutes));
+  const startProblem = startEntryError || startError;
+  const endProblem = endEntryError || endError;
+  const followsStart = !endDateTouched || !endsAt.date;
 
-  const closePicker = useCallback((restoreFocus = false) => {
-    setOpen(false);
-    if (restoreFocus) requestAnimationFrame(() => triggerRef.current?.focus());
-  }, []);
-
-  const discardPicker = useCallback((restoreFocus = false) => {
-    setPickerValue(value);
-    setInputState({ source: normalizedValue, value: normalizedValue });
-    closePicker(restoreFocus);
-  }, [closePicker, normalizedValue, value]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function closeOnOutsideClick(event: PointerEvent) {
-      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) discardPicker();
-    }
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      discardPicker(true);
-    }
-
-    document.addEventListener("pointerdown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [discardPicker, open]);
-
-  function commitTypedValue() {
-    const rawValue = displayValue.trim();
-    if (!rawValue) {
-      setEntryError(`Enter a ${label.toLowerCase()} date and time.`);
-      return false;
-    }
-
-    const parsed = parseShiftDateTimeInput(rawValue);
-    if (!parsed) {
-      setEntryError("Enter a valid date and time with AM or PM.");
-      return false;
-    }
-
-    setEntryError("");
-    setInputState({ source: parsed.formatted, value: parsed.formatted });
-    onChange({ date: parsed.date, time: parsed.time }, parsed.date !== value.date);
-    return true;
+  function endPartsFor(nextStart: ShiftDateTimeParts, endTime: string): ShiftDateTimeParts {
+    if (followsStart) return autoEndParts(nextStart, endTime);
+    return { date: endsAt.date, time: endTime };
   }
 
-  function handleInputBlur() {
-    requestAnimationFrame(() => {
-      if (rootRef.current?.contains(document.activeElement)) return;
-      commitTypedValue();
-    });
+  function applyStart(next: ShiftDateTimeParts) {
+    setDurationDraft(null);
+    onChange({ startsAt: next, endsAt: endPartsFor(next, endsAt.time) });
   }
 
-  function openPicker() {
-    if (open) {
-      discardPicker(true);
+  function applyEndTime(time: string) {
+    setDurationDraft(null);
+    onChange({ startsAt, endsAt: endPartsFor(startsAt, time) });
+  }
+
+  function applyEndDate(date: string) {
+    setDurationDraft(null);
+    setEndDateTouched(true);
+    onChange({ startsAt, endsAt: { ...endsAt, date } });
+  }
+
+  function handleStartTime(time: string | null) {
+    if (time === null) {
+      setStartEntryError("Enter a time such as 5:30 PM, 530pm, or 17:30.");
+      return;
+    }
+    setStartEntryError("");
+    applyStart({ ...startsAt, time });
+  }
+
+  function handleEndTime(time: string | null) {
+    if (time === null) {
+      setEndEntryError("Enter a time such as 5:30 PM, 530pm, or 17:30.");
+      return;
+    }
+    setEndEntryError("");
+    applyEndTime(time);
+  }
+
+  function commitDuration() {
+    if (durationDraft === null) return;
+    const trimmed = durationDraft.trim();
+    if (!trimmed) {
+      setDurationDraft(null);
       return;
     }
 
-    setPickerValue(value);
-    setMonth(startOfMonth(parseDate(value.date) ?? currentMonth()));
-    setOpen(true);
-  }
-
-  function handleTriggerPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
-    if (event.button !== 0) return;
-
-    // Opening on press removes the click/tap delay and leaves the text field focused.
-    // The following click is intentionally ignored so this does not immediately close again.
-    event.preventDefault();
-    ignoreNextTriggerClickRef.current = true;
-    openPicker();
-  }
-
-  function handleTriggerClick() {
-    if (ignoreNextTriggerClickRef.current) {
-      ignoreNextTriggerClickRef.current = false;
-      return;
-    }
-    openPicker();
-  }
-
-  function selectDate(date: Date) {
-    const next = { ...pickerValue, date: dateValue(date) };
-    setEntryError("");
-    setPickerValue(next);
-    setInputState({ source: normalizedValue, value: formatShiftDateAndTime(next.date, next.time) });
-  }
-
-  function selectTime(time: string) {
-    const next = { ...pickerValue, time };
-    setPickerValue((current) => ({ ...current, time }));
-    setInputState({ source: normalizedValue, value: formatShiftDateAndTime(next.date, next.time) });
-  }
-
-  function applyPickerValue() {
-    if (!pickerValue.date || !pickerValue.time) {
-      setEntryError("Choose both a date and time.");
+    const minutes = parseDurationToMinutes(trimmed);
+    if (minutes === null || minutes <= 0 || minutes > MAX_SHIFT_MINUTES) {
+      setEndEntryError("Enter a length between 1 minute and 24h, such as 8h 30m.");
       return;
     }
 
-    const nextDisplayValue = formatShiftDateAndTime(pickerValue.date, pickerValue.time);
-    setEntryError("");
-    setInputState({ source: nextDisplayValue, value: nextDisplayValue });
-    onChange(pickerValue, pickerValue.date !== value.date);
-    closePicker(true);
+    const start = instantOf(startsAt, timeZone);
+    if (!start) {
+      setEndEntryError("Choose the start date and time first.");
+      return;
+    }
+
+    setEndEntryError("");
+    setDurationDraft(null);
+    onChange({ startsAt, endsAt: partsInZone(new Date(start.getTime() + minutes * 60_000), timeZone) });
   }
 
-  return <fieldset className="rounded-2xl border bg-[var(--card)]/45 p-4">
-    <legend className="px-1 font-semibold">{label}</legend>
-    <div ref={rootRef} className="relative mt-2">
-      <label className="field-label" htmlFor={inputId}><span>Date and time</span></label>
-      <div className="relative mt-2">
-        <input
-          id={inputId}
-          name={name}
-          value={displayValue}
-          onChange={(event) => setInputState({ source: normalizedValue, value: event.target.value })}
-          onBlur={handleInputBlur}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter") return;
-            event.preventDefault();
-            commitTypedValue();
-          }}
-          inputMode="text"
-          autoComplete="off"
-          aria-invalid={Boolean(fieldError)}
-          aria-describedby={fieldError ? helpId : undefined}
-          className="field-control pr-12"
-        />
-        <Button ref={triggerRef} type="button" variant="ghost" size="icon" aria-label={`Choose ${label.toLowerCase()} date and time`} aria-expanded={open} aria-haspopup="dialog" className="absolute right-1 top-1/2 size-9 -translate-y-1/2 touch-manipulation" onPointerDown={handleTriggerPointerDown} onClick={handleTriggerClick}><CalendarDays className="size-4" /></Button>
-      </div>
-      {open && <div role="dialog" aria-label={`${label} date and time picker`} className={cn("absolute z-50 mt-2 w-[min(34rem,calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_24%,var(--border))] bg-[var(--card)] p-3 shadow-2xl shadow-black/20", name === "endsAt" ? "right-0" : "left-0")}>
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
-          <div>
-            <div className="flex items-center justify-between gap-2">
-              <Button type="button" variant="ghost" size="icon" aria-label="Previous month" className="size-8" onClick={() => setMonth((current) => moveMonth(current, -1))}><ChevronLeft className="size-4" /></Button>
-              <p className="text-sm font-semibold">{monthLabel(month)}</p>
-              <Button type="button" variant="ghost" size="icon" aria-label="Next month" className="size-8" onClick={() => setMonth((current) => moveMonth(current, 1))}><ChevronRight className="size-4" /></Button>
-            </div>
-            <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs font-medium text-[var(--muted-foreground)]" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
-            <div className="grid grid-cols-7 gap-1" aria-label={`${monthLabel(month)} calendar`}>
-              {days.map((day) => {
-                const isCurrentMonth = day.getUTCMonth() === month.getUTCMonth();
-                const selected = pickerValue.date === dateValue(day);
-                return <button key={dateValue(day)} type="button" aria-label={dayLabel(day)} aria-pressed={selected} disabled={!isCurrentMonth} className={cn("grid aspect-square place-items-center rounded-lg text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--primary)] disabled:cursor-default disabled:opacity-35", selected ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]")} onClick={() => selectDate(day)}>{day.getUTCDate()}</button>;
-              })}
-            </div>
-          </div>
-          <div className="flex flex-col border-t pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
-            <label className="field-label text-xs"><span>Time</span><input type="time" value={pickerValue.time} disabled={!pickerValue.date} onChange={(event) => selectTime(event.target.value)} className="field-control mt-2 h-10 text-sm" /></label>
-            <div className="mt-4 flex gap-2 sm:mt-auto sm:pt-4">
-              <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => discardPicker(true)}>Cancel</Button>
-              <Button type="button" size="sm" className="flex-1" onClick={applyPickerValue}>Done</Button>
-            </div>
-          </div>
+  // Whole calendar days between the two dates, so the badge stays honest once
+  // the user picks an end date of their own rather than letting it follow.
+  const dayOffset = useMemo(() => {
+    if (!startsAt.date || !endsAt.date) return 0;
+    return Math.round((Date.parse(`${endsAt.date}T00:00:00Z`) - Date.parse(`${startsAt.date}T00:00:00Z`)) / 86_400_000);
+  }, [endsAt.date, startsAt.date]);
+  const offsetLabel = dayOffset === 1 ? "Next day" : dayOffset ? `${dayOffset > 0 ? "+" : "−"}${Math.abs(dayOffset)} days` : "";
+
+  return <div className="grid gap-5 lg:grid-cols-2">
+    <input type="hidden" name="startsAt" value={combineShiftDateAndTime(startsAt.date, startsAt.time)} />
+    <input type="hidden" name="endsAt" value={combineShiftDateAndTime(endsAt.date, endsAt.time)} />
+
+    <fieldset className="rounded-2xl border bg-[var(--card)]/45 p-4">
+      <legend className="px-1 font-semibold">Start</legend>
+      <div className="mt-2 flex flex-wrap gap-3">
+        <div className={FIELD_COLUMN}>
+          <FieldLabel htmlFor="startsAt-date">Date</FieldLabel>
+          <DateField id="startsAt-date" value={startsAt.date} onChange={(date) => applyStart({ ...startsAt, date })} today={now.date} ariaLabel="Start date" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} />
         </div>
-      </div>}
-    </div>
-    {fieldError && <p id={helpId} role="alert" className="mt-3 text-sm font-medium text-[var(--danger)]">{fieldError}</p>}
-  </fieldset>;
+        <div className={FIELD_COLUMN}>
+          <FieldLabel htmlFor="startsAt-time">Time</FieldLabel>
+          <TimeField id="startsAt-time" value={startsAt.time} onChange={handleStartTime} fallback={now.time} ariaLabel="Start time" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} />
+        </div>
+      </div>
+      {startProblem && <p id="startsAt-help" role="alert" className="mt-3 text-sm font-medium text-[var(--danger)]">{startProblem}</p>}
+    </fieldset>
+
+    <fieldset className="rounded-2xl border bg-[var(--card)]/45 p-4">
+      <legend className="px-1 font-semibold">End</legend>
+      <div className="mt-2 flex flex-wrap gap-3">
+        <div className={FIELD_COLUMN}>
+          <FieldLabel htmlFor="endsAt-date">Date</FieldLabel>
+          <DateField id="endsAt-date" value={endsAt.date} onChange={applyEndDate} today={now.date} ariaLabel="End date" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} />
+        </div>
+        <div className={FIELD_COLUMN}>
+          <FieldLabel htmlFor="endsAt-time">Time</FieldLabel>
+          <TimeField id="endsAt-time" value={endsAt.time} onChange={handleEndTime} fallback={startsAt.time || now.time} ariaLabel="End time" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div className={cn(FIELD_COLUMN, "max-w-[12rem]")}>
+          <FieldLabel htmlFor="endsAt-duration">Length</FieldLabel>
+          <input
+            id="endsAt-duration"
+            value={durationDisplay}
+            placeholder="8h 30m"
+            autoComplete="off"
+            inputMode="text"
+            aria-invalid={Boolean(endProblem) || undefined}
+            aria-describedby={endProblem ? "endsAt-help" : undefined}
+            className="field-control text-sm"
+            onChange={(event) => setDurationDraft(event.target.value)}
+            onBlur={commitDuration}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              commitDuration();
+            }}
+          />
+        </div>
+        <p className="flex flex-wrap items-center gap-2 pb-3 text-xs font-medium text-[var(--muted-foreground)]">
+          {offsetLabel && <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 font-semibold text-[var(--primary)]">{offsetLabel}</span>}
+          <span>{endsAt.date ? (followsStart ? "Follows the start date" : formatDateLabel(endsAt.date)) : "Pick the start date first."}</span>
+        </p>
+      </div>
+      {endProblem && <p id="endsAt-help" role="alert" className="mt-2 text-sm font-medium text-[var(--danger)]">{endProblem}</p>}
+    </fieldset>
+  </div>;
 }
