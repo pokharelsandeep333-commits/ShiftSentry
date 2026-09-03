@@ -19,16 +19,15 @@ const baseline = {
     vulnerability.via.length === 1 &&
     typeof vulnerability.via[0] === "object" &&
     vulnerability.via[0].source === 1145093,
-  // GHSA-3f6p-5ww8-9rcr: mysql2 below 3.22.0 can be talked into downgrading to
-  // the mysql_clear_password auth plugin, handing a malicious MySQL server the
-  // password in plaintext. Unreachable here -- this app speaks Postgres through
-  // @prisma/adapter-pg and pg, and never opens a MySQL connection. Drop this
-  // entry once a prisma release pins mysql2 >= 3.22.0; as of prisma 7.10.0 the
-  // newest 7.x still pins 3.15.3.
-  mysql2: (vulnerability) =>
-    vulnerability.via.length === 1 &&
-    typeof vulnerability.via[0] === "object" &&
-    vulnerability.via[0].source === 1153173,
+  // mysql2 no longer needs an exception. prisma 7.9.1 pins it to exactly 3.15.3,
+  // which carried GHSA-3f6p-5ww8-9rcr (auth-plugin downgrade leaking the
+  // password in plaintext) and later GHSA-rgwj-5xj2-c3m3 (decompression-bomb
+  // DoS). Because the pin is exact, npm could not move it and only offered a
+  // semver-major prisma downgrade. A `mysql2` override in package.json raises
+  // it to 3.24.3, which fixes both -- safe here because the app speaks Postgres
+  // through @prisma/adapter-pg and pg and never opens a MySQL connection, so
+  // the bundled driver is dead weight either way. Deliberately not baselined:
+  // if that override is ever dropped, this gate must fail loudly again.
   // Flagged only as the parent of the two entries above. Listing the accepted
   // children rather than a fixed length means a third one appearing -- some new
   // bundled driver -- fails the gate instead of hiding behind this exception.
