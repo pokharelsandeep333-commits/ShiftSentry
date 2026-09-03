@@ -50,6 +50,19 @@
   --shadow-color: 0 0 0;
 }
 
+/*
+ * Keep the scrollbar track permanently. Radix overlays (the job select, the
+ * account menu) lock scrolling by putting `overflow: hidden` on <body> via
+ * react-remove-scroll, which removed the 15px classic scrollbar on Windows --
+ * measured: documentElement.clientWidth jumped 458 -> 473 on open and back on
+ * close, relaying out the whole document twice per selection and reading as a
+ * jump. Reserving the track makes opening an overlay a no-op for layout.
+ * Platforms with overlay scrollbars (macOS, mobile) are unaffected.
+ */
+html {
+  overflow-y: scroll;
+}
+
 body {
   min-height: 100vh;
   min-height: 100dvh;
