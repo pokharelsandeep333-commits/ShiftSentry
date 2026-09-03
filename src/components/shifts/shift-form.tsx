@@ -4,10 +4,10 @@ import { useActionState, useMemo, useState } from "react";
 import { fromZonedTime } from "date-fns-tz";
 import { createShift, updateShift, type ShiftActionState } from "@/app/actions/work";
 import { Button } from "@/components/ui/button";
-import { DateTimePicker, type ShiftDateTimeParts } from "@/components/shifts/date-time-picker";
+import { ShiftScheduleFields, type ShiftDateTimeParts, type ShiftSchedule } from "@/components/shifts/date-time-picker";
 import { PremiumSelect } from "@/components/ui/premium-select";
 import { calculateEarnings, formatCents, type DeductionSnapshot } from "@/lib/earnings";
-import { combineShiftDateAndTime, parseShiftDateTimeInput, synchronizedEndDate } from "@/lib/shift-date-time";
+import { combineShiftDateAndTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { formatMinutes } from "@/lib/utils";
 
 type ShiftField = "startsAt" | "endsAt";
@@ -91,7 +91,6 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps
   const initialEnd = partsFromValue(initialShift?.endsAt);
   const [startsAt, setStartsAt] = useState(initialStart);
   const [endsAt, setEndsAt] = useState(initialEnd);
-  const [endDateFollowsStart, setEndDateFollowsStart] = useState(() => !initialEnd.date || initialStart.date === initialEnd.date);
   const [jobId, setJobId] = useState(initialShift?.jobId ?? jobs[0]?.id ?? "");
   const [repeatWeeks, setRepeatWeeks] = useState(1);
   const [submissionProblem, setSubmissionProblem] = useState<FormProblem | null>(null);
@@ -100,11 +99,16 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps
   const [state, formAction, pending] = useActionState(action, emptyShiftActionState);
   const dismissServerMessage = dismissedState === state;
 
+  // The end date is freely pickable, so the 24-hour ceiling the action and the
+  // `enforce_shift_weekly_limits` trigger both enforce is now reachable here.
   const intervalProblem = useMemo(() => {
     const startValue = combineShiftDateAndTime(startsAt.date, startsAt.time);
     const endValue = combineShiftDateAndTime(endsAt.date, endsAt.time);
-    return startValue && endValue && endValue <= startValue ? { field: "endsAt" as const, message: "End time must be after start time." } : null;
-  }, [endsAt.date, endsAt.time, startsAt.date, startsAt.time]);
+    if (!startValue || !endValue) return null;
+    if (endValue <= startValue) return { field: "endsAt" as const, message: "End time must be after start time." };
+    const minutes = (fromZonedTime(endValue, timeZone).getTime() - fromZonedTime(startValue, timeZone).getTime()) / 60_000;
+    return minutes > 24 * 60 ? { field: "endsAt" as const, message: "A shift cannot be longer than 24 hours." } : null;
+  }, [endsAt.date, endsAt.time, startsAt.date, startsAt.time, timeZone]);
   const activeProblem = intervalProblem ?? submissionProblem;
 
   const preview = useMemo(() => {
@@ -120,19 +124,10 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps
     setDismissedState(state);
   }
 
-  function updateStart(next: ShiftDateTimeParts, dateChanged: boolean) {
+  function updateSchedule(next: ShiftSchedule) {
     markEdited();
-    setStartsAt(next);
-    if (dateChanged) {
-      const syncedEndDate = synchronizedEndDate(next.date, endDateFollowsStart);
-      if (syncedEndDate) setEndsAt((current) => ({ ...current, date: syncedEndDate }));
-    }
-  }
-
-  function updateEnd(next: ShiftDateTimeParts, dateChanged: boolean) {
-    markEdited();
-    setEndsAt(next);
-    if (dateChanged) setEndDateFollowsStart(false);
+    setStartsAt(next.startsAt);
+    setEndsAt(next.endsAt);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -150,10 +145,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps
   return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="grid gap-5">
     {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id ?? ""} />}
     <div className="field-label"><span id="job-label">Job</span><PremiumSelect name="jobId" defaultValue={jobId} options={jobs.map((job) => ({ value: job.id, label: job.archived ? `${job.name} (archived)` : job.name }))} labelledBy="job-label" onValueChange={(value) => { markEdited(); setJobId(value); }} required /></div>
-    <div className="grid gap-5 lg:grid-cols-2">
-      <DateTimePicker label="Start" name="startsAt" value={startsAt} onChange={updateStart} error={startError} />
-      <DateTimePicker label="End" name="endsAt" value={endsAt} onChange={updateEnd} error={endError} />
-    </div>
+    <ShiftScheduleFields startsAt={startsAt} endsAt={endsAt} timeZone={timeZone} onChange={updateSchedule} startError={startError} endError={endError} />
     {preview && <dl className="grid grid-cols-2 gap-4 rounded-2xl border bg-[var(--surface-subtle)] p-4 sm:grid-cols-4">
       <PreviewFigure label="Duration" value={formatMinutes(preview.minutes)} />
       <PreviewFigure label="Gross" value={formatCents(preview.pay.grossCents)} />
