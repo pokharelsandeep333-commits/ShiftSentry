@@ -7,7 +7,6 @@ export type JobSummary = {
   weeklyLimitMinutes: number | null;
   usedMinutes: number;
   scheduledMinutes: number;
-  earnedNetCents: number;
 };
 
 export type EarningsSummary = {
@@ -15,6 +14,43 @@ export type EarningsSummary = {
   taxCents: number;
   deductionCents: number;
   netCents: number;
+};
+
+/** One job's share of a period. Minutes travel with the money so the breakdown
+ *  can answer "which job" for either metric without a second shape. */
+export type PeriodJobTotal = {
+  id: string;
+  name: string;
+  color: string;
+  netCents: number;
+  minutes: number;
+};
+
+/** Worked time only -- clipped at `now`, so it never includes scheduled hours. */
+export type PeriodTotals = {
+  minutes: number;
+  earnings: EarningsSummary;
+  jobs: PeriodJobTotal[];
+};
+
+/** One calendar month in the viewer's zone, keyed `YYYY-MM`. */
+export type MonthTotals = PeriodTotals & {
+  key: string;
+  label: string;
+};
+
+export type DashboardTotals = {
+  /**
+   * Sub-month and clipped at now, so it cannot be derived from month buckets
+   * and is computed on its own.
+   */
+  week: PeriodTotals;
+  /**
+   * A contiguous run from the first month worked to the month in progress. Any
+   * other range the card offers is a slice of this summed on the client, which
+   * is why switching range costs no query.
+   */
+  months: MonthTotals[];
 };
 
 export type MonthlyJobAllocationSeries = {
@@ -59,7 +95,7 @@ export type DashboardData = {
   jobs: JobSummary[];
   upcomingShifts: ShiftSummary[];
   alerts: ThresholdAlert[];
-  earnings: EarningsSummary;
+  totals: DashboardTotals;
   monthlyJobAllocation: MonthlyJobAllocation;
   isDemo?: boolean;
 };

@@ -2,7 +2,11 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const badgeVariants = cva("inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-semibold", {
+// `shrink-0 whitespace-nowrap` is a guarantee rather than a bug fix: a badge is
+// a pill, and a pill that wraps or gets squeezed stops looking like one. No
+// current caller reaches that point -- measured down to a 200px row -- so this
+// is here to keep a longer label or a tighter column from finding it later.
+const badgeVariants = cva("inline-flex w-fit shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold", {
   variants: {
     variant: {
       default: "bg-[color-mix(in_srgb,var(--primary)_16%,transparent)] text-[var(--primary)]",

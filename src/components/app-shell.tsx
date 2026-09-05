@@ -165,15 +165,26 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail 
 
   return <div className="app-canvas min-h-screen lg:grid lg:grid-cols-[292px_minmax(0,1fr)]">
     <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-xl focus:bg-[var(--primary)] focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-[var(--primary-foreground)] focus:shadow-2xl focus:shadow-[var(--primary-glow)]">Skip to content</a>
+    {/* No `backdrop-blur` on the sidebar or the header bar.
+        Both used to carry one on the theory that they overlay scrolling
+        content. Measured at 1440px, neither does: the sidebar sits in its own
+        grid column and ends 16px clear of `main`, and the header is `static`,
+        so the page scrolls past it rather than under it. All either one could
+        ever sample is `app-canvas` -- a flat colour under 2.5%-opacity grid
+        lines -- through 82-90% opaque glass, which is no visible blur at all.
+        The sidebar's was the worse of the two: `position: sticky` means the
+        filter is re-evaluated as it moves, on every scroll frame, on every
+        page. The bottom bar keeps its blur, being the one layer here that
+        genuinely does overlay scrolling content. */}
     <aside className="hidden p-4 lg:flex">
-      <div className="premium-card sticky top-4 flex h-[calc(100vh-2rem)] w-full flex-col rounded-[1.75rem] border bg-[var(--card)]/82 p-3.5 backdrop-blur-2xl">
+      <div className="premium-card sticky top-4 flex h-[calc(100vh-2rem)] w-full flex-col rounded-[1.75rem] border bg-[var(--card)]/82 p-3.5">
         <Link href="/" className="mb-8 rounded-2xl px-2 py-2"><Brand /></Link>
         <nav className="space-y-1" aria-label="Main navigation">{desktopItems.map((item) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} />)}</nav>
         <div className="mt-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 text-xs leading-5 text-[var(--muted-foreground)]"><span className="mb-1 block font-semibold text-[var(--foreground)]">{isDemo ? "Preview mode" : "Private workspace"}</span>{isDemo ? "Connect Supabase to save your workspace data." : "Your work schedule stays private to your account."}</div>
       </div>
     </aside>
     <div className="min-w-0">
-      <header className="px-3 pt-3 sm:px-5 lg:px-6"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-1 rounded-[1.25rem] border bg-[var(--background)]/90 px-2 shadow-lg shadow-black/[0.03] backdrop-blur-xl sm:h-16 sm:px-3"><div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2"><MobileNavigation pathname={pathname} isAdmin={isAdmin} /><Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2" /></Link></div><div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><ThemeToggle /><Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants({ size: "sm" }), "size-11 rounded-xl p-0 sm:h-8 sm:w-auto sm:px-3")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>{!isDemo && <AccountMenu email={userEmail} />}</div></div></header>
+      <header className="px-3 pt-3 sm:px-5 lg:px-6"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-1 rounded-[1.25rem] border bg-[var(--background)]/90 px-2 shadow-lg shadow-black/[0.03] sm:h-16 sm:px-3"><div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2"><MobileNavigation pathname={pathname} isAdmin={isAdmin} /><Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2" /></Link></div><div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><ThemeToggle /><Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants({ size: "sm" }), "size-11 rounded-xl p-0 sm:h-8 sm:w-auto sm:px-3")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>{!isDemo && <AccountMenu email={userEmail} />}</div></div></header>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12">{children}</main>
       <BottomNavigation pathname={pathname} />
     </div>
