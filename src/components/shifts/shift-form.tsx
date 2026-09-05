@@ -6,7 +6,7 @@ import { createShift, updateShift, type ShiftActionState } from "@/app/actions/w
 import { Button } from "@/components/ui/button";
 import { ShiftScheduleFields, type ShiftDateTimeParts, type ShiftSchedule } from "@/components/shifts/date-time-picker";
 import { PremiumSelect } from "@/components/ui/premium-select";
-import { calculateEarnings, formatCents, type DeductionSnapshot } from "@/lib/earnings";
+import { calculateEarnings, formatCents, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
 import { combineShiftDateAndTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { formatMinutes } from "@/lib/utils";
 
@@ -34,6 +34,8 @@ type ShiftFormProps = {
     startsAt: string;
     endsAt: string;
     notes: string | null;
+    /** What this shift was actually worked at. Absent when duplicating into a new shift. */
+    paySnapshot?: PaySnapshot;
   };
 };
 
@@ -89,6 +91,10 @@ function PreviewFigure({ label, value, accent = false }: { label: string; value:
 export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps) {
   const initialStart = partsFromValue(initialShift?.startsAt);
   const initialEnd = partsFromValue(initialShift?.endsAt);
+  // Read once at render: the compiler cannot verify a memo whose dependency is
+  // reached through an optional chain.
+  const storedSnapshot = initialShift?.paySnapshot;
+  const storedJobId = initialShift?.jobId;
   const [startsAt, setStartsAt] = useState(initialStart);
   const [endsAt, setEndsAt] = useState(initialEnd);
   const [jobId, setJobId] = useState(initialShift?.jobId ?? jobs[0]?.id ?? "");
@@ -115,9 +121,15 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps
     const minutes = previewMinutes(startsAt, endsAt, timeZone);
     const job = jobs.find((candidate) => candidate.id === jobId);
     if (minutes === null || !job) return null;
-    const pay = calculateEarnings(minutes, { hourlyRateCents: job.hourlyRateCents, taxRateBasisPoints: job.taxRateBasisPoints, deductions: job.deductions });
+    // An existing shift keeps the rate it was worked at, so quoting the job's
+    // current rate here would preview a figure the server is not going to save.
+    // Moving the shift to another job is the case that does re-read the job.
+    const snapshot = storedSnapshot && jobId === storedJobId
+      ? storedSnapshot
+      : { hourlyRateCents: job.hourlyRateCents, taxRateBasisPoints: job.taxRateBasisPoints, deductions: job.deductions };
+    const pay = calculateEarnings(minutes, snapshot);
     return { minutes, pay };
-  }, [endsAt, jobId, jobs, startsAt, timeZone]);
+  }, [endsAt, jobId, jobs, startsAt, storedJobId, storedSnapshot, timeZone]);
 
   function markEdited() {
     setSubmissionProblem(null);

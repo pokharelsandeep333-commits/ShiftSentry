@@ -23,6 +23,38 @@ const triggerFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short", mo
 const dayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const QUICK_DATES = [{ label: "Today", days: 0 }, { label: "Yesterday", days: -1 }, { label: "Tomorrow", days: 1 }];
+/** Breathing room kept between the panel and the edge of the screen. */
+const VIEWPORT_MARGIN = 8;
+
+/**
+ * Pull the calendar back inside the viewport.
+ *
+ * Its width is already capped at the screen width, but it is positioned against
+ * the date field -- which on a phone sits about 50px in from the left edge, so a
+ * left-aligned 21rem panel ran off the right. Width alone cannot express that:
+ * CSS has no way to ask how far this element is from the edge of the screen.
+ *
+ * Written straight to the node rather than through state, so opening the
+ * calendar does not re-render all 42 day buttons to move it, and called from a
+ * ref callback, which runs during commit -- the panel is never painted in the
+ * wrong place first.
+ *
+ * It adjusts the offset the panel is already anchored by rather than
+ * translating it. A transform moves only what is painted: the layout box would
+ * stay off-screen, the document would still report itself wider than the
+ * viewport, and anything sized to that -- the fixed bottom bar -- would stretch
+ * with it.
+ */
+function clampToViewport(panel: HTMLDivElement | null, align: "left" | "right") {
+  if (!panel) return;
+  panel.style[align] = "";
+  const rect = panel.getBoundingClientRect();
+  const furthestLeft = document.documentElement.clientWidth - VIEWPORT_MARGIN - rect.width;
+  const target = Math.max(VIEWPORT_MARGIN, Math.min(rect.left, furthestLeft));
+  const shift = Math.round(target - rect.left);
+  // Anchored by `right`, a leftward move is a larger right offset.
+  if (shift) panel.style[align] = `${align === "right" ? -shift : shift}px`;
+}
 
 function parseDate(date: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
@@ -78,6 +110,7 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [focusedDate, setFocusedDate] = useState(() => value || today);
   const month = useMemo(() => startOfMonth(parseDate(focusedDate) ?? parseDate(today) ?? new Date()), [focusedDate, today]);
@@ -90,6 +123,19 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
   }, []);
 
   useDismissable(open, rootRef, dismiss);
+
+  const attachPanel = useCallback((panel: HTMLDivElement | null) => {
+    panelRef.current = panel;
+    clampToViewport(panel, align);
+  }, [align]);
+
+  // Rotating the phone changes how much room is left of the panel.
+  useEffect(() => {
+    if (!open) return;
+    const reclamp = () => clampToViewport(panelRef.current, align);
+    window.addEventListener("resize", reclamp);
+    return () => window.removeEventListener("resize", reclamp);
+  }, [align, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -141,6 +187,7 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
       <CalendarDays className="size-4 shrink-0 text-[var(--muted-foreground)]" />
     </button>
     {open && <div
+      ref={attachPanel}
       role="dialog"
       aria-label={ariaLabel}
       className={cn("absolute z-50 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_24%,var(--border))] bg-[var(--card)] p-3 shadow-2xl shadow-black/20", align === "right" ? "right-0" : "left-0")}

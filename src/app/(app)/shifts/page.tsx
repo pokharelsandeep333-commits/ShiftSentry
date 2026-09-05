@@ -3,25 +3,20 @@ import { CalendarClock, ChevronRight, Clock3 } from "lucide-react";
 import { addDays } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { SavedToast } from "@/components/saved-toast";
-import { deleteShift } from "@/app/actions/work";
+import { ShiftRowActions } from "@/components/shifts/shift-row-actions";
 import { formatCents } from "@/lib/earnings";
 import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
 import { weekStartFor } from "@/lib/time";
+import { WEEKS_PER_PAGE, clampWeeks } from "@/lib/shift-log";
 import { formatMinutes } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-/** Weeks loaded per page. "Load older weeks" adds another batch. */
-const WEEKS_PER_PAGE = 8;
-/** Roughly five years, so a hand-edited `?weeks=` cannot ask for an unbounded scan. */
-const MAX_WEEKS = 260;
 
 type JobRef = { name: string; color: string; archived_at: string | null };
 
@@ -35,6 +30,12 @@ type ShiftRow = {
   jobs: JobRef | JobRef[] | null;
 };
 
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function single(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function nextWeekLocal(value: string, timeZone: string) {
   return addWeeksToLocalDateTime(formatInTimeZone(value, timeZone, "yyyy-MM-dd'T'HH:mm"), 1);
 }
@@ -45,6 +46,12 @@ function createdMessage(created: number, skipped: number) {
   const added = created === 1 ? "Shift added" : `${created} shifts added`;
   if (!skipped) return added;
   return `${added}. ${skipped} skipped — they clash with an existing shift or a weekly cap.`;
+}
+
+/** What a mutation that redirected back here should confirm. */
+function savedMessage(params: SearchParams) {
+  if (single(params.saved) === "shift-deleted") return "Shift deleted";
+  return createdMessage(Number(params.created ?? 0), Number(params.skipped ?? 0));
 }
 
 function duplicateHref(shift: ShiftRow, timeZone: string) {
@@ -83,13 +90,11 @@ function groupByWeek(shifts: ShiftRow[], timeZone: string, weekStartsOn: number)
   return [...groups.values()];
 }
 
-export default async function ShiftsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function ShiftsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const profile = await requireUser();
   const params = await searchParams;
-  const saved = createdMessage(Number(params.created ?? 0), Number(params.skipped ?? 0));
-
-  const requested = Number(Array.isArray(params.weeks) ? params.weeks[0] : params.weeks);
-  const weeks = Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), WEEKS_PER_PAGE), MAX_WEEKS) : WEEKS_PER_PAGE;
+  const saved = savedMessage(params);
+  const weeks = clampWeeks(single(params.weeks));
 
   const currentWeekStart = weekStartFor(new Date(), profile.time_zone, profile.week_starts_on);
   const windowStart = addDays(currentWeekStart, -7 * (weeks - 1));
@@ -118,22 +123,22 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   const firstWeekNumber = (weeksBefore ?? 0) + 1;
 
   return <>
-    {saved && <SavedToast message={saved} clearParams={["created", "skipped"]} />}
-    <PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." actions={<Link href="/shifts/new"><Button><CalendarClock className="size-4" />Add shift</Button></Link>} />
+    {saved && <SavedToast message={saved} clearParams={["created", "skipped", "saved"]} />}
+    <PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." actions={<Link href="/shifts/new" className={buttonVariants()}><CalendarClock className="size-4" />Add shift</Link>} />
 
     {groups.length
-      ? <div className="space-y-3">{groups.map((group, index) => <WeekSection key={group.key} group={group} number={firstWeekNumber + groups.length - 1 - index} open={group.key === currentKey} timeZone={profile.time_zone} />)}</div>
+      ? <div className="space-y-3">{groups.map((group, index) => <WeekSection key={group.key} group={group} number={firstWeekNumber + groups.length - 1 - index} open={group.key === currentKey} timeZone={profile.time_zone} weeks={weeks} />)}</div>
       : <Card><CardContent><p className="p-10 text-center text-sm text-[var(--muted-foreground)]">No shifts in the last {weeks} weeks.</p></CardContent></Card>}
 
     {olderCount ? <div className="mt-6 text-center">
-      <Link href={`/shifts?weeks=${Math.min(weeks + WEEKS_PER_PAGE, MAX_WEEKS)}`}>
-        <Button variant="outline">Load older weeks <span className="font-normal text-[var(--muted-foreground)]">({olderCount} older)</span></Button>
+      <Link href={`/shifts?weeks=${clampWeeks(weeks + WEEKS_PER_PAGE)}`} className={buttonVariants({ variant: "outline" })}>
+        Load older weeks <span className="font-normal text-[var(--muted-foreground)]">({olderCount} older)</span>
       </Link>
     </div> : null}
   </>;
 }
 
-function WeekSection({ group, number, open, timeZone }: { group: WeekGroup; number: number; open: boolean; timeZone: string }) {
+function WeekSection({ group, number, open, timeZone, weeks }: { group: WeekGroup; number: number; open: boolean; timeZone: string; weeks: number }) {
   const lastDay = addDays(group.start, 6);
   const range = `${formatInTimeZone(group.start, timeZone, "MMM d")} – ${formatInTimeZone(lastDay, timeZone, "MMM d")}`;
 
@@ -148,13 +153,13 @@ function WeekSection({ group, number, open, timeZone }: { group: WeekGroup; numb
           <span className="shrink-0 rounded-xl bg-[var(--surface-subtle)] px-3 py-1.5 text-sm font-semibold">{formatMinutes(group.minutes)}</span>
           <span className="shrink-0 text-sm font-semibold text-[var(--success)]">{formatCents(group.netCents)}</span>
         </summary>
-        <div className="mt-1 space-y-1">{group.shifts.map((shift) => <ShiftListRow key={shift.id} shift={shift} timeZone={timeZone} />)}</div>
+        <div className="mt-1 space-y-1">{group.shifts.map((shift) => <ShiftListRow key={shift.id} shift={shift} timeZone={timeZone} weeks={weeks} />)}</div>
       </details>
     </CardContent>
   </Card>;
 }
 
-function ShiftListRow({ shift, timeZone }: { shift: ShiftRow; timeZone: string }) {
+function ShiftListRow({ shift, timeZone, weeks }: { shift: ShiftRow; timeZone: string; weeks: number }) {
   const job = Array.isArray(shift.jobs) ? shift.jobs[0] : shift.jobs;
   const future = new Date(shift.starts_at) > new Date();
 
@@ -163,8 +168,11 @@ function ShiftListRow({ shift, timeZone }: { shift: ShiftRow; timeZone: string }
     <div className="min-w-48 flex-1"><p className="font-semibold">{job?.name ?? "Archived job"}</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.starts_at, timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.ends_at, timeZone, "h:mm a")}</p>{shift.notes && <p className="mt-1.5 line-clamp-1 text-sm text-[var(--muted-foreground)]">{shift.notes}</p>}</div>
     <span className="rounded-xl bg-[var(--surface-subtle)] px-3 py-1.5 text-sm font-semibold">{formatMinutes(shiftMinutes(shift))}</span>
     <Badge variant={future ? "default" : "muted"} className="rounded-xl px-3 py-1.5">{future ? "Scheduled" : "Logged"}</Badge>
-    <Link href={`/shifts/${shift.id}/edit`} className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]">Edit</Link>
-    {job && !job.archived_at && <Link href={duplicateHref(shift, timeZone)} className="rounded-lg px-3 py-2 text-xs font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]">Duplicate</Link>}
-    <form action={deleteShift}><input type="hidden" name="id" value={shift.id} /><ConfirmSubmit label="Delete" confirmLabel="Delete shift?" /></form>
+    <ShiftRowActions
+      shiftId={shift.id}
+      editHref={`/shifts/${shift.id}/edit`}
+      duplicateHref={job && !job.archived_at ? duplicateHref(shift, timeZone) : undefined}
+      weeks={weeks}
+    />
   </div>;
 }

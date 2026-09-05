@@ -2,7 +2,13 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const buttonVariants = cva(
+/**
+ * Shared with `Link`. A link that looks like a button must still *be* a link:
+ * wrapping a <button> in an <a> is invalid -- an anchor may not contain
+ * interactive content -- and it gives assistive tech two nested controls where
+ * the page has one, with only the inner button reachable by keyboard.
+ */
+export const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold tracking-[-0.01em] transition-[transform,box-shadow,background-color,border-color,color] duration-300 ease-out disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] active:translate-y-px",
   {
     variants: {
