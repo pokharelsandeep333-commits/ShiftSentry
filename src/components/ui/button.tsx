@@ -19,7 +19,11 @@ export const buttonVariants = cva(
         ghost: "hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]",
         danger: "bg-[var(--danger)] text-white shadow-lg shadow-[color-mix(in_srgb,var(--danger)_22%,transparent)] hover:-translate-y-0.5 hover:brightness-105",
       },
-      size: { default: "h-11 px-4 py-2", sm: "h-8 rounded-lg px-3 text-xs", lg: "h-12 px-6", icon: "size-10" },
+      // `sm` and `icon` grow to 44px below the sm breakpoint and shrink back
+      // above it, the same trade the shell already makes with `size-11 sm:size-10`
+      // on its header controls: a 32px control is comfortable with a mouse and
+      // an awkward target for a thumb. `default` and `lg` already clear 44.
+      size: { default: "h-11 px-4 py-2", sm: "h-11 rounded-lg px-3 text-xs sm:h-8", lg: "h-12 px-6", icon: "size-11 sm:size-10" },
     },
     defaultVariants: { variant: "default", size: "default" },
   },

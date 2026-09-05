@@ -7,8 +7,11 @@ import { cn } from "@/lib/utils";
  * backdrop-filters -- one of the most expensive things to composite -- on every
  * scroll and hover. Nothing behind a card needs blurring: the page background is
  * a 2.5%-opacity grid, and the login and account-disabled backdrops are already
- * smooth gradients, which a blur cannot change. The blur stays only on the
- * sidebar, header, and bottom bar, which genuinely overlay scrolling content.
+ * smooth gradients, which a blur cannot change.
+ *
+ * The same test was later applied to the shell, where it removed two more:
+ * measured at 1440px the sidebar and header overlap nothing, so only the bottom
+ * bar -- fixed over scrolling content -- still earns a blur. See app-shell.tsx.
  */
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("premium-card rounded-[1.35rem] border bg-[var(--card)]/80 transition-[transform,border-color,box-shadow] duration-300", className)} {...props} />;
