@@ -129,6 +129,27 @@ body {
   padding: 0.75rem 0.85rem;
 }
 
+/*
+ * iOS Safari zooms the viewport whenever a focused form control is smaller than
+ * 16px, and it does not zoom back out on blur -- so the first tap into any field
+ * left the whole app enlarged and horizontally scrollable for the rest of the
+ * session. Every control in this app is styled `text-sm` (14px), so every form
+ * had it.
+ *
+ * Sizing controls at 16px for touch input fixes it at the cause. The usual
+ * shortcut -- `maximum-scale=1` on the viewport meta -- also stops deliberate
+ * pinch-zoom, which people with low vision rely on, so it is not an option.
+ *
+ * These rules are unlayered while Tailwind's utilities are not, so this wins
+ * over the `text-sm` on each field without touching thirty call sites.
+ */
+@media (pointer: coarse), (max-width: 639.98px) {
+  .field-control,
+  .field-textarea {
+    font-size: 1rem;
+  }
+}
+
 .field-control:focus,
 .field-textarea:focus {
   border-color: color-mix(in srgb, var(--primary) 64%, var(--border));
