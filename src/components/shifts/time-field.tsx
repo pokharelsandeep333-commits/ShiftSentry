@@ -86,7 +86,7 @@ export function TimeField({ id, value, onChange, fallback, ariaLabel, describedB
         type="button"
         aria-label={`${open ? "Hide" : "Show"} the ${ariaLabel.toLowerCase()} picker`}
         aria-expanded={open}
-        className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]"
+        className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg before:absolute before:-inset-1 before:content-[''] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]"
         onPointerDown={(event) => {
           event.preventDefault();
           commitTypedValue();

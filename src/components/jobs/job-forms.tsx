@@ -41,13 +41,13 @@ function ColorField({ defaultValue }: { defaultValue: string }) {
           aria-label={`Use colour ${swatch}`}
           aria-pressed={selected}
           onClick={() => setColor(swatch)}
-          className={cn("grid size-8 place-items-center rounded-xl transition-transform hover:scale-110 focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]", selected && "ring-2 ring-[var(--foreground)] ring-offset-2 ring-offset-[var(--card)]")}
+          className={cn("grid size-11 place-items-center rounded-xl transition-transform hover:scale-110 sm:size-8 focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]", selected && "ring-2 ring-[var(--foreground)] ring-offset-2 ring-offset-[var(--card)]")}
           style={{ background: swatch }}
         >
           {selected && <Check className="size-4 text-white" strokeWidth={3} />}
         </button>;
       })}
-      <label className="ml-1 flex cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-subtle)]">
+      <label className="ml-1 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs font-semibold sm:min-h-0 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-subtle)]">
         <input type="color" value={color} onChange={(event) => setColor(event.target.value)} className="size-5 cursor-pointer rounded border-0 bg-transparent p-0" />
         Custom
       </label>

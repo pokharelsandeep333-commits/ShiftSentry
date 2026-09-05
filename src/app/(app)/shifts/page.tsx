@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, ChevronRight, Clock3 } from "lucide-react";
+import { CalendarClock, Clock3 } from "lucide-react";
 import { addDays } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { PageHeader } from "@/components/page-header";
@@ -10,6 +10,7 @@ import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { SavedToast } from "@/components/saved-toast";
 import { ShiftRowActions } from "@/components/shifts/shift-row-actions";
+import { WeekDisclosure } from "@/components/shifts/week-disclosure";
 import { formatCents } from "@/lib/earnings";
 import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
 import { weekStartFor } from "@/lib/time";
@@ -142,19 +143,22 @@ function WeekSection({ group, number, open, timeZone, weeks }: { group: WeekGrou
   const lastDay = addDays(group.start, 6);
   const range = `${formatInTimeZone(group.start, timeZone, "MMM d")} – ${formatInTimeZone(lastDay, timeZone, "MMM d")}`;
 
+  // Still a `<details>`, and the rows below are still rendered here on the
+  // server -- `WeekDisclosure` only lifts the open state into the client so it
+  // can be remembered between visits.
   return <Card>
     <CardContent className="p-2 sm:p-3">
-      {/* <details> keeps this a server component: no client JS, and the summary is
-          focusable and toggles on Enter/Space for free. */}
-      <details open={open} className="group">
-        <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-[var(--surface-subtle)] [&::-webkit-details-marker]:hidden">
-          <ChevronRight className="size-4 shrink-0 text-[var(--muted-foreground)] transition-transform duration-200 group-open:rotate-90" />
-          <span className="min-w-0 flex-1 font-display font-semibold">Week {number}<span className="ml-2 font-sans text-sm font-medium text-[var(--muted-foreground)]">{range}</span></span>
+      <WeekDisclosure
+        weekKey={group.key}
+        defaultOpen={open}
+        summary={<>
+          <span className="min-w-0 flex-1 font-display font-semibold">Week {number}<span className="ml-2 whitespace-nowrap font-sans text-sm font-medium text-[var(--muted-foreground)]">{range}</span></span>
           <span className="shrink-0 rounded-xl bg-[var(--surface-subtle)] px-3 py-1.5 text-sm font-semibold">{formatMinutes(group.minutes)}</span>
           <span className="shrink-0 text-sm font-semibold text-[var(--success)]">{formatCents(group.netCents)}</span>
-        </summary>
-        <div className="mt-1 space-y-1">{group.shifts.map((shift) => <ShiftListRow key={shift.id} shift={shift} timeZone={timeZone} weeks={weeks} />)}</div>
-      </details>
+        </>}
+      >
+        {group.shifts.map((shift) => <ShiftListRow key={shift.id} shift={shift} timeZone={timeZone} weeks={weeks} />)}
+      </WeekDisclosure>
     </CardContent>
   </Card>;
 }

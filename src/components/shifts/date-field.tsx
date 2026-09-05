@@ -199,9 +199,9 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
         })}
       </div>
       <div className="flex items-center justify-between gap-2 border-t pt-3">
-        <Button type="button" variant="ghost" size="icon" aria-label="Previous month" className="size-8" onClick={() => setFocusedDate(sameDayInMonth(month, -1, focusedDayOfMonth))}><ChevronLeft className="size-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" aria-label="Previous month" className="size-11 sm:size-8" onClick={() => setFocusedDate(sameDayInMonth(month, -1, focusedDayOfMonth))}><ChevronLeft className="size-4" /></Button>
         <p className="text-sm font-semibold">{monthFormatter.format(month)}</p>
-        <Button type="button" variant="ghost" size="icon" aria-label="Next month" className="size-8" onClick={() => setFocusedDate(sameDayInMonth(month, 1, focusedDayOfMonth))}><ChevronRight className="size-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" aria-label="Next month" className="size-11 sm:size-8" onClick={() => setFocusedDate(sameDayInMonth(month, 1, focusedDayOfMonth))}><ChevronRight className="size-4" /></Button>
       </div>
       <div className="mt-2 grid grid-cols-7 gap-1 text-center text-xs font-medium text-[var(--muted-foreground)]" aria-hidden="true">{WEEKDAYS.map((day) => <span key={day} className="py-1">{day}</span>)}</div>
       <div ref={gridRef} role="grid" aria-label={monthFormatter.format(month)} className="grid grid-cols-7 gap-1" onKeyDown={handleGridKeyDown}>
