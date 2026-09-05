@@ -7,17 +7,26 @@ import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-al
 type ShiftRow = { id: string; job_id: string; starts_at: string; ends_at: string; notes: string | null; hourly_rate_cents: number; tax_rate_basis_points: number; deductions_snapshot: DeductionSnapshot[]; jobs: { name: string; color: string } };
 type JobRow = { id: string; name: string; color: string; weekly_limit_minutes: number | null };
 
+/** The tier a cap has crossed, or null while it is still comfortably under. */
+function alertLevel(percent: number): ThresholdAlert["level"] | null {
+  return percent >= 100 ? 100 : percent >= 90 ? 90 : percent >= 80 ? 80 : null;
+}
+
 function thresholdAlerts(globalLimit: number | null, logged: number, scheduled: number, jobs: JobSummary[]): ThresholdAlert[] {
   const alerts: ThresholdAlert[] = [];
-  const projected = logged + scheduled;
-  const levelFor = (value: number, limit: number | null) => limit ? percentage(value, limit) : 0;
-  const globalPercent = levelFor(projected, globalLimit);
-  const globalLevel = globalPercent >= 100 ? 100 : globalPercent >= 90 ? 90 : globalPercent >= 80 ? 80 : null;
+  const globalPercent = percentage(logged + scheduled, globalLimit);
+  const globalLevel = alertLevel(globalPercent);
   if (globalLevel) alerts.push({ level: globalLevel, title: globalLevel === 100 ? "Weekly cap reached" : "Approaching your weekly cap", detail: `Your planned hours reach ${globalPercent}% of your global cap.`, severity: globalLevel === 100 ? "danger" : "warning" });
+
+  // Per-job caps warn on the same 80/90/100 ladder as the global one. They used
+  // to fire only at 100%, which meant the dashboard could warn about the cap a
+  // user was comfortably under while saying nothing about the job they were
+  // minutes from breaching -- under a card promising alerts at all three tiers.
   jobs.forEach((job) => {
-    const value = job.usedMinutes + job.scheduledMinutes;
-    const jobPercent = levelFor(value, job.weeklyLimitMinutes);
-    if (jobPercent >= 100) alerts.push({ level: 100, title: `${job.name} limit reached`, detail: `Planned hours equal ${jobPercent}% of this job's weekly cap.`, severity: "danger" });
+    const jobPercent = percentage(job.usedMinutes + job.scheduledMinutes, job.weeklyLimitMinutes);
+    const level = alertLevel(jobPercent);
+    if (!level) return;
+    alerts.push({ level, title: level === 100 ? `${job.name} limit reached` : `Approaching your ${job.name} limit`, detail: `Planned hours reach ${jobPercent}% of this job's weekly cap.`, severity: level === 100 ? "danger" : "warning" });
   });
   return alerts;
 }

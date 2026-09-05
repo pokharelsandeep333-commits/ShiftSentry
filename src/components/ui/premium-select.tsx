@@ -101,7 +101,10 @@ export function PremiumSelect({ name, defaultValue, options, labelledBy, require
     window.clearTimeout(state.timer);
     state.query += key.toLowerCase();
     state.timer = window.setTimeout(() => { state.query = ""; }, TYPEAHEAD_RESET_MS);
-    const match = options.findIndex((option) => option.label.toLowerCase().startsWith(state.query));
+    // Prefix first, then substring: a long prefixed label such as
+    // "Asia/Katmandu" is otherwise unreachable by typing the part a user knows.
+    const prefix = options.findIndex((option) => option.label.toLowerCase().startsWith(state.query));
+    const match = prefix !== -1 ? prefix : options.findIndex((option) => option.label.toLowerCase().includes(state.query));
     if (match !== -1) setActiveIndex(match);
   }
 
