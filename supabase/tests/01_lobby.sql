@@ -67,7 +67,7 @@ begin
 
   -- ---- capacity -------------------------------------------------------
   perform set_config('request.jwt.claim.sub', alice::text, true);
-  perform public.update_game_room_settings(room, false, false, true, 1, 1, 3, null);
+  perform public.update_game_room_settings(room, 'NONE', false, true, 1, 1, 3, true, false, null);
 
   perform set_config('request.jwt.claim.sub', carol::text, true);
   perform public.join_game_room(room_code, 'Carol');
@@ -84,7 +84,7 @@ begin
   -- ---- settings are host-only -----------------------------------------
   perform set_config('request.jwt.claim.sub', bob::text, true);
   begin
-    perform public.update_game_room_settings(room, true, true, true, 2, 2, 8, null);
+    perform public.update_game_room_settings(room, 'DECOY', false, true, 2, 2, 8, true, false, null);
     raise exception 'a non-host changed the settings';
   exception when sqlstate 'P0001' then
     raise notice 'settings refused for non-host: %', sqlerrm;
@@ -102,7 +102,7 @@ begin
   -- ---- word draw never repeats, then cycles ---------------------------
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub', bob::text, true);
-  perform public.update_game_room_settings(room, false, false, true, 1, 1, 8, 'Clothing');
+  perform public.update_game_room_settings(room, 'NONE', false, true, 1, 1, 8, true, false, 'Clothing');
 
   select word_count into bank from public.game_word_categories() where category = 'Clothing';
 

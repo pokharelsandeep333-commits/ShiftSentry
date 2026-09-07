@@ -1,6 +1,14 @@
-import { EyeOff, ShieldQuestion, Trophy, Users } from "lucide-react";
+import { EyeOff, MessagesSquare, ShieldQuestion, Trophy, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClueForm, FinalGuessForm, FinishRoundButton, SeatRow, VotePanel } from "@/components/game/round-forms";
+import {
+  ClueForm,
+  FinalGuessForm,
+  FinishRoundButton,
+  OpenVoteButton,
+  RerollWordButton,
+  SeatRow,
+  VotePanel,
+} from "@/components/game/round-forms";
 import type { RoundView } from "@/lib/game-round";
 import { cn } from "@/lib/utils";
 
@@ -9,33 +17,41 @@ import { cn } from "@/lib/utils";
  * scoped by RLS or by a phase-gated function on the way in, so there is nothing
  * here to hide on the client -- what the page does not receive, it cannot leak.
  *
- * The forms underneath are the only client components, because they are the only
- * parts that need to submit.
+ * `yourRole` being null on a hidden-role round is the clearest example. It is
+ * not blanked here; `game_my_round_secret` refuses to return it, so it never
+ * reaches the server render either.
  */
 
 const PHASE_LABEL: Record<RoundView["status"], string> = {
   DEALING: "Dealing",
   CLUES: "Clues",
+  DISCUSSION: "Discussion",
   VOTING: "Voting",
   GUESSING: "Final guess",
   REVEAL: "Reveal",
   ENDED: "Finished",
 };
 
-/**
- * What you are holding this round.
- *
- * The imposter is told they are the imposter, in both modes. In decoy mode the
- * classic game leaves you to work that out from the clues not quite matching,
- * which is a better game -- but the role sits on a row your own client is
- * allowed to read, so hiding it in the markup would be a curtain rather than a
- * wall. Told plainly is at least honest about what the app knows.
- */
 function SecretCard({ round }: { round: RoundView }) {
-  if (!round.yourRole) {
+  if (!round.yourRole && !round.yourWord && !round.rolesHidden) {
     return <Card className="border-dashed">
       <CardContent className="pt-5 text-center text-sm leading-6 text-[var(--muted-foreground)] sm:pt-6">
         You joined after this round was dealt, so you&rsquo;re sitting this one out. You&rsquo;ll be in the next.
+      </CardContent>
+    </Card>;
+  }
+
+  // Roles hidden: everyone holds a word and nobody is told whose is the odd one.
+  // Deliberately styled the same for every player -- a different colour for the
+  // imposter would give away the thing the round is hiding.
+  if (round.rolesHidden && !round.yourRole) {
+    return <Card className="border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[var(--primary-soft)] text-center">
+      <CardContent className="pt-5 sm:pt-6">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--primary)]">Your word</p>
+        <p className="mt-2 font-display text-3xl font-semibold sm:text-4xl">{round.yourWord}</p>
+        <p className="mt-3 text-xs leading-5 text-[var(--muted-foreground)]">
+          Roles are hidden. Someone here has a slightly different word — it might be you.
+        </p>
       </CardContent>
     </Card>;
   }
@@ -63,8 +79,11 @@ function SecretCard({ round }: { round: RoundView }) {
             No word
           </p>}
 
-      {isImposter && round.yourWord && round.decoyMode && <p className="mt-2 text-xs text-[var(--muted-foreground)]">This is a decoy — close to the real word, but not it.</p>}
-      {isImposter && round.yourCategoryHint && <p className="mt-2 text-sm text-[var(--muted-foreground)]">Category: <span className="font-semibold text-[var(--foreground)]">{round.yourCategoryHint}</span></p>}
+      {isImposter && round.yourWord && round.imposterHint === "DECOY" && <p className="mt-2 text-xs text-[var(--muted-foreground)]">This is a decoy — close to the real word, but not it.</p>}
+      {isImposter && round.yourCategoryHint && <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+        {round.imposterHint === "RELATED" ? "Something in the same area:" : "Category:"}{" "}
+        <span className="font-semibold text-[var(--foreground)]">{round.yourCategoryHint}</span>
+      </p>}
       {isImposter && !round.yourWord && !round.yourCategoryHint && <p className="mt-2 text-xs text-[var(--muted-foreground)]">Bluff it. Listen first if you can.</p>}
     </CardContent>
   </Card>;
@@ -110,7 +129,7 @@ function Reveal({ round }: { round: RoundView }) {
         <p className="mt-2 font-display text-2xl font-semibold">{crewWon ? "The crew win" : "The imposter wins"}</p>
         <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
           The word was <span className="font-semibold text-[var(--foreground)]">{round.reveal.word}</span>
-          {round.decoyMode && <> · the decoy was <span className="font-semibold text-[var(--foreground)]">{round.reveal.decoyWord}</span></>}
+          {round.imposterHint === "DECOY" && <> · the decoy was <span className="font-semibold text-[var(--foreground)]">{round.reveal.decoyWord}</span></>}
           {" "}({round.reveal.category})
         </p>
       </div>
@@ -146,6 +165,7 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
   const turnSeat = round.seats.find((seat) => seat.isTurn);
   const waitingOn = round.seats.filter((seat) => !seat.eliminated && !seat.hasLeft && !seat.hasVoted);
   const caught = round.seats.find((seat) => seat.userId === round.caughtUserId);
+  const nobodyHasSpoken = round.clues.length === 0;
 
   return <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
     <div className="grid gap-6 self-start">
@@ -180,20 +200,38 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
     <div className="grid gap-6 self-start">
       {round.status === "CLUES" && <Card>
         <CardHeader><CardTitle>{round.isYourTurn ? "Your turn" : "Clue phase"}</CardTitle></CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-3">
           {round.isYourTurn
             ? <ClueForm roundId={round.id} />
             : <p className="text-sm leading-6 text-[var(--muted-foreground)]">
                 {turnSeat ? <>Waiting on <span className="font-semibold text-[var(--foreground)]">{turnSeat.displayName}</span>.</> : "Wrapping up this pass…"}
               </p>}
+
+          {/* Only before anyone commits to a clue -- after that the word is in play. */}
+          {isHost && nobodyHasSpoken && <div className="border-t pt-3">
+            <RerollWordButton roundId={round.id} />
+            <p className="mt-1.5 text-xs leading-5 text-[var(--muted-foreground)]">Draws a different word, keeping everyone&rsquo;s role and turn order.</p>
+          </div>}
+        </CardContent>
+      </Card>}
+
+      {round.status === "DISCUSSION" && <Card className="border-[color-mix(in_srgb,var(--primary)_35%,var(--border))]">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><MessagesSquare className="size-4 text-[var(--primary)]" />Talk it over</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <p className="text-sm leading-6 text-[var(--muted-foreground)]">All the clues are in. Say what you think before anyone commits — voting is locked until the host opens it.</p>
+          {isHost
+            ? <OpenVoteButton roundId={round.id} />
+            : <p className="text-center text-xs text-[var(--muted-foreground)]">The host opens the vote when everyone&rsquo;s had their say.</p>}
         </CardContent>
       </Card>}
 
       {round.status === "VOTING" && <Card>
         <CardHeader><CardTitle>Vote</CardTitle></CardHeader>
         <CardContent className="grid gap-3">
-          {round.yourRole
-            ? <VotePanel roundId={round.id} seats={round.seats} youHaveVoted={round.youHaveVoted} />
+          {round.yourRole || round.rolesHidden || round.yourWord
+            ? <VotePanel roundId={round.id} seats={round.seats} yourVoteTargetId={round.yourVoteTargetId} />
             : <p className="text-sm leading-6 text-[var(--muted-foreground)]">You&rsquo;re not playing this round, so you don&rsquo;t get a vote.</p>}
           {waitingOn.length > 0 && <p className="border-t pt-3 text-xs text-[var(--muted-foreground)]">Still to vote: {waitingOn.map((seat) => seat.displayName).join(", ")}</p>}
         </CardContent>

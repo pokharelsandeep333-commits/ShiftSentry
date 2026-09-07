@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { LobbyPlayer } from "@/lib/game-lobby";
+import { isImposterHint, type ImposterHint } from "@/lib/game";
 
 /**
  * Reads for a round in progress.
@@ -17,9 +18,9 @@ import type { LobbyPlayer } from "@/lib/game-lobby";
  */
 
 const ROUND_COLUMNS =
-  "id,room_id,round_no,status,decoy_mode,category_hint,imposter_final_guess,imposter_count,clue_passes,current_pass,started_at,ended_at,caught_user_id,final_guess,outcome";
+  "id,room_id,round_no,status,imposter_hint,hide_roles,imposter_final_guess,imposter_count,clue_passes,current_pass,started_at,ended_at,caught_user_id,final_guess,outcome,ban_repeat_clues,discussion_phase";
 
-export type RoundPhase = "DEALING" | "CLUES" | "VOTING" | "GUESSING" | "REVEAL" | "ENDED";
+export type RoundPhase = "DEALING" | "CLUES" | "DISCUSSION" | "VOTING" | "GUESSING" | "REVEAL" | "ENDED";
 
 export type RoundSeat = {
   userId: string;
@@ -52,9 +53,16 @@ export type RoundView = {
   status: RoundPhase;
   currentPass: number;
   cluePasses: number;
-  decoyMode: boolean;
+  imposterHint: ImposterHint;
   imposterCount: number;
   imposterFinalGuess: boolean;
+  discussionPhase: boolean;
+
+  /**
+   * The round is being played with roles hidden, so `yourRole` is null for
+   * everyone until the reveal -- withheld by the database, not by this layer.
+   */
+  rolesHidden: boolean;
 
   seats: RoundSeat[];
   clues: RoundClue[];
@@ -67,6 +75,9 @@ export type RoundView = {
   turnUserId: string | null;
   isYourTurn: boolean;
   youHaveVoted: boolean;
+
+  /** Who you voted for, so the vote screen can show it. Yours only -- the policy sees to that. */
+  yourVoteTargetId: string | null;
 
   caughtUserId: string | null;
   finalGuess: string | null;
@@ -106,13 +117,19 @@ export async function fetchCurrentRound(
   const status = round.status as RoundPhase;
   const revealed = status === "REVEAL" || status === "ENDED";
 
-  const [seatRows, clueRows, secret, voters, reveal, votes] = await Promise.all([
+  const [seatRows, clueRows, secret, voters, reveal, votes, myVote] = await Promise.all([
     supabase.from("game_round_players").select("user_id,turn_order,eliminated_at").eq("round_id", round.id),
     supabase.from("game_clues").select("user_id,pass_no,clue,created_at").eq("round_id", round.id).order("pass_no").order("created_at"),
-    supabase.from("game_round_secrets").select("role,assigned_word,category_hint_text").eq("round_id", round.id).maybeSingle(),
+    // Through a function, not a table read: `game_round_secrets` carries no
+    // grant any more, because a role hidden only in the markup is still sitting
+    // in the network tab. The function withholds it at the source.
+    supabase.rpc("game_my_round_secret", { p_round_id: round.id }),
     supabase.rpc("game_round_voters", { p_round_id: round.id }),
     revealed ? supabase.rpc("game_round_reveal", { p_round_id: round.id }) : Promise.resolve({ data: null }),
     revealed ? supabase.from("game_votes").select("voter_id,target_id").eq("round_id", round.id) : Promise.resolve({ data: null }),
+    // Readable at any point in the round: the policy scopes an unrevealed round
+    // to your own ballot, which is exactly the one the screen needs to show back.
+    supabase.from("game_votes").select("target_id").eq("round_id", round.id).eq("voter_id", viewerId).maybeSingle(),
   ]);
 
   const names = new Map(roster.map((player) => [player.userId, player.displayName]));
@@ -143,6 +160,7 @@ export async function fetchCurrentRound(
   if (nextUp) nextUp.isTurn = true;
 
   const revealRow = reveal.data?.[0] ?? null;
+  const mine = secret.data?.[0] ?? null;
 
   return {
     id: round.id,
@@ -150,9 +168,11 @@ export async function fetchCurrentRound(
     status,
     currentPass: round.current_pass,
     cluePasses: round.clue_passes,
-    decoyMode: round.decoy_mode,
+    imposterHint: isImposterHint(round.imposter_hint) ? round.imposter_hint : "NONE",
     imposterCount: round.imposter_count,
     imposterFinalGuess: round.imposter_final_guess,
+    discussionPhase: round.discussion_phase,
+    rolesHidden: round.hide_roles,
 
     seats,
     clues: (clueRows.data ?? []).map((clue) => ({
@@ -162,13 +182,14 @@ export async function fetchCurrentRound(
       clue: clue.clue,
     })),
 
-    yourRole: (secret.data?.role as "CREW" | "IMPOSTER" | undefined) ?? null,
-    yourWord: secret.data?.assigned_word ?? null,
-    yourCategoryHint: secret.data?.category_hint_text ?? null,
+    yourRole: (mine?.role as "CREW" | "IMPOSTER" | null | undefined) ?? null,
+    yourWord: mine?.assigned_word ?? null,
+    yourCategoryHint: mine?.hint_text ?? null,
 
     turnUserId: nextUp?.userId ?? null,
     isYourTurn: nextUp?.userId === viewerId,
     youHaveVoted: votedIds.has(viewerId),
+    yourVoteTargetId: myVote.data?.target_id ?? null,
 
     caughtUserId: round.caught_user_id,
     finalGuess: round.final_guess,
@@ -185,4 +206,40 @@ export async function fetchCurrentRound(
       : null,
     votes: (votes.data ?? []).map((vote) => ({ voterId: vote.voter_id, targetId: vote.target_id })),
   };
+}
+
+export type ScoreboardRow = {
+  userId: string;
+  displayName: string;
+  roundsPlayed: number;
+  wins: number;
+  imposterRounds: number;
+  imposterWins: number;
+};
+
+/**
+ * The room's running tally, ordered by wins.
+ *
+ * A function rather than a query the client assembles, because working out who
+ * won a round means knowing who was the imposter -- and `game_round_secrets` is
+ * readable by nobody. Only decided rounds count, so a game in progress does not
+ * appear on the board before it has an outcome.
+ */
+export async function fetchRoomScoreboard(roomId: string, roster: LobbyPlayer[]): Promise<ScoreboardRow[]> {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase.rpc("game_room_scoreboard", { p_room_id: roomId });
+  if (!data?.length) return [];
+
+  const names = new Map(roster.map((player) => [player.userId, player.displayName]));
+
+  return data
+    .map((row) => ({
+      userId: row.user_id,
+      displayName: names.get(row.user_id) ?? "Left the game",
+      roundsPlayed: row.rounds_played,
+      wins: row.wins,
+      imposterRounds: row.imposter_rounds,
+      imposterWins: row.imposter_wins,
+    }))
+    .sort((left, right) => right.wins - left.wins || right.roundsPlayed - left.roundsPlayed || left.displayName.localeCompare(right.displayName));
 }

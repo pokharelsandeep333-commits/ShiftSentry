@@ -187,6 +187,10 @@ export type Database = {
           max_players: number;
           status: Database["public"]["Enums"]["game_room_status"];
           updated_at: string;
+          imposter_hint: string;
+          hide_roles: boolean;
+          ban_repeat_clues: boolean;
+          discussion_phase: boolean;
         };
         Insert: {
           category_filter?: string | null;
@@ -203,6 +207,10 @@ export type Database = {
           max_players?: number;
           status?: Database["public"]["Enums"]["game_room_status"];
           updated_at?: string;
+          imposter_hint?: string;
+          hide_roles?: boolean;
+          ban_repeat_clues?: boolean;
+          discussion_phase?: boolean;
         };
         Update: {
           category_filter?: string | null;
@@ -219,6 +227,10 @@ export type Database = {
           max_players?: number;
           status?: Database["public"]["Enums"]["game_room_status"];
           updated_at?: string;
+          imposter_hint?: string;
+          hide_roles?: boolean;
+          ban_repeat_clues?: boolean;
+          discussion_phase?: boolean;
         };
         Relationships: [
           {
@@ -326,6 +338,10 @@ export type Database = {
           caught_user_id: string | null;
           final_guess: string | null;
           outcome: string | null;
+          imposter_hint: string;
+          hide_roles: boolean;
+          ban_repeat_clues: boolean;
+          discussion_phase: boolean;
         };
         Insert: {
           category_hint: boolean;
@@ -344,6 +360,10 @@ export type Database = {
           caught_user_id?: string | null;
           final_guess?: string | null;
           outcome?: string | null;
+          imposter_hint?: string;
+          hide_roles?: boolean;
+          ban_repeat_clues?: boolean;
+          discussion_phase?: boolean;
         };
         Update: {
           category_hint?: boolean;
@@ -362,6 +382,10 @@ export type Database = {
           caught_user_id?: string | null;
           final_guess?: string | null;
           outcome?: string | null;
+          imposter_hint?: string;
+          hide_roles?: boolean;
+          ban_repeat_clues?: boolean;
+          discussion_phase?: boolean;
         };
         Relationships: [
           {
@@ -680,6 +704,29 @@ export type Database = {
         };
         Returns: undefined;
       };
+      game_my_round_secret: {
+        Args: {
+          p_round_id: string;
+        };
+        Returns: {
+          role: string | null;
+          assigned_word: string | null;
+          hint_text: string | null;
+          roles_hidden: boolean;
+        }[];
+      };
+      game_room_scoreboard: {
+        Args: {
+          p_room_id: string;
+        };
+        Returns: {
+          user_id: string;
+          rounds_played: number;
+          wins: number;
+          imposter_rounds: number;
+          imposter_wins: number;
+        }[];
+      };
       game_round_reveal: {
         Args: {
           p_round_id: string;
@@ -726,6 +773,13 @@ export type Database = {
         };
         Returns: boolean;
       };
+      kick_game_player: {
+        Args: {
+          p_room_id: string;
+          p_user_id: string;
+        };
+        Returns: undefined;
+      };
       join_game_room: {
         Args: {
           p_code: string;
@@ -736,6 +790,18 @@ export type Database = {
       leave_game_room: {
         Args: {
           p_room_id: string;
+        };
+        Returns: undefined;
+      };
+      open_game_round_vote: {
+        Args: {
+          p_round_id: string;
+        };
+        Returns: undefined;
+      };
+      reroll_game_word: {
+        Args: {
+          p_round_id: string;
         };
         Returns: undefined;
       };
@@ -789,12 +855,14 @@ export type Database = {
       update_game_room_settings: {
         Args: {
           p_room_id: string;
-          p_decoy_mode: boolean;
-          p_category_hint: boolean;
+          p_imposter_hint: string;
+          p_hide_roles: boolean;
           p_imposter_final_guess: boolean;
           p_imposter_count: number;
           p_clue_passes: number;
           p_max_players: number;
+          p_ban_repeat_clues: boolean;
+          p_discussion_phase: boolean;
           p_category_filter?: string | null;
         };
         Returns: undefined;
@@ -804,7 +872,7 @@ export type Database = {
       app_role: "USER" | "ADMIN";
       game_player_role: "CREW" | "IMPOSTER";
       game_room_status: "LOBBY" | "PLAYING" | "ENDED";
-      game_round_status: "DEALING" | "CLUES" | "VOTING" | "GUESSING" | "REVEAL" | "ENDED";
+      game_round_status: "DEALING" | "CLUES" | "DISCUSSION" | "VOTING" | "GUESSING" | "REVEAL" | "ENDED";
     };
     CompositeTypes: {
       [_ in never]: never;

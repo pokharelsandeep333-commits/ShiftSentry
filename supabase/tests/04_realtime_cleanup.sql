@@ -55,8 +55,10 @@ begin
     turn := public.game_round_turn(round);
     exit when turn is null;
     perform set_config('request.jwt.claim.sub', turn::text, true);
-    perform public.submit_game_clue(round, 'clue');
+    signals := coalesce(signals, 0) + 1;
+    perform public.submit_game_clue(round, 'clue ' || signals);
   end loop;
+  signals := null;
 
   execute 'set local role postgres';
 

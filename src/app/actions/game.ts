@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { gameClueSchema, gameCodeSchema, gameDisplayNameSchema, gameGuessSchema, gameRoomSettingsSchema, resourceIdSchema } from "@/lib/validation";
-import type { FormActionState } from "@/lib/form-state";
+import type { FormActionState, SavedFormState } from "@/lib/form-state";
 
 /**
  * User-scoped game mutations. Every one of them is a single RPC, because the
@@ -79,38 +79,46 @@ export async function joinGameRoom(_previous: FormActionState, formData: FormDat
   redirect(`/game/${data}?saved=room-joined`);
 }
 
-export async function updateGameSettings(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+export async function updateGameSettings(_previous: SavedFormState, formData: FormData): Promise<SavedFormState> {
   await requireUser();
 
   const parsed = gameRoomSettingsSchema.safeParse({
     roomId: formData.get("roomId"),
-    decoyMode: checked(formData, "decoyMode"),
-    categoryHint: checked(formData, "categoryHint"),
+    imposterHint: formData.get("imposterHint"),
+    hideRoles: checked(formData, "hideRoles"),
     imposterFinalGuess: checked(formData, "imposterFinalGuess"),
     imposterCount: formData.get("imposterCount"),
     cluePasses: formData.get("cluePasses"),
     maxPlayers: formData.get("maxPlayers"),
+    banRepeatClues: checked(formData, "banRepeatClues"),
+    discussionPhase: checked(formData, "discussionPhase"),
     categoryFilter: optionalText(formData, "categoryFilter"),
   });
 
-  if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "Those settings are not valid." };
+  if (!parsed.success) {
+    return { message: parsed.error.issues[0]?.message ?? "Those settings are not valid.", savedAt: null };
+  }
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.rpc("update_game_room_settings", {
     p_room_id: parsed.data.roomId,
-    p_decoy_mode: parsed.data.decoyMode,
-    p_category_hint: parsed.data.categoryHint,
+    p_imposter_hint: parsed.data.imposterHint,
+    p_hide_roles: parsed.data.hideRoles,
     p_imposter_final_guess: parsed.data.imposterFinalGuess,
     p_imposter_count: parsed.data.imposterCount,
     p_clue_passes: parsed.data.cluePasses,
     p_max_players: parsed.data.maxPlayers,
+    p_ban_repeat_clues: parsed.data.banRepeatClues,
+    p_discussion_phase: parsed.data.discussionPhase,
     p_category_filter: parsed.data.categoryFilter,
   });
 
-  if (error) return { message: readableError(error, "We couldn't save those settings. Please try again.") };
+  if (error) {
+    return { message: readableError(error, "We couldn't save those settings. Please try again."), savedAt: null };
+  }
 
   revalidatePath("/game", "layout");
-  return { message: "" };
+  return { message: "", savedAt: Date.now() };
 }
 
 export async function leaveGameRoom(formData: FormData): Promise<void> {
@@ -251,6 +259,60 @@ export async function finishGameRound(_previous: FormActionState, formData: Form
   const { error } = await supabase.rpc("finish_game_round", { p_round_id: round.data });
 
   if (error) return { message: readableError(error, "We couldn't close the round. Please try again.") };
+
+  revalidatePath("/game", "layout");
+  return { message: "" };
+}
+
+/**
+ * Host controls. Each is a single RPC that re-checks host-ness itself, so the
+ * only thing this layer adds is turning a rejection into a sentence.
+ */
+
+export async function openGameRoundVote(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+  await requireUser();
+
+  const round = roundId(formData);
+  if (!round.success) return { message: "That round is no longer available." };
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("open_game_round_vote", { p_round_id: round.data });
+
+  if (error) return { message: readableError(error, "We couldn't open the vote. Please try again.") };
+
+  revalidatePath("/game", "layout");
+  return { message: "" };
+}
+
+export async function rerollGameWord(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+  await requireUser();
+
+  const round = roundId(formData);
+  if (!round.success) return { message: "That round is no longer available." };
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("reroll_game_word", { p_round_id: round.data });
+
+  if (error) return { message: readableError(error, "We couldn't swap the word. Please try again.") };
+
+  revalidatePath("/game", "layout");
+  return { message: "" };
+}
+
+export async function kickGamePlayer(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+  await requireUser();
+
+  const room = resourceIdSchema.safeParse(formData.get("roomId"));
+  const target = resourceIdSchema.safeParse(formData.get("userId"));
+  if (!room.success || !target.success) return { message: "That player is no longer in the game." };
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("kick_game_player", {
+    p_room_id: room.data,
+    p_user_id: target.data,
+  });
+
+  if (error) return { message: readableError(error, "We couldn't remove that player. Please try again.") };
 
   revalidatePath("/game", "layout");
   return { message: "" };

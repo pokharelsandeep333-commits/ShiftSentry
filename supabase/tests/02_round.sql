@@ -17,7 +17,7 @@ declare
   crew_word text;
   imposter_word text;
   hint text;
-  clue_count integer;
+  clue_count integer := 1;
   phase text;
   result text;
   reveal record;
@@ -42,7 +42,7 @@ begin
 
   -- decoy off, hint on, final guess on, 1 imposter, 1 pass
   perform set_config('request.jwt.claim.sub', alice::text, true);
-  perform public.update_game_room_settings(room, false, true, true, 1, 1, 8, null);
+  perform public.update_game_room_settings(room, 'CATEGORY', false, true, 1, 1, 8, true, false, null);
 
   -- ---- deal -----------------------------------------------------------
   round := public.start_game_round(room);
@@ -95,7 +95,8 @@ begin
     turn := public.game_round_turn(round);
     exit when turn is null;
     perform set_config('request.jwt.claim.sub', turn::text, true);
-    perform public.submit_game_clue(round, 'hot');
+    perform public.submit_game_clue(round, 'hot ' || clue_count);
+    clue_count := clue_count + 1;
   end loop;
 
   execute 'set local role postgres';
