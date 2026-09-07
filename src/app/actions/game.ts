@@ -153,20 +153,28 @@ export async function endGameRoom(formData: FormData): Promise<void> {
 }
 
 /**
- * Presence heartbeat for the lobby poll.
+ * The lobby poll: one call that refreshes presence and reports whether anything
+ * on screen has changed.
  *
- * Takes the room id as a plain argument rather than a FormData, because it is
- * called from an interval in a client component and never from a form. It
- * deliberately returns nothing and swallows failures: a dropped heartbeat costs
- * a stale presence dot for one poll, and surfacing it would put an error in
- * front of someone who did nothing wrong.
+ * Returns a fingerprint rather than nothing, so the client can skip
+ * `router.refresh()` when the room is idle. That refresh re-runs the entire
+ * server render, and doing it unconditionally every couple of seconds was both
+ * wasteful and the reason destructive buttons felt dead on a phone: Next.js
+ * serialises Server Actions, so a tap queued behind whichever poll was in
+ * flight.
+ *
+ * Failures return null and are swallowed. A dropped heartbeat costs a stale
+ * presence dot for one tick, and putting an error in front of somebody who did
+ * nothing wrong would be worse.
  */
-export async function touchGamePresence(roomId: string): Promise<void> {
+export async function pollGameRoom(roomId: string): Promise<string | null> {
   const parsed = resourceIdSchema.safeParse(roomId);
-  if (!parsed.success) return;
+  if (!parsed.success) return null;
 
   const supabase = await createServerSupabaseClient();
-  await supabase.rpc("touch_game_presence", { p_room_id: parsed.data });
+  const { data, error } = await supabase.rpc("poll_game_room", { p_room_id: parsed.data });
+
+  return error ? null : data;
 }
 
 /**

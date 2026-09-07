@@ -101,7 +101,7 @@ export type WordDifficulty = (typeof WORD_DIFFICULTIES)[number];
 export const WORD_DIFFICULTY_LABELS: Record<WordDifficulty, { label: string; description: string }> = {
   EASY: { label: "Easy", description: "Only words you'd use without thinking — pizza, dog, umbrella." },
   NORMAL: { label: "Normal", description: "Everything everyone knows, even if they don't say it daily." },
-  HARD: { label: "Everything", description: "Adds the obscure tail — harp, bobsled, pancetta. Expect stuck rounds." },
+  HARD: { label: "All", description: "Adds the obscure tail — harp, bobsled, pancetta. Expect stuck rounds." },
 };
 
 export function isWordDifficulty(value: unknown): value is WordDifficulty {

@@ -756,6 +756,12 @@ export type Database = {
         };
         Returns: string[];
       };
+      game_room_version: {
+        Args: {
+          p_room_id: string;
+        };
+        Returns: string;
+      };
       game_word_categories: {
         Args: {
           p_difficulty?: string;
@@ -812,6 +818,12 @@ export type Database = {
           p_round_id: string;
         };
         Returns: undefined;
+      };
+      poll_game_room: {
+        Args: {
+          p_room_id: string;
+        };
+        Returns: string;
       };
       resolve_game_round: {
         Args: {

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Crown, Trophy, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { SavedToast } from "@/components/saved-toast";
 import { InviteCode } from "@/components/game/invite-code";
@@ -146,19 +147,6 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
           </CardContent>
         </Card>
 
-        {scoreboard.length > 0 && <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Trophy className="size-4 text-[var(--primary)]" />Scoreboard</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {scoreboard.map((row) => <div key={row.userId} className="flex items-baseline gap-3 rounded-xl bg-[var(--surface-subtle)] px-3.5 py-2.5">
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.displayName}</span>
-              {row.imposterRounds > 0 && <span className="shrink-0 text-xs text-[var(--muted-foreground)]">{row.imposterWins}/{row.imposterRounds} as imposter</span>}
-              <span className="shrink-0 text-sm font-semibold">{row.wins}<span className="font-normal text-[var(--muted-foreground)]">/{row.roundsPlayed}</span></span>
-            </div>)}
-            <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">Rounds won out of rounds played, for this game only.</p>
-          </CardContent>
-        </Card>}
 
         <Card>
           <CardContent className="grid gap-3 pt-5 sm:pt-6">
@@ -173,7 +161,7 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
             <div className="flex flex-wrap justify-center gap-2 border-t pt-3">
               <form action={leaveGameRoom}>
                 <input type="hidden" name="roomId" value={lobby.id} />
-                <Button type="submit" variant="ghost" size="sm">Leave game</Button>
+                <SubmitButton label="Leave game" pendingLabel="Leaving…" variant="ghost" size="sm" />
               </form>
               {lobby.isHost && <form action={endGameRoom}>
                 <input type="hidden" name="roomId" value={lobby.id} />
@@ -182,6 +170,20 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
             </div>
           </CardContent>
         </Card>
+
+        {scoreboard.length > 0 && <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Trophy className="size-4 text-[var(--primary)]" />Scoreboard</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {scoreboard.map((row) => <div key={row.userId} className="flex items-baseline gap-3 rounded-xl bg-[var(--surface-subtle)] px-3.5 py-2.5">
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.displayName}</span>
+              {row.imposterRounds > 0 && <span className="shrink-0 text-xs text-[var(--muted-foreground)]">{row.imposterWins}/{row.imposterRounds} as imposter</span>}
+              <span className="shrink-0 text-sm font-semibold">{row.wins}<span className="font-normal text-[var(--muted-foreground)]">/{row.roundsPlayed}</span></span>
+            </div>)}
+            <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">Rounds won out of rounds played, for this game only.</p>
+          </CardContent>
+        </Card>}
       </div>
 
       {lobby.isHost
@@ -199,7 +201,7 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
               <p>{lobby.settings.cluePasses === 1 ? "One clue each" : `${lobby.settings.cluePasses} clues each`}, {lobby.settings.discussionPhase ? "then a discussion, then the vote." : "then straight to the vote."}</p>
               <p>{lobby.settings.banRepeatClues ? "Repeated clues are refused." : "Repeating someone else's clue is allowed."}</p>
               <p>{lobby.settings.imposterFinalGuess ? "A caught imposter still wins by naming the word." : "Getting caught ends it — no final guess."}</p>
-              <p>Words come from {lobby.settings.categoryFilter ?? "every category"}, at the {WORD_DIFFICULTY_LABELS[lobby.settings.wordDifficulty].label.toLowerCase()} level.</p>
+              <p>Words come from {lobby.settings.categoryFilter ?? "every category"}. {WORD_DIFFICULTY_LABELS[lobby.settings.wordDifficulty].description}</p>
             </CardContent>
           </Card>}
     </div>

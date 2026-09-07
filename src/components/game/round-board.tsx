@@ -167,37 +167,14 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
   const caught = round.seats.find((seat) => seat.userId === round.caughtUserId);
   const nobodyHasSpoken = round.clues.length === 0;
 
+  // Columns are split by urgency rather than by kind, because on a phone this
+  // grid collapses to one column and the order becomes the reading order. What
+  // you are holding and what you have to do next come first; who is playing and
+  // what has been said follow. Previously the roster sat between the word and
+  // the clue box, so taking your turn meant scrolling past everyone.
   return <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
     <div className="grid gap-6 self-start">
       <SecretCard round={round} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="size-4 text-[var(--primary)]" />
-            Round {round.roundNo}
-            <span className="ml-auto text-sm font-normal text-[var(--muted-foreground)]">
-              {PHASE_LABEL[round.status]}
-              {round.status === "CLUES" && round.cluePasses > 1 && ` · pass ${round.currentPass}/${round.cluePasses}`}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2">
-          {round.seats.map((seat) => <SeatRow
-            key={seat.userId}
-            seat={seat}
-            marker={
-              seat.eliminated ? "out"
-              : round.status === "CLUES" && seat.isTurn ? "turn"
-              : round.status === "VOTING" && seat.hasVoted ? "voted"
-              : undefined
-            }
-          />)}
-        </CardContent>
-      </Card>
-    </div>
-
-    <div className="grid gap-6 self-start">
       {round.status === "CLUES" && <Card>
         <CardHeader><CardTitle>{round.isYourTurn ? "Your turn" : "Clue phase"}</CardTitle></CardHeader>
         <CardContent className="grid gap-3">
@@ -272,6 +249,34 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
           ? <FinishRoundButton roundId={round.id} />
           : <p className="text-center text-xs text-[var(--muted-foreground)]">Waiting for the host to start the next round.</p>}
       </>}
+
+    </div>
+
+    <div className="grid gap-6 self-start">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="size-4 text-[var(--primary)]" />
+            Round {round.roundNo}
+            <span className="ml-auto text-sm font-normal text-[var(--muted-foreground)]">
+              {PHASE_LABEL[round.status]}
+              {round.status === "CLUES" && round.cluePasses > 1 && ` · pass ${round.currentPass}/${round.cluePasses}`}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          {round.seats.map((seat) => <SeatRow
+            key={seat.userId}
+            seat={seat}
+            marker={
+              seat.eliminated ? "out"
+              : round.status === "CLUES" && seat.isTurn ? "turn"
+              : round.status === "VOTING" && seat.hasVoted ? "voted"
+              : undefined
+            }
+          />)}
+        </CardContent>
+      </Card>
 
       <ClueList round={round} />
     </div>

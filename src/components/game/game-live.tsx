@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { touchGamePresence } from "@/app/actions/game";
+import { pollGameRoom } from "@/app/actions/game";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -24,6 +24,14 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
  * slows to a heartbeat; if it never connects the screen is exactly as live as it
  * was before Realtime existed. Nothing about the game depends on the socket
  * working -- it only makes it faster.
+ *
+ * The timer refreshes only when the room's fingerprint actually changes. It used
+ * to call `router.refresh()` on every tick, which re-ran the whole server render
+ * -- lobby query, scoreboard, category list -- every 2.5 seconds per player, in a
+ * room where usually nothing had happened. Worse, Next.js serialises Server
+ * Actions, so a tap on "End game" queued behind whatever the poll had in flight
+ * and looked like it had done nothing for a second or two. Now an idle room
+ * costs one cheap query and no render at all.
  */
 
 /** Heartbeat only: Realtime is delivering the updates. Under PRESENCE_WINDOW_MS. */
@@ -35,6 +43,11 @@ const FALLBACK_INTERVAL_MS = 2_500;
 export function GameLive({ roomId }: { roomId: string }) {
   const router = useRouter();
   const [live, setLive] = useState(false);
+
+  // Written from a timer callback rather than during render, and deliberately a
+  // ref: the fingerprint drives whether to refresh, never what to draw, so
+  // holding it in state would re-render the component for no reason.
+  const lastVersion = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -53,7 +66,10 @@ export function GameLive({ roomId }: { roomId: string }) {
 
         channel = supabase
           .channel(`game:${roomId}`, { config: { private: true } })
-          .on("broadcast", { event: "changed" }, () => router.refresh())
+          .on("broadcast", { event: "changed" }, () => {
+            lastVersion.current = null;
+            router.refresh();
+          })
           .subscribe((status) => {
             if (!cancelled) setLive(status === "SUBSCRIBED");
           });
@@ -81,10 +97,15 @@ export function GameLive({ roomId }: { roomId: string }) {
       // wandered off hours ago would still read as present to a waiting host.
       if (document.visibilityState === "visible") {
         try {
-          await touchGamePresence(roomId);
-          // With the socket up this is only a heartbeat; refreshing on it too
-          // would undo the point of connecting.
-          if (!cancelled && !live) router.refresh();
+          const version = await pollGameRoom(roomId);
+
+          // First answer establishes the baseline rather than forcing a refresh
+          // the page has just done for itself.
+          if (!cancelled && version !== null) {
+            const changed = lastVersion.current !== null && version !== lastVersion.current;
+            lastVersion.current = version;
+            if (changed) router.refresh();
+          }
         } catch {
           // One dropped tick costs one stale render. The next recovers.
         }
@@ -97,7 +118,12 @@ export function GameLive({ roomId }: { roomId: string }) {
     // Coming back to the tab should feel immediate rather than waiting out an
     // interval scheduled before it was hidden.
     function onVisible() {
-      if (document.visibilityState === "visible" && !cancelled) router.refresh();
+      // Coming back after the tab was hidden: the fingerprint is stale by
+      // definition, so drop it and take one refresh unconditionally.
+      if (document.visibilityState === "visible" && !cancelled) {
+        lastVersion.current = null;
+        router.refresh();
+      }
     }
     document.addEventListener("visibilitychange", onVisible);
 
