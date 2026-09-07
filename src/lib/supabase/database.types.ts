@@ -345,6 +345,7 @@ export type Database = {
           hide_roles: boolean;
           ban_repeat_clues: boolean;
           discussion_phase: boolean;
+          tiebreak_count: number;
         };
         Insert: {
           category_hint: boolean;
@@ -367,6 +368,7 @@ export type Database = {
           hide_roles?: boolean;
           ban_repeat_clues?: boolean;
           discussion_phase?: boolean;
+          tiebreak_count?: number;
         };
         Update: {
           category_hint?: boolean;
@@ -389,6 +391,7 @@ export type Database = {
           hide_roles?: boolean;
           ban_repeat_clues?: boolean;
           discussion_phase?: boolean;
+          tiebreak_count?: number;
         };
         Relationships: [
           {

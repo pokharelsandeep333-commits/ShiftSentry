@@ -118,7 +118,15 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
     />
 
     <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-      <div className="grid gap-6 self-start">
+    {/* `min-w-0` on the columns is load-bearing, not decorative. A grid item
+        defaults to `min-width: auto`, which means it refuses to shrink below its
+        content's min-content width -- and `truncate` sets `white-space: nowrap`,
+        whose min-content is the *entire* string. So a long player name forced
+        the column to 311px inside a 288px page, and the card overflowed the
+        screen at 320px while the ellipsis it was supposed to get never
+        appeared. Letting the column reach zero is what hands control back to
+        `truncate`. */}
+      <div className="grid min-w-0 gap-6 self-start [&>*]:min-w-0">
         <InviteCode code={lobby.code} />
 
         <Card>
@@ -187,11 +195,11 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
       </div>
 
       {lobby.isHost
-        ? <Card className="h-fit">
+        ? <Card className="h-fit min-w-0">
             <CardHeader><CardTitle>Game settings</CardTitle></CardHeader>
             <CardContent><LobbySettingsForm roomId={lobby.id} settings={lobby.settings} categories={categories} /></CardContent>
           </Card>
-        : <Card className="h-fit">
+        : <Card className="h-fit min-w-0">
             <CardHeader><CardTitle>How this game is set up</CardTitle></CardHeader>
             <CardContent className="grid gap-2.5 text-sm leading-6 text-[var(--muted-foreground)]">
               <p>{lobby.settings.imposterCount === 1 ? "One imposter" : `${lobby.settings.imposterCount} imposters`} among {lobby.players.length} {lobby.players.length === 1 ? "player" : "players"}.</p>

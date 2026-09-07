@@ -18,7 +18,7 @@ import { isImposterHint, type ImposterHint } from "@/lib/game";
  */
 
 const ROUND_COLUMNS =
-  "id,room_id,round_no,status,imposter_hint,hide_roles,imposter_final_guess,imposter_count,clue_passes,current_pass,started_at,ended_at,caught_user_id,final_guess,outcome,ban_repeat_clues,discussion_phase";
+  "id,room_id,round_no,status,imposter_hint,hide_roles,imposter_final_guess,imposter_count,clue_passes,current_pass,started_at,ended_at,caught_user_id,final_guess,outcome,ban_repeat_clues,discussion_phase,tiebreak_count";
 
 export type RoundPhase = "DEALING" | "CLUES" | "DISCUSSION" | "VOTING" | "GUESSING" | "REVEAL" | "ENDED";
 
@@ -57,6 +57,15 @@ export type RoundView = {
   imposterCount: number;
   imposterFinalGuess: boolean;
   discussionPhase: boolean;
+
+  /**
+   * How many times this round's vote has deadlocked and been sent back for
+   * another clue pass. Capped in the database.
+   */
+  tiebreakCount: number;
+
+  /** The round is in an extra pass it only has because the vote tied. */
+  isTiebreak: boolean;
 
   /**
    * The round is being played with roles hidden, so `yourRole` is null for
@@ -172,6 +181,9 @@ export async function fetchCurrentRound(
     imposterCount: round.imposter_count,
     imposterFinalGuess: round.imposter_final_guess,
     discussionPhase: round.discussion_phase,
+    tiebreakCount: round.tiebreak_count,
+    // A pass beyond the configured count exists only because a vote tied.
+    isTiebreak: round.current_pass > round.clue_passes,
     rolesHidden: round.hide_roles,
 
     seats,

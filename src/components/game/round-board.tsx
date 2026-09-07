@@ -1,4 +1,4 @@
-import { EyeOff, MessagesSquare, Siren, Trophy, Users } from "lucide-react";
+import { EyeOff, MessagesSquare, Scale, Siren, Trophy, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ClueForm,
@@ -142,7 +142,11 @@ function Reveal({ round }: { round: RoundView }) {
 
         {caught
           ? <p className="mt-1 text-sm text-[var(--muted-foreground)]">Voted out: {caught.displayName}</p>
-          : <p className="mt-1 text-sm text-[var(--muted-foreground)]">The vote tied, so nobody went out.</p>}
+          : <p className="mt-1 text-sm text-[var(--muted-foreground)]">The vote tied again, so nobody went out.</p>}
+
+        {round.tiebreakCount > 0 && <p className="text-sm text-[var(--muted-foreground)]">
+          Went to {round.tiebreakCount === 1 ? "a tiebreak" : `${round.tiebreakCount} tiebreaks`} — {round.tiebreakCount === 1 ? "one extra clue" : `${round.tiebreakCount} extra clues`} each.
+        </p>}
 
         {round.finalGuess && <p className="text-sm text-[var(--muted-foreground)]">
           Final guess: <span className="font-semibold text-[var(--foreground)]">{round.finalGuess}</span>
@@ -173,11 +177,27 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
   // what has been said follow. Previously the roster sat between the word and
   // the clue box, so taking your turn meant scrolling past everyone.
   return <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-    <div className="grid gap-6 self-start">
+    {/* `min-w-0` on the columns is load-bearing, not decorative. A grid item
+        defaults to `min-width: auto`, which means it refuses to shrink below its
+        content's min-content width -- and `truncate` sets `white-space: nowrap`,
+        whose min-content is the *entire* string. So a long player name forced
+        the column to 311px inside a 288px page, and the card overflowed the
+        screen at 320px while the ellipsis it was supposed to get never
+        appeared. Letting the column reach zero is what hands control back to
+        `truncate`. */}
+    <div className="grid min-w-0 gap-6 self-start [&>*]:min-w-0">
       <SecretCard round={round} />
-      {round.status === "CLUES" && <Card>
-        <CardHeader><CardTitle>{round.isYourTurn ? "Your turn" : "Clue phase"}</CardTitle></CardHeader>
+      {round.status === "CLUES" && <Card className={cn(round.isTiebreak && "border-[color-mix(in_srgb,var(--primary)_35%,var(--border))]")}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {round.isTiebreak && <Scale className="size-4 text-[var(--primary)]" />}
+            {round.isTiebreak ? "Tiebreak" : round.isYourTurn ? "Your turn" : "Clue phase"}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-3">
+          {round.isTiebreak && <p className="rounded-xl bg-[var(--primary-soft)] px-3 py-2.5 text-sm leading-5 text-[var(--primary)]">
+            The vote tied, so nobody went out. One more clue each — and it has to be something nobody has said yet.
+          </p>}
           {round.isYourTurn
             ? <ClueForm roundId={round.id} />
             : <p className="text-sm leading-6 text-[var(--muted-foreground)]">
@@ -252,7 +272,7 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
 
     </div>
 
-    <div className="grid gap-6 self-start">
+    <div className="grid min-w-0 gap-6 self-start [&>*]:min-w-0">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -260,7 +280,8 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
             Round {round.roundNo}
             <span className="ml-auto text-sm font-normal text-[var(--muted-foreground)]">
               {PHASE_LABEL[round.status]}
-              {round.status === "CLUES" && round.cluePasses > 1 && ` · pass ${round.currentPass}/${round.cluePasses}`}
+              {round.status === "CLUES" && round.isTiebreak && " · tiebreak"}
+              {round.status === "CLUES" && !round.isTiebreak && round.cluePasses > 1 && ` · pass ${round.currentPass}/${round.cluePasses}`}
             </span>
           </CardTitle>
         </CardHeader>

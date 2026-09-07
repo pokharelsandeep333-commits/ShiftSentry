@@ -38,9 +38,42 @@ export const viewport: Viewport = {
   ],
 };
 
+/**
+ * Applies the saved theme before the first paint.
+ *
+ * The document used to ship with `class="dark"` hardcoded and no bootstrap, so
+ * every load started dark and only flipped once `ThemeProvider` hydrated -- a
+ * light-theme user saw a dark flash on every navigation, and the default was
+ * dark for everyone whether they had chosen it or not.
+ *
+ * This runs synchronously in the head, before the body renders, so the class is
+ * already correct when the first pixel is drawn. It has to be inline for that:
+ * an external script would be another round trip, and the flash is exactly the
+ * gap it would open. The CSP allows `'unsafe-inline'` for scripts, so no change
+ * is needed there.
+ *
+ * The string is a compile-time constant with no interpolation of anything --
+ * this is not a channel for user input, which is what the repo's rule about
+ * `dangerouslySetInnerHTML` is guarding against.
+ */
+const THEME_BOOTSTRAP = `
+try {
+  var t = localStorage.getItem('theme');
+  if (t === 'dark') {
+    document.documentElement.classList.add('dark');
+    document.documentElement.style.colorScheme = 'dark';
+  } else {
+    document.documentElement.style.colorScheme = 'light';
+  }
+} catch (e) {}
+`;
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html suppressHydrationWarning lang="en" className="dark h-full antialiased">
+    <html suppressHydrationWarning lang="en" className="h-full antialiased">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider><ToastProvider>{children}<ServiceWorkerRegistrar /></ToastProvider></ThemeProvider>
       </body>
