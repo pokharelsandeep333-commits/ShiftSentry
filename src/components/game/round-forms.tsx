@@ -204,10 +204,11 @@ export function SeatRow({ seat, marker }: { seat: RoundSeat; marker?: "turn" | "
     marker === "out" && "opacity-55",
   )}>
     <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--surface-subtle)] text-xs font-bold text-[var(--muted-foreground)]">{seat.turnOrder}</span>
-    <span className="min-w-0 flex-1 truncate text-sm font-medium">
-      {seat.displayName}
-      {seat.isYou && <span className="ml-1.5 text-xs font-normal text-[var(--muted-foreground)]">(you)</span>}
-    </span>
+    <span className="min-w-0 flex-1 truncate text-sm font-medium">{seat.displayName}</span>
+    {/* Outside the truncating span, not inside it. `truncate` clips its
+        overflow, so a long enough name would hide the one marker telling you
+        which row is yours. */}
+    {seat.isYou && <span className="shrink-0 text-xs font-normal text-[var(--muted-foreground)]">(you)</span>}
     {marker === "turn" && <span className="text-xs font-semibold text-[var(--primary)]">their turn</span>}
     {marker === "voted" && <Check className="size-4 text-[var(--success)]" />}
     {marker === "out" && <span className="text-xs font-semibold text-[var(--danger)]">voted out</span>}

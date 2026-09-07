@@ -143,10 +143,11 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
                 aria-hidden
                 className={cn("size-2.5 shrink-0 rounded-full", player.present ? "bg-[var(--success)]" : "bg-[var(--muted)]")}
               />
-              <span className="min-w-0 flex-1 truncate py-1 text-sm font-medium">
-                {player.displayName}
-                {player.isYou && <span className="ml-1.5 text-xs font-normal text-[var(--muted-foreground)]">(you)</span>}
-              </span>
+              <span className="min-w-0 flex-1 truncate py-1 text-sm font-medium">{player.displayName}</span>
+              {/* Outside the truncating span, not inside it. `truncate` clips its
+                  overflow, so a long enough name would hide the one marker telling you
+                  which row is yours. */}
+              {player.isYou && <span className="shrink-0 text-xs font-normal text-[var(--muted-foreground)]">(you)</span>}
               <span className="sr-only">{player.present ? "Connected" : "Away"}</span>
               {player.isHost
                 ? <span className="flex items-center gap-1 px-2 text-xs font-semibold text-[var(--primary)]"><Crown className="size-3.5" />Host</span>
