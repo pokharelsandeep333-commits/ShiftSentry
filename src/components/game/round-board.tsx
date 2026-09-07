@@ -1,4 +1,4 @@
-import { EyeOff, MessagesSquare, ShieldQuestion, Trophy, Users } from "lucide-react";
+import { EyeOff, MessagesSquare, Siren, Trophy, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ClueForm,
@@ -237,18 +237,31 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
         </CardContent>
       </Card>}
 
-      {round.status === "GUESSING" && <Card className="border-[color-mix(in_srgb,var(--primary)_35%,var(--border))]">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ShieldQuestion className="size-4 text-[var(--primary)]" />Caught — one last chance</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* The loudest moment in the game, and it used to be a quiet card that never
+          said the word "imposter". Reaching this phase already tells the room the
+          vote landed on one -- so say it plainly, and make the stakes obvious. */}
+      {round.status === "GUESSING" && <Card className="border-[color-mix(in_srgb,var(--danger)_45%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_8%,transparent)]">
+        <CardContent className="grid gap-4 pt-5 sm:pt-6">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--danger)] px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-white">
+              <Siren className="size-3.5" />
+              Caught
+            </span>
+            <p className="mt-3 font-display text-2xl font-semibold sm:text-3xl">
+              {caught?.isYou ? "You were the imposter" : `${caught?.displayName ?? "The imposter"} was the imposter`}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
+              Voted out — but it isn&rsquo;t over. One guess at the word, and the round flips.
+            </p>
+          </div>
+
           {round.awaitingYourGuess
-            ? <div className="grid gap-3">
-                <p className="text-sm leading-6 text-[var(--muted-foreground)]">They got you. Name the word and you still take the round.</p>
+            ? <div className="grid gap-3 border-t pt-4">
+                <p className="text-center text-sm font-semibold">Name the word and you take it.</p>
                 <FinalGuessForm roundId={round.id} />
               </div>
-            : <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-                <span className="font-semibold text-[var(--foreground)]">{caught?.displayName ?? "The imposter"}</span> was voted out and is naming the word. Get it right and they steal it.
+            : <p className="border-t pt-4 text-center text-sm leading-6 text-[var(--muted-foreground)]">
+                Waiting for <span className="font-semibold text-[var(--foreground)]">{caught?.displayName ?? "them"}</span> to guess.
               </p>}
         </CardContent>
       </Card>}
