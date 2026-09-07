@@ -14,7 +14,7 @@ import { endGameRoom, leaveGameRoom } from "@/app/actions/game";
 import { requireUser } from "@/lib/auth";
 import { fetchEndedRoom, fetchLobby, fetchWordCategories } from "@/lib/game-lobby";
 import { fetchCurrentRound, fetchRoomScoreboard } from "@/lib/game-round";
-import { IMPOSTER_HINT_LABELS, describeGameSettings, normalizeGameCode, startBlocker } from "@/lib/game";
+import { IMPOSTER_HINT_LABELS, WORD_DIFFICULTY_LABELS, describeGameSettings, normalizeGameCode, startBlocker } from "@/lib/game";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -99,7 +99,7 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
   const [categories, scoreboard] = await Promise.all([
     // Only the host can change the settings, so only the host needs the picker's
     // options -- no reason to make everyone else pay for the query.
-    lobby.isHost ? fetchWordCategories() : Promise.resolve([]),
+    lobby.isHost ? fetchWordCategories(lobby.settings.wordDifficulty) : Promise.resolve([]),
     fetchRoomScoreboard(lobby.id, lobby.players),
   ]);
 
@@ -199,7 +199,7 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
               <p>{lobby.settings.cluePasses === 1 ? "One clue each" : `${lobby.settings.cluePasses} clues each`}, {lobby.settings.discussionPhase ? "then a discussion, then the vote." : "then straight to the vote."}</p>
               <p>{lobby.settings.banRepeatClues ? "Repeated clues are refused." : "Repeating someone else's clue is allowed."}</p>
               <p>{lobby.settings.imposterFinalGuess ? "A caught imposter still wins by naming the word." : "Getting caught ends it — no final guess."}</p>
-              <p>Words come from {lobby.settings.categoryFilter ?? "every category"}.</p>
+              <p>Words come from {lobby.settings.categoryFilter ?? "every category"}, at the {WORD_DIFFICULTY_LABELS[lobby.settings.wordDifficulty].label.toLowerCase()} level.</p>
             </CardContent>
           </Card>}
     </div>

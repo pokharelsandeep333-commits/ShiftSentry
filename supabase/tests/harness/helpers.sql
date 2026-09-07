@@ -8,7 +8,8 @@
 create or replace function test_deal(
   p_hint text, p_hide_roles boolean, p_guess boolean,
   p_imposters integer, p_passes integer, p_seats integer,
-  p_ban_repeats boolean default true, p_discussion boolean default false
+  p_ban_repeats boolean default true, p_discussion boolean default false,
+  p_difficulty text default 'HARD'
 )
 returns table (room_id uuid, round_id uuid, imposter_ids uuid[])
 language plpgsql
@@ -41,9 +42,11 @@ begin
   end loop;
 
   perform set_config('request.jwt.claim.sub', host::text, true);
+  -- 'HARD' by default so the round suites draw from the whole bank; the
+  -- difficulty filter has its own coverage in 06.
   perform public.update_game_room_settings(
     rm, p_hint, p_hide_roles, p_guess, p_imposters, p_passes, 20,
-    p_ban_repeats, p_discussion, null);
+    p_ban_repeats, p_discussion, p_difficulty, null);
   rd := public.start_game_round(rm);
 
   execute 'set local role postgres';

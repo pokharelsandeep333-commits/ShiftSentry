@@ -92,6 +92,7 @@ export async function updateGameSettings(_previous: SavedFormState, formData: Fo
     maxPlayers: formData.get("maxPlayers"),
     banRepeatClues: checked(formData, "banRepeatClues"),
     discussionPhase: checked(formData, "discussionPhase"),
+    wordDifficulty: formData.get("wordDifficulty"),
     categoryFilter: optionalText(formData, "categoryFilter"),
   });
 
@@ -110,6 +111,7 @@ export async function updateGameSettings(_previous: SavedFormState, formData: Fo
     p_max_players: parsed.data.maxPlayers,
     p_ban_repeat_clues: parsed.data.banRepeatClues,
     p_discussion_phase: parsed.data.discussionPhase,
+    p_word_difficulty: parsed.data.wordDifficulty,
     p_category_filter: parsed.data.categoryFilter,
   });
 

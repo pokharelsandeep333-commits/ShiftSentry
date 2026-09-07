@@ -150,7 +150,7 @@ begin
 
   foreach new_code in array array['NONE', 'CATEGORY', 'RELATED'] loop
     begin
-      perform public.update_game_room_settings(room, new_code, true, true, 1, 1, 8, true, false, null);
+      perform public.update_game_room_settings(room, new_code, true, true, 1, 1, 8, true, false, 'HARD', null);
       raise exception 'hide_roles was accepted with hint %', new_code;
     exception when sqlstate 'P0001' then
       if sqlerrm !~ 'decoy' then raise; end if;
@@ -158,7 +158,7 @@ begin
   end loop;
   raise notice 'hide_roles refused on every rung except DECOY';
 
-  perform public.update_game_room_settings(room, 'DECOY', true, true, 1, 1, 8, true, false, null);
+  perform public.update_game_room_settings(room, 'DECOY', true, true, 1, 1, 8, true, false, 'HARD', null);
   raise notice 'hide_roles accepted with DECOY';
 end;
 $$;

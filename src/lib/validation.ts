@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GAME_SETTINGS_BOUNDS, IMPOSTER_HINTS, normalizeGameCode } from "@/lib/game";
+import { GAME_SETTINGS_BOUNDS, IMPOSTER_HINTS, WORD_DIFFICULTIES, normalizeGameCode } from "@/lib/game";
 
 export const resourceIdSchema = z.string().uuid("Invalid resource identifier.");
 
@@ -71,6 +71,7 @@ export const gameRoomSettingsSchema = z.object({
     .max(GAME_SETTINGS_BOUNDS.maxPlayers.max),
   banRepeatClues: z.boolean(),
   discussionPhase: z.boolean(),
+  wordDifficulty: z.enum(WORD_DIFFICULTIES),
   categoryFilter: z.string().trim().min(2).max(40).nullable(),
 }).refine((settings) => !settings.hideRoles || settings.imposterHint === "DECOY", {
   // Mirrors game_rooms_hide_roles_needs_decoy. The form keeps the two in step as

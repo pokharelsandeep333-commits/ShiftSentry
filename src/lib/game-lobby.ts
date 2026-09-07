@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { isImposterHint, type GameSettings } from "@/lib/game";
+import { isImposterHint, isWordDifficulty, type GameSettings, type WordDifficulty } from "@/lib/game";
 
 /**
  * Reads for the lobby. Everything here goes through the RLS-scoped client, so a
@@ -41,7 +41,7 @@ export type Lobby = {
 };
 
 const ROOM_COLUMNS =
-  "id,code,status,host_id,imposter_hint,hide_roles,imposter_final_guess,imposter_count,clue_passes,max_players,ban_repeat_clues,discussion_phase,category_filter";
+  "id,code,status,host_id,imposter_hint,hide_roles,imposter_final_guess,imposter_count,clue_passes,max_players,ban_repeat_clues,discussion_phase,word_difficulty,category_filter";
 
 /**
  * One query, not two: the roster comes back as a PostgREST embed on the room.
@@ -90,6 +90,7 @@ export async function fetchLobby(code: string, viewerId: string): Promise<Lobby 
       maxPlayers: data.max_players,
       banRepeatClues: data.ban_repeat_clues,
       discussionPhase: data.discussion_phase,
+      wordDifficulty: isWordDifficulty(data.word_difficulty) ? data.word_difficulty : "NORMAL",
       categoryFilter: data.category_filter,
     },
     players,
@@ -116,9 +117,14 @@ export async function fetchActiveRoomCode(): Promise<string | null> {
   return data?.code ?? null;
 }
 
-export async function fetchWordCategories(): Promise<{ category: string; wordCount: number }[]> {
+/**
+ * Categories with the number of words actually drawable at the room's ceiling --
+ * not the size of the whole category, or a host on EASY is told "Places (52)"
+ * and then draws from a fraction of that.
+ */
+export async function fetchWordCategories(difficulty: WordDifficulty): Promise<{ category: string; wordCount: number }[]> {
   const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.rpc("game_word_categories");
+  const { data } = await supabase.rpc("game_word_categories", { p_difficulty: difficulty });
   return (data ?? []).map((row) => ({ category: row.category, wordCount: Number(row.word_count) }));
 }
 

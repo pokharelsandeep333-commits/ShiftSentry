@@ -3,6 +3,7 @@ import {
   DEFAULT_GAME_SETTINGS,
   GAME_SETTINGS_BOUNDS,
   isImposterHint,
+  isWordDifficulty,
   reconcileGameSettings,
   type GameSettings,
 } from "@/lib/game";
@@ -66,6 +67,7 @@ export const gameSettingsPreference = createLocalPreference<GameSettings>(
       ),
       banRepeatClues: bool(stored.banRepeatClues, DEFAULT_GAME_SETTINGS.banRepeatClues),
       discussionPhase: bool(stored.discussionPhase, DEFAULT_GAME_SETTINGS.discussionPhase),
+      wordDifficulty: isWordDifficulty(stored.wordDifficulty) ? stored.wordDifficulty : DEFAULT_GAME_SETTINGS.wordDifficulty,
       categoryFilter: typeof stored.categoryFilter === "string" && stored.categoryFilter.trim() !== ""
         ? stored.categoryFilter
         : null,

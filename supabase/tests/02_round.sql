@@ -42,7 +42,7 @@ begin
 
   -- decoy off, hint on, final guess on, 1 imposter, 1 pass
   perform set_config('request.jwt.claim.sub', alice::text, true);
-  perform public.update_game_room_settings(room, 'CATEGORY', false, true, 1, 1, 8, true, false, null);
+  perform public.update_game_room_settings(room, 'CATEGORY', false, true, 1, 1, 8, true, false, 'HARD', null);
 
   -- ---- deal -----------------------------------------------------------
   round := public.start_game_round(room);

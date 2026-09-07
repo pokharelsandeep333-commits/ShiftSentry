@@ -102,6 +102,7 @@ test("settings comparison notices every field", () => {
     { maxPlayers: 5 },
     { banRepeatClues: false },
     { discussionPhase: true },
+    { wordDifficulty: "EASY" },
     { categoryFilter: "Animals" },
   ];
 

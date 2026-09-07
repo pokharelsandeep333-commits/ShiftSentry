@@ -191,6 +191,7 @@ export type Database = {
           hide_roles: boolean;
           ban_repeat_clues: boolean;
           discussion_phase: boolean;
+          word_difficulty: string;
         };
         Insert: {
           category_filter?: string | null;
@@ -211,6 +212,7 @@ export type Database = {
           hide_roles?: boolean;
           ban_repeat_clues?: boolean;
           discussion_phase?: boolean;
+          word_difficulty?: string;
         };
         Update: {
           category_filter?: string | null;
@@ -231,6 +233,7 @@ export type Database = {
           hide_roles?: boolean;
           ban_repeat_clues?: boolean;
           discussion_phase?: boolean;
+          word_difficulty?: string;
         };
         Relationships: [
           {
@@ -461,18 +464,21 @@ export type Database = {
         Row: {
           category: string;
           decoy_word: string;
+          difficulty: string;
           id: number;
           word: string;
         };
         Insert: {
           category: string;
           decoy_word: string;
+          difficulty?: string;
           id?: never;
           word: string;
         };
         Update: {
           category?: string;
           decoy_word?: string;
+          difficulty?: string;
           id?: never;
           word?: string;
         };
@@ -751,7 +757,9 @@ export type Database = {
         Returns: string[];
       };
       game_word_categories: {
-        Args: Record<PropertyKey, never>;
+        Args: {
+          p_difficulty?: string;
+        };
         Returns: {
           category: string;
           word_count: number;
@@ -863,6 +871,7 @@ export type Database = {
           p_max_players: number;
           p_ban_repeat_clues: boolean;
           p_discussion_phase: boolean;
+          p_word_difficulty: string;
           p_category_filter?: string | null;
         };
         Returns: undefined;

@@ -29,10 +29,10 @@ begin
     raise notice 'word bank is unreadable to authenticated (as designed)';
   end;
 
-  select coalesce(sum(word_count), 0), count(*) into bank, categories from public.game_word_categories();
+  select coalesce(sum(word_count), 0), count(*) into bank, categories from public.game_word_categories('HARD');
   raise notice 'word bank: % pairs across % categories', bank, categories;
-  if bank <> 646 then raise exception 'expected 646 pairs, got %', bank; end if;
-  if categories <> 13 then raise exception 'expected 13 categories, got %', categories; end if;
+  if bank <> 806 then raise exception 'expected 806 pairs, got %', bank; end if;
+  if categories <> 17 then raise exception 'expected 17 categories, got %', categories; end if;
 
   -- ---- create ---------------------------------------------------------
   room_code := public.create_game_room('Alice');
@@ -67,7 +67,7 @@ begin
 
   -- ---- capacity -------------------------------------------------------
   perform set_config('request.jwt.claim.sub', alice::text, true);
-  perform public.update_game_room_settings(room, 'NONE', false, true, 1, 1, 3, true, false, null);
+  perform public.update_game_room_settings(room, 'NONE', false, true, 1, 1, 3, true, false, 'HARD', null);
 
   perform set_config('request.jwt.claim.sub', carol::text, true);
   perform public.join_game_room(room_code, 'Carol');
@@ -84,7 +84,7 @@ begin
   -- ---- settings are host-only -----------------------------------------
   perform set_config('request.jwt.claim.sub', bob::text, true);
   begin
-    perform public.update_game_room_settings(room, 'DECOY', false, true, 2, 2, 8, true, false, null);
+    perform public.update_game_room_settings(room, 'DECOY', false, true, 2, 2, 8, true, false, 'HARD', null);
     raise exception 'a non-host changed the settings';
   exception when sqlstate 'P0001' then
     raise notice 'settings refused for non-host: %', sqlerrm;
@@ -102,9 +102,9 @@ begin
   -- ---- word draw never repeats, then cycles ---------------------------
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub', bob::text, true);
-  perform public.update_game_room_settings(room, 'NONE', false, true, 1, 1, 8, true, false, 'Clothing');
+  perform public.update_game_room_settings(room, 'NONE', false, true, 1, 1, 8, true, false, 'HARD', 'Clothing');
 
-  select word_count into bank from public.game_word_categories() where category = 'Clothing';
+  select word_count into bank from public.game_word_categories('HARD') where category = 'Clothing';
 
   for i in 1..bank loop
     drawn := public.draw_game_word(room);

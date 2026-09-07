@@ -88,6 +88,26 @@ export function canHideRoles(hint: ImposterHint): boolean {
   return hint === "DECOY";
 }
 
+/**
+ * How obscure a word may be. A ceiling, not an exact match: NORMAL draws EASY
+ * and NORMAL both, so raising it widens the pool rather than swapping it.
+ *
+ * NORMAL is the default because the bank shipped with 'pancetta' and 'pizza' in
+ * the same pool, and which one a round landed on decided whether it was fun.
+ */
+export const WORD_DIFFICULTIES = ["EASY", "NORMAL", "HARD"] as const;
+export type WordDifficulty = (typeof WORD_DIFFICULTIES)[number];
+
+export const WORD_DIFFICULTY_LABELS: Record<WordDifficulty, { label: string; description: string }> = {
+  EASY: { label: "Easy", description: "Only words you'd use without thinking — pizza, dog, umbrella." },
+  NORMAL: { label: "Normal", description: "Everything everyone knows, even if they don't say it daily." },
+  HARD: { label: "Everything", description: "Adds the obscure tail — harp, bobsled, pancetta. Expect stuck rounds." },
+};
+
+export function isWordDifficulty(value: unknown): value is WordDifficulty {
+  return typeof value === "string" && (WORD_DIFFICULTIES as readonly string[]).includes(value);
+}
+
 export const GAME_SETTINGS_BOUNDS = {
   imposterCount: { min: 1, max: 3 },
   cluePasses: { min: 1, max: 3 },
@@ -106,6 +126,7 @@ export type GameSettings = {
   maxPlayers: number;
   banRepeatClues: boolean;
   discussionPhase: boolean;
+  wordDifficulty: WordDifficulty;
   categoryFilter: string | null;
 };
 
@@ -118,6 +139,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   maxPlayers: 12,
   banRepeatClues: true,
   discussionPhase: false,
+  wordDifficulty: "NORMAL",
   categoryFilter: null,
 };
 
@@ -143,6 +165,7 @@ export function gameSettingsEqual(left: GameSettings, right: GameSettings): bool
     && left.maxPlayers === right.maxPlayers
     && left.banRepeatClues === right.banRepeatClues
     && left.discussionPhase === right.discussionPhase
+    && left.wordDifficulty === right.wordDifficulty
     && left.categoryFilter === right.categoryFilter
   );
 }
@@ -194,6 +217,7 @@ export function describeGameSettings(settings: GameSettings): string {
     settings.hideRoles ? "roles hidden" : IMPOSTER_HINT_LABELS[settings.imposterHint].label.toLowerCase(),
     `${settings.cluePasses} clue pass${settings.cluePasses === 1 ? "" : "es"}`,
     settings.discussionPhase ? "discussion" : "straight to the vote",
+    WORD_DIFFICULTY_LABELS[settings.wordDifficulty].label.toLowerCase() + " words",
     settings.categoryFilter ?? "all categories",
   ].join(" · ");
 }

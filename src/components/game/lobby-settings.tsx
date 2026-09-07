@@ -13,10 +13,13 @@ import {
   GAME_SETTINGS_BOUNDS,
   IMPOSTER_HINTS,
   IMPOSTER_HINT_LABELS,
+  WORD_DIFFICULTIES,
+  WORD_DIFFICULTY_LABELS,
   canHideRoles,
   gameSettingsEqual,
   reconcileGameSettings,
   type GameSettings,
+  type WordDifficulty,
 } from "@/lib/game";
 import { cn } from "@/lib/utils";
 
@@ -94,6 +97,39 @@ function Steps({
         )}
       >{option}</button>)}
     </div>
+  </fieldset>;
+}
+
+/** Segmented picker with the chosen option explaining itself underneath. */
+function Tiers({
+  legend, name, options, value, onChange,
+}: {
+  legend: string;
+  name: string;
+  options: readonly { value: string; label: string; description: string }[];
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return <fieldset className="min-w-0">
+    <legend className="mb-1.5 text-xs font-semibold text-[var(--muted-foreground)]">{legend}</legend>
+    <input type="hidden" name={name} value={value} />
+    <div className="flex gap-1.5" role="group">
+      {options.map((option) => <button
+        key={option.value}
+        type="button"
+        aria-pressed={option.value === value}
+        onClick={() => onChange(option.value)}
+        className={cn(
+          "h-10 flex-1 rounded-xl border px-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
+          option.value === value
+            ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
+            : "bg-[var(--card)]/45 text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)]",
+        )}
+      >{option.label}</button>)}
+    </div>
+    <p className="mt-1.5 text-xs leading-5 text-[var(--muted-foreground)]">
+      {options.find((option) => option.value === value)?.description}
+    </p>
   </fieldset>;
 }
 
@@ -287,8 +323,32 @@ export function LobbySettingsForm({ roomId, settings, categories }: LobbySetting
       />
     </Section>
 
+    <Section title="The words">
+      <Tiers
+        legend="How obscure words can get"
+        name="wordDifficulty"
+        options={WORD_DIFFICULTIES.map((level) => ({ value: level, ...WORD_DIFFICULTY_LABELS[level] }))}
+        value={draft.wordDifficulty}
+        onChange={(next) => update({ wordDifficulty: next as WordDifficulty })}
+      />
+      <div className="field-label">
+        <span id={`${ids}-category`}>Draw words from</span>
+        <PremiumSelect
+          key={`category-${resetKey}`}
+          name="categoryFilter"
+          defaultValue={draft.categoryFilter ?? ""}
+          options={categoryOptions}
+          labelledBy={`${ids}-category`}
+          onValueChange={(value) => update({ categoryFilter: value === "" ? null : value })}
+        />
+        <span className="mt-1 block text-xs leading-5 text-[var(--muted-foreground)]">
+          Counts are for the difficulty you last saved.
+        </span>
+      </div>
+    </Section>
+
     <Section title="The room">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3">
         <div className="field-label">
           <span id={`${ids}-max`}>Max players</span>
           <PremiumSelect
@@ -298,17 +358,6 @@ export function LobbySettingsForm({ roomId, settings, categories }: LobbySetting
             options={maxPlayerOptions}
             labelledBy={`${ids}-max`}
             onValueChange={(value) => update({ maxPlayers: Number(value) })}
-          />
-        </div>
-        <div className="field-label">
-          <span id={`${ids}-category`}>Draw words from</span>
-          <PremiumSelect
-            key={`category-${resetKey}`}
-            name="categoryFilter"
-            defaultValue={draft.categoryFilter ?? ""}
-            options={categoryOptions}
-            labelledBy={`${ids}-category`}
-            onValueChange={(value) => update({ categoryFilter: value === "" ? null : value })}
           />
         </div>
       </div>
