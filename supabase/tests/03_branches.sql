@@ -120,10 +120,15 @@ begin
 end;
 $$;
 
--- C2: a genuine 2-2 tie ---------------------------------------------------
+-- C2: a genuine 2-2 tie now extends the round -----------------------------
+--
+-- This used to assert that a tie handed the round to the imposters. It no
+-- longer does: a tie sends the table back for one more clue each and votes
+-- again. The cap, and what happens when it runs out, are covered in
+-- 08_tiebreak.sql; this only pins the immediate effect.
 do $$
 declare
-  deal record; seats uuid[]; phase text; result text; caught uuid; eliminated integer;
+  deal record; seats uuid[]; phase text; eliminated integer; votes integer; ties integer;
 begin
   select * into deal from test_deal('NONE', false, true, 1, 1, 4);
   perform test_all_clues(deal.round_id);
@@ -142,17 +147,17 @@ begin
   perform public.submit_game_vote(deal.round_id, seats[1]);
 
   execute 'set local role postgres';
-  select status::text, outcome, caught_user_id into phase, result, caught
+  select status::text, tiebreak_count into phase, ties
     from public.game_rounds where id = deal.round_id;
   select count(*) into eliminated from public.game_round_players
    where round_id = deal.round_id and eliminated_at is not null;
+  select count(*) into votes from public.game_votes where round_id = deal.round_id;
 
-  if phase <> 'REVEAL' or result <> 'IMPOSTER_WIN' then
-    raise exception 'C2: a tie should go to the imposters (% / %)', phase, result;
-  end if;
-  if caught is not null then raise exception 'C2: a tie caught somebody'; end if;
+  if phase <> 'CLUES' then raise exception 'C2: a 2-2 tie did not reopen the clues (%)', phase; end if;
   if eliminated <> 0 then raise exception 'C2: a tie eliminated % players', eliminated; end if;
-  raise notice 'C2: 2-2 tie -> nobody out, IMPOSTER_WIN';
+  if votes <> 0 then raise exception 'C2: % stale votes survived the tie', votes; end if;
+  if ties <> 1 then raise exception 'C2: tiebreak was not counted'; end if;
+  raise notice 'C2: 2-2 tie -> nobody out, votes cleared, back for another clue pass';
 end;
 $$;
 

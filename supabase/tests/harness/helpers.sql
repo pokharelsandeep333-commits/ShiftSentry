@@ -72,7 +72,8 @@ as $$
 declare
   observer uuid;
   turn uuid;
-  given integer := 0;
+  already integer;
+  given integer;
 begin
   execute 'set local role postgres';
   select member.user_id into observer
@@ -80,6 +81,12 @@ begin
     join public.game_rounds round on round.room_id = member.room_id
     where round.id = p_round
     limit 1;
+
+  -- Numbering continues from whatever has already been said. A tiebreak calls
+  -- this a second time on the same round, and `ban_repeat_clues` refuses a clue
+  -- anyone has given before -- so restarting at 1 fails, correctly.
+  select count(*) into already from public.game_clues where round_id = p_round;
+  given := already;
 
   execute 'set local role authenticated';
   loop
@@ -90,7 +97,9 @@ begin
     given := given + 1;
     perform public.submit_game_clue(p_round, 'clue ' || given);
   end loop;
+
   execute 'set local role postgres';
-  return given;
+  -- How many *this* call took, not the running total.
+  return given - already;
 end;
 $$;

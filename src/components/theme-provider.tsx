@@ -13,14 +13,20 @@ const STORAGE_KEY = "theme";
 const THEME_CHANGE_EVENT = "shiftsentry-theme-change";
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
+/**
+ * Light unless the viewer has explicitly chosen dark.
+ *
+ * Deliberately not `prefers-color-scheme`: the choice is stored per device and a
+ * system preference would override a deliberate pick every time the OS switched
+ * at sunset. Someone who wants dark taps the toggle once.
+ */
 function storedTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
 
   try {
-    const theme = window.localStorage.getItem(STORAGE_KEY);
-    return theme === "light" || theme === "dark" ? theme : "dark";
+    return window.localStorage.getItem(STORAGE_KEY) === "dark" ? "dark" : "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 
@@ -43,7 +49,7 @@ function subscribeToThemeChanges(notify: () => void) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const theme = React.useSyncExternalStore<Theme>(subscribeToThemeChanges, storedTheme, (): Theme => "dark");
+  const theme = React.useSyncExternalStore<Theme>(subscribeToThemeChanges, storedTheme, (): Theme => "light");
 
   React.useEffect(() => {
     applyTheme(theme);
