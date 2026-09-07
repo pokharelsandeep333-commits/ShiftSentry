@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GAME_SETTINGS_BOUNDS, normalizeGameCode } from "@/lib/game";
 
 export const resourceIdSchema = z.string().uuid("Invalid resource identifier.");
 
@@ -39,3 +40,47 @@ export const shiftSchema = z.object({
   message: "A shift cannot exceed 24 hours.",
   path: ["endsAt"],
 });
+
+/**
+ * An invite code as typed. Validated before it reaches the database rather than
+ * after, so a mistyped character is answered by the form instead of by
+ * `join_game_room` reporting that no such game exists -- which is true but reads
+ * as "the game is gone" when the real problem is a typo.
+ */
+export const gameCodeSchema = z.string()
+  .trim()
+  .refine((value) => normalizeGameCode(value) !== null, "A game code is six characters, like 7KQ2MP.")
+  .transform((value) => normalizeGameCode(value) as string);
+
+/** Blank is allowed: the database falls back to the profile name, then the email handle. */
+export const gameDisplayNameSchema = z.string().trim().max(40, "Keep it under 40 characters.").optional();
+
+export const gameRoomSettingsSchema = z.object({
+  roomId: z.string().uuid(),
+  decoyMode: z.boolean(),
+  categoryHint: z.boolean(),
+  imposterFinalGuess: z.boolean(),
+  imposterCount: z.coerce.number().int()
+    .min(GAME_SETTINGS_BOUNDS.imposterCount.min)
+    .max(GAME_SETTINGS_BOUNDS.imposterCount.max),
+  cluePasses: z.coerce.number().int()
+    .min(GAME_SETTINGS_BOUNDS.cluePasses.min)
+    .max(GAME_SETTINGS_BOUNDS.cluePasses.max),
+  maxPlayers: z.coerce.number().int()
+    .min(GAME_SETTINGS_BOUNDS.maxPlayers.min)
+    .max(GAME_SETTINGS_BOUNDS.maxPlayers.max),
+  categoryFilter: z.string().trim().min(2).max(40).nullable(),
+});
+
+/**
+ * A clue is deliberately short. The game is one word each; a cap of 40 leaves
+ * room for "smells like autumn" without letting anyone paste a paragraph that
+ * describes the answer outright.
+ */
+export const gameClueSchema = z.string().trim()
+  .min(1, "Enter a clue.")
+  .max(40, "Keep your clue under 40 characters.");
+
+export const gameGuessSchema = z.string().trim()
+  .min(1, "Enter the word you think it was.")
+  .max(40, "That is longer than any word in the game.");

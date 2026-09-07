@@ -4,18 +4,37 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, ChartNoAxesCombined, ClipboardClock, Menu, Moon, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
+import { BriefcaseBusiness, ChartNoAxesCombined, ClipboardClock, Drama, Menu, Moon, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
 import { Brand } from "@/components/brand";
 
+/**
+ * The work the app is for. These four are the bottom tab bar on a phone, where
+ * there is room for exactly this many thumb-sized targets and no more.
+ */
 const navigation = [
   { href: "/", label: "Overview", icon: ChartNoAxesCombined },
   { href: "/shifts", label: "Shifts", icon: ClipboardClock },
   { href: "/jobs", label: "Jobs", icon: BriefcaseBusiness },
   { href: "/settings", label: "Settings", icon: Settings },
+];
+
+/**
+ * The menus -- the drawer on a phone, the sidebar on a desktop -- carry one
+ * more entry than the bottom bar.
+ *
+ * Imposter is a diversion, not part of tracking your hours, so it does not
+ * belong in the four permanent tabs a phone shows over every page. Putting it
+ * only in the drawer would hide it from desktop entirely, since the drawer is
+ * `lg:hidden` and the sidebar takes over there -- so "menu" means both of them,
+ * and the bottom bar is the one place it stays out of.
+ */
+const menuNavigation = [
+  ...navigation,
+  { href: "/game", label: "Imposter", icon: Drama },
 ];
 
 type NavigationItem = typeof navigation[number];
@@ -90,7 +109,7 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const shouldRestoreFocus = useRef(false);
-  const mobileItems = isAdmin ? [...navigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : navigation;
+  const mobileItems = isAdmin ? [...menuNavigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : menuNavigation;
 
   function closeMenu(restoreFocus = false) {
     shouldRestoreFocus.current = restoreFocus;
@@ -161,7 +180,7 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
 
 export function AppShell({ children, isAdmin = false, isDemo = false, userEmail }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string }) {
   const pathname = usePathname();
-  const desktopItems = isAdmin ? [...navigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : navigation;
+  const desktopItems = isAdmin ? [...menuNavigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : menuNavigation;
 
   return <div className="app-canvas min-h-screen lg:grid lg:grid-cols-[292px_minmax(0,1fr)]">
     <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-xl focus:bg-[var(--primary)] focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-[var(--primary-foreground)] focus:shadow-2xl focus:shadow-[var(--primary-glow)]">Skip to content</a>

@@ -4,10 +4,11 @@
 # GATES:
 #   1. Secrets  → Gitleaks scans the full Git history
 #   2. Quality  → Prisma, tests, types, lint, production build
-#   3. Audit    → Blocks new or compatibly-fixable high findings
-#   4. Image    → Docker build verification
-#   5. CodeQL   → JavaScript and TypeScript security analysis
-#   6. Release  → Approved image, migration, immutable promotion
+#   3. DB rules → Migrations + trigger/policy/grant suites on real Postgres
+#   4. Audit    → Blocks new or compatibly-fixable high findings
+#   5. Image    → Docker build verification
+#   6. CodeQL   → JavaScript and TypeScript security analysis
+#   7. Release  → Approved image, migration, immutable promotion
 # ============================================================
 
 name: "🚀 ShiftSaaS CI/CD Pipeline"
@@ -64,8 +65,8 @@ jobs:
         run: npm run db:generate
       - name: "🗃️ Validate Prisma schema"
         run: npx prisma validate
-      - name: "🧪 Run earnings and auth tests"
-        run: npm run test:earnings && npm run test:auth
+      - name: "🧪 Run unit tests"
+        run: npm run test:earnings && npm run test:auth && npm run test:game
       - name: "🔎 Type-check"
         run: npx tsc --noEmit
       - name: "🔍 Lint"
@@ -92,6 +93,28 @@ jobs:
         run: npm ci
       - name: "🔍 Audit production dependencies"
         run: npm run audit:production
+
+  # ================================================================
+  # JOB 3b: DATABASE RULES — Migrations applied to a real Postgres
+  # ================================================================
+  # The earnings snapshot, the weekly caps and every imposter-game secrecy rule
+  # live in triggers, policies and grants. The quality job cannot see any of
+  # them: it type-checks and runs the TypeScript suites, which never touch a
+  # database. This applies every migration to an empty Postgres the way the
+  # release job applies them to production, then plays against the result as the
+  # `authenticated` role.
+  #
+  # No setup-node and no npm ci -- the script only needs Docker, which the runner
+  # already has, so this job starts in seconds.
+  sql-tests:
+    name: "🗄️ Database rule tests"
+    needs: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 Check out repository"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: "🗄️ Apply migrations and run database suites"
+        run: bash scripts/run-sql-tests.sh
 
   # ================================================================
   # JOB 4: IMAGE CHECK — Prove the production Dockerfile builds
@@ -150,7 +173,7 @@ jobs:
   release:
     name: "🚀 Build, migrate, and release"
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [quality, audit-production, docker-build, codeql]
+    needs: [quality, sql-tests, audit-production, docker-build, codeql]
     environment: production
     permissions:
       contents: read

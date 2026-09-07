@@ -1,0 +1,188 @@
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { LobbyPlayer } from "@/lib/game-lobby";
+
+/**
+ * Reads for a round in progress.
+ *
+ * The shape of this file is dictated by one constraint: `game_rounds.word_id`
+ * carries no grant, so `select *` on that table is a runtime permission error,
+ * not a type error. Every round query therefore names its columns, and
+ * `ROUND_COLUMNS` is the single list they all use -- adding a column to the
+ * table means adding it both to the grant in the migration and to that constant,
+ * and forgetting either is caught the first time the page loads.
+ *
+ * The word itself never comes back through these queries. It arrives one of two
+ * ways: your own copy of it from `game_round_secrets`, which RLS scopes to you,
+ * or `game_round_reveal`, which returns nothing until the round is over.
+ */
+
+const ROUND_COLUMNS =
+  "id,room_id,round_no,status,decoy_mode,category_hint,imposter_final_guess,imposter_count,clue_passes,current_pass,started_at,ended_at,caught_user_id,final_guess,outcome";
+
+export type RoundPhase = "DEALING" | "CLUES" | "VOTING" | "GUESSING" | "REVEAL" | "ENDED";
+
+export type RoundSeat = {
+  userId: string;
+  displayName: string;
+  turnOrder: number;
+  eliminated: boolean;
+  isYou: boolean;
+  hasVoted: boolean;
+  isTurn: boolean;
+  hasLeft: boolean;
+};
+
+export type RoundClue = {
+  userId: string;
+  displayName: string;
+  passNo: number;
+  clue: string;
+};
+
+export type RoundReveal = {
+  word: string;
+  decoyWord: string;
+  category: string;
+  imposterIds: string[];
+};
+
+export type RoundView = {
+  id: string;
+  roundNo: number;
+  status: RoundPhase;
+  currentPass: number;
+  cluePasses: number;
+  decoyMode: boolean;
+  imposterCount: number;
+  imposterFinalGuess: boolean;
+
+  seats: RoundSeat[];
+  clues: RoundClue[];
+
+  /** Your own role and word. Null for a spectator who joined after the deal. */
+  yourRole: "CREW" | "IMPOSTER" | null;
+  yourWord: string | null;
+  yourCategoryHint: string | null;
+
+  turnUserId: string | null;
+  isYourTurn: boolean;
+  youHaveVoted: boolean;
+
+  caughtUserId: string | null;
+  finalGuess: string | null;
+  outcome: "CREW_WIN" | "IMPOSTER_WIN" | null;
+  awaitingYourGuess: boolean;
+
+  /** Only ever populated once the round has reached REVEAL. */
+  reveal: RoundReveal | null;
+  votes: { voterId: string; targetId: string }[];
+};
+
+/**
+ * The room's most recent round, assembled for the play screen.
+ *
+ * Names come from the lobby roster that the caller already fetched rather than
+ * from a second query, and a seat with no matching roster entry is somebody who
+ * left mid-round -- they stay visible so the clues they gave still have a face,
+ * but they are marked so the screen can stop waiting on them.
+ */
+export async function fetchCurrentRound(
+  roomId: string,
+  viewerId: string,
+  roster: LobbyPlayer[],
+): Promise<RoundView | null> {
+  const supabase = await createServerSupabaseClient();
+
+  const { data: round } = await supabase
+    .from("game_rounds")
+    .select(ROUND_COLUMNS)
+    .eq("room_id", roomId)
+    .order("round_no", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!round) return null;
+
+  const status = round.status as RoundPhase;
+  const revealed = status === "REVEAL" || status === "ENDED";
+
+  const [seatRows, clueRows, secret, voters, reveal, votes] = await Promise.all([
+    supabase.from("game_round_players").select("user_id,turn_order,eliminated_at").eq("round_id", round.id),
+    supabase.from("game_clues").select("user_id,pass_no,clue,created_at").eq("round_id", round.id).order("pass_no").order("created_at"),
+    supabase.from("game_round_secrets").select("role,assigned_word,category_hint_text").eq("round_id", round.id).maybeSingle(),
+    supabase.rpc("game_round_voters", { p_round_id: round.id }),
+    revealed ? supabase.rpc("game_round_reveal", { p_round_id: round.id }) : Promise.resolve({ data: null }),
+    revealed ? supabase.from("game_votes").select("voter_id,target_id").eq("round_id", round.id) : Promise.resolve({ data: null }),
+  ]);
+
+  const names = new Map(roster.map((player) => [player.userId, player.displayName]));
+  const votedIds = new Set((voters.data ?? []) as string[]);
+
+  // Whose turn it is, computed here rather than fetched: the same rule as
+  // `game_round_turn` in SQL, over rows already in hand. One fewer round trip on
+  // a screen that reloads every couple of seconds.
+  const seats: RoundSeat[] = (seatRows.data ?? [])
+    .map((seat) => ({
+      userId: seat.user_id,
+      displayName: names.get(seat.user_id) ?? "Left the game",
+      turnOrder: seat.turn_order,
+      eliminated: seat.eliminated_at !== null,
+      isYou: seat.user_id === viewerId,
+      hasVoted: votedIds.has(seat.user_id),
+      hasLeft: !names.has(seat.user_id),
+      isTurn: false,
+    }))
+    .sort((left, right) => left.turnOrder - right.turnOrder);
+
+  const cluesThisPass = new Set(
+    (clueRows.data ?? []).filter((clue) => clue.pass_no === round.current_pass).map((clue) => clue.user_id),
+  );
+  const nextUp = status === "CLUES"
+    ? seats.find((seat) => !seat.eliminated && !seat.hasLeft && !cluesThisPass.has(seat.userId))
+    : undefined;
+  if (nextUp) nextUp.isTurn = true;
+
+  const revealRow = reveal.data?.[0] ?? null;
+
+  return {
+    id: round.id,
+    roundNo: round.round_no,
+    status,
+    currentPass: round.current_pass,
+    cluePasses: round.clue_passes,
+    decoyMode: round.decoy_mode,
+    imposterCount: round.imposter_count,
+    imposterFinalGuess: round.imposter_final_guess,
+
+    seats,
+    clues: (clueRows.data ?? []).map((clue) => ({
+      userId: clue.user_id,
+      displayName: names.get(clue.user_id) ?? "Left the game",
+      passNo: clue.pass_no,
+      clue: clue.clue,
+    })),
+
+    yourRole: (secret.data?.role as "CREW" | "IMPOSTER" | undefined) ?? null,
+    yourWord: secret.data?.assigned_word ?? null,
+    yourCategoryHint: secret.data?.category_hint_text ?? null,
+
+    turnUserId: nextUp?.userId ?? null,
+    isYourTurn: nextUp?.userId === viewerId,
+    youHaveVoted: votedIds.has(viewerId),
+
+    caughtUserId: round.caught_user_id,
+    finalGuess: round.final_guess,
+    outcome: (round.outcome as "CREW_WIN" | "IMPOSTER_WIN" | null) ?? null,
+    awaitingYourGuess: status === "GUESSING" && round.caught_user_id === viewerId,
+
+    reveal: revealRow
+      ? {
+          word: revealRow.word,
+          decoyWord: revealRow.decoy_word,
+          category: revealRow.category,
+          imposterIds: revealRow.imposter_ids,
+        }
+      : null,
+    votes: (votes.data ?? []).map((vote) => ({ voterId: vote.voter_id, targetId: vote.target_id })),
+  };
+}

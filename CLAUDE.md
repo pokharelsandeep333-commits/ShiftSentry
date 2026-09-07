@@ -12,6 +12,8 @@ The two files split by depth, not by topic: a rule that is expensive to get wron
 npm run dev                    # local app on http://localhost:3000
 npm run test:earnings          # earnings, earnings-range, local-preference, period-totals, greeting, job-allocation, shift-date-time, time
 npm run test:auth              # request-origin, validation
+npm run test:game              # game (invite codes, imposter caps, start rules)
+npm run test:sql               # applies every migration to a throwaway Postgres, then the suites in supabase/tests (needs Docker)
 npx tsc --noEmit               # type-check
 npm run lint                   # eslint (flat config)
 npm run db:generate            # regenerate Prisma client after schema.prisma changes
@@ -25,9 +27,11 @@ Run a single test file directly:
 npx tsx --test src/lib/earnings.test.ts
 ```
 
-Before a PR, run the two test scripts, type-check, lint, and build — that mirrors the `quality` job in `.github/workflows/ci.yml`.
+Before a PR, run the test scripts, type-check, lint, and build — that mirrors the `quality` job in `.github/workflows/ci.yml`. `test:sql` is a separate CI job (`sql-tests`); `release` waits on both.
 
-**Test scripts enumerate files explicitly.** A new `*.test.ts` will not run in CI until you add its path to `test:earnings` or `test:auth` in `package.json`. There is no glob.
+**Test scripts enumerate files explicitly.** A new `*.test.ts` will not run in CI until you add its path to `test:earnings`, `test:auth` or `test:game` in `package.json`. There is no glob.
+
+`test:sql` is the exception, and inverts that rule: `scripts/run-sql-tests.sh` globs `supabase/tests/*.sql`, so a new suite runs the moment the file exists. Files run in filename order against one shared database, so they are numbered.
 
 ## Architecture
 
@@ -64,6 +68,8 @@ Server Actions (`src/app/actions/work.ts`) validate with Zod (`src/lib/validatio
 - `shifts_no_duplicate_span` (unique index) rejects a second shift with the same `(user_id, job_id, starts_at, ends_at)`. Subsumed by `shifts_no_overlap` and kept deliberately — it is the narrower condition, so it yields the more specific "you already logged this exact shift" message.
 
 Changing an earnings or limit rule means changing the TS helper, its test, **and** a new migration.
+
+Because those rules live in the database, `npm test` cannot reach them. `supabase/tests/` covers that gap: `run-sql-tests.sh` starts a bare `postgres:17-alpine` container, applies `harness/stubs.sql` (stand-ins for the `auth` schema, the anon/authenticated/service_role roles and their default privileges, and `realtime.send`/`realtime.topic`), replays every migration **each in its own transaction** the way the CLI does, then plays against the result as `authenticated`. Reproducing the default privileges matters: without them the migrations' `revoke all ...` statements would be no-ops locally and the access-control assertions would pass for the wrong reason. Applying one transaction per file is what catches an enum value added and used in the same migration.
 
 The user-local week-start expression is written out in three places that must stay identical: `enforce_shift_weekly_limits`, the `shift_week_count_before` function (`20260902034021_shift_week_numbering.sql`), and `weekStartFor()` in `src/lib/time.ts`.
 
@@ -116,7 +122,7 @@ Server render cannot read `localStorage`, so the first paint is always the defau
 
 - **Migrations are immutable.** Add a new timestamped file in `supabase/migrations/`; never edit or rerun an applied one. Production schema changes go through `supabase db push` in the release job — never `prisma migrate`. `prisma/schema.prisma` is a typed mirror of the SQL, not the source of truth.
 - **Key naming.** Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` may reach the browser or a Docker build arg. Never introduce `SUPABASE_ANON_KEY` or `SUPABASE_SERVICE_ROLE_KEY` — this repo uses the new `sb_publishable_` / `sb_secret_` keys with `@supabase/ssr` for cookie clients and `@supabase/server/core` for the admin client.
-- **CSP is strict** (`next.config.ts`): `connect-src` allows only `'self'` and `https://*.supabase.co`, `font-src 'self'` (fonts are bundled via `@fontsource-variable`). No external script, style, image, or font hosts — adding one requires a CSP change and a reason.
+- **CSP is strict** (`next.config.ts`): `connect-src` allows only `'self'`, `https://*.supabase.co` and `wss://*.supabase.co` (the websocket entry is for the imposter game's Realtime channel and is spelled out rather than relying on CSP3's https-covers-wss rule, which Safari has been inconsistent about), `font-src 'self'` (fonts are bundled via `@fontsource-variable`). No external script, style, image, or font hosts — adding one requires a CSP change and a reason.
 - **Design tokens** live in `src/app/globals.css` (`--primary`, `--surface-*`, `--primary-soft`, light/dark pairs). Build from `src/components/ui/` primitives before adding page-local styles.
 - **Selects are in-house; Radix Select is gone.** `@radix-ui/react-dropdown-menu` is the only Radix package left, used by `account-menu.tsx` and `shift-row-actions.tsx`. `premium-select.tsx` is a hand-written ARIA listbox and its header documents the measurements behind that: Radix Select's portal, floating-ui `autoUpdate`, scroll lock, aria-hiding and focus guards cost 162ms worst-frame on `/shifts/new` against 39ms for the far larger in-house calendar popover. Do not reintroduce Radix Select, and do not reach for Radix DropdownMenu for a frequently-opened control — the dashboard range picker uses the listbox for that reason. Whatever you build must keep the full keyboard contract (arrows, Home/End, typeahead, Enter/Space, Escape, focus return) and must not be swapped for a native control.
 - **No animation library.** Motion was removed deliberately — it felt laggy. `Reveal` (`src/components/ui/reveal.tsx`) is an intentional pass-through wrapper; do not restore animation to it, and do not add Motion back. If a transition is genuinely warranted, write it in CSS and respect `prefers-reduced-motion`.
