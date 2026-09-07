@@ -100,6 +100,9 @@ function ClueList({ round }: { round: RoundView }) {
       {passes.map((pass) => <div key={pass} className="grid gap-2">
         {round.cluePasses > 1 && <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Pass {pass}</p>}
         {round.clues.filter((clue) => clue.passNo === pass).map((clue) => <div key={`${clue.userId}-${clue.passNo}`} className="flex items-baseline gap-3 rounded-xl bg-[var(--surface-subtle)] px-3.5 py-2.5">
+          {/* Left wrapping rather than truncating on purpose: measured, this row
+              already fits 288px, and adding `truncate` would set nowrap and push
+              its min-content from 136px to 244px -- worse, not better. */}
           <span className="shrink-0 text-xs font-semibold text-[var(--muted-foreground)]">{clue.displayName}</span>
           <span className="min-w-0 flex-1 break-words text-sm font-medium">{clue.clue}</span>
         </div>)}

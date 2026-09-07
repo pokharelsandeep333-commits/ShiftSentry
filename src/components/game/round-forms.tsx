@@ -90,13 +90,21 @@ export function VotePanel({
           disabled={pending}
           aria-pressed={chosen}
           className={cn(
-            "flex h-11 items-center justify-between gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
+            // `w-full min-w-0` on the button, not just the span inside it. The
+            // button is the grid item here, and a grid item defaults to
+            // min-width:auto -- so with a nowrap name it sized to 296px inside a
+            // 288px cell and spilled out, no matter what the span was told.
+            "flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
             chosen
               ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-glow)]"
               : "bg-[var(--card)]/45 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--primary)_35%,var(--border))] hover:bg-[var(--primary-soft)]",
           )}
         >
-          <span className="truncate">{seat.displayName}</span>
+          {/* `min-w-0 flex-1` or `truncate` is inert: a flex child defaults to
+              min-width:auto and nowrap text reports its whole width as
+              min-content, so a long name widens the button instead of
+              ellipsing inside it. */}
+          <span className="min-w-0 flex-1 truncate text-left">{seat.displayName}</span>
           <span className="flex shrink-0 items-center gap-2">
             {seat.hasLeft && <span className="text-xs font-normal opacity-70">left</span>}
             {chosen && <><span className="text-xs font-normal">your vote</span><Vote className="size-4" /></>}
