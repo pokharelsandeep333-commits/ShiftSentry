@@ -90,7 +90,7 @@ function Steps({
         aria-pressed={option === value}
         onClick={() => onChange(option)}
         className={cn(
-          "h-10 flex-1 rounded-xl border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
+          "h-10 min-w-0 flex-1 truncate rounded-xl border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
           option === value
             ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
             : "bg-[var(--card)]/45 text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)]",
@@ -120,7 +120,7 @@ function Tiers({
         aria-pressed={option.value === value}
         onClick={() => onChange(option.value)}
         className={cn(
-          "h-10 flex-1 rounded-xl border px-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
+          "h-10 min-w-0 flex-1 truncate rounded-xl border px-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
           option.value === value
             ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
             : "bg-[var(--card)]/45 text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)]",
