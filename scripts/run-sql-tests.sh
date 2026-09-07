@@ -41,22 +41,44 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
+# Always over TCP, never the unix socket -- see the readiness loop below.
 psql_run() {
-  docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d app -q
+  docker exec -i "$CONTAINER" psql -h 127.0.0.1 -v ON_ERROR_STOP=1 -U postgres -d app -q
 }
 
 echo "Starting $IMAGE ..."
 docker run -d --name "$CONTAINER" \
   -e POSTGRES_PASSWORD=postgres \
   -e POSTGRES_DB=app \
+  -e PGPASSWORD=postgres \
   "$IMAGE" >/dev/null
 
+# Readiness has to be checked over TCP, not over the unix socket.
+#
+# The official image runs a temporary server during initdb so it can execute its
+# init scripts, then shuts that one down and starts the real one. The temporary
+# server accepts unix-socket connections, so `pg_isready` with no -h reports
+# ready during the init phase -- and the next statement then dies with "the
+# database system is shutting down" as initdb finishes. It only surfaces on a
+# cold pull, where the timing is slow enough to land in that window, which is
+# why this passed locally and failed on the first CI run.
+#
+# That temporary server is started with `listen_addresses=''`, so a TCP check
+# cannot reach it. Connecting to 127.0.0.1 succeeds only once the real server is
+# up. The `select 1` is belt and braces: accepting a connection and being able to
+# answer a query are not quite the same moment.
+ready=0
 for _ in $(seq 1 60); do
-  if docker exec "$CONTAINER" pg_isready -U postgres -d app >/dev/null 2>&1; then break; fi
+  if docker exec "$CONTAINER" pg_isready -h 127.0.0.1 -U postgres -d app >/dev/null 2>&1 \
+     && docker exec "$CONTAINER" psql -h 127.0.0.1 -U postgres -d app -tAc 'select 1' >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
   sleep 1
 done
-if ! docker exec "$CONTAINER" pg_isready -U postgres -d app >/dev/null 2>&1; then
-  echo "FAIL  Postgres did not become ready." >&2
+if [ "$ready" -ne 1 ]; then
+  echo "FAIL  Postgres did not become ready within 60s." >&2
+  docker logs "$CONTAINER" 2>&1 | tail -20 >&2
   exit 1
 fi
 
