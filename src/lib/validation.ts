@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GAME_SETTINGS_BOUNDS, normalizeGameCode } from "@/lib/game";
+import { GAME_SETTINGS_BOUNDS, IMPOSTER_HINTS, normalizeGameCode } from "@/lib/game";
 
 export const resourceIdSchema = z.string().uuid("Invalid resource identifier.");
 
@@ -57,8 +57,8 @@ export const gameDisplayNameSchema = z.string().trim().max(40, "Keep it under 40
 
 export const gameRoomSettingsSchema = z.object({
   roomId: z.string().uuid(),
-  decoyMode: z.boolean(),
-  categoryHint: z.boolean(),
+  imposterHint: z.enum(IMPOSTER_HINTS),
+  hideRoles: z.boolean(),
   imposterFinalGuess: z.boolean(),
   imposterCount: z.coerce.number().int()
     .min(GAME_SETTINGS_BOUNDS.imposterCount.min)
@@ -69,7 +69,14 @@ export const gameRoomSettingsSchema = z.object({
   maxPlayers: z.coerce.number().int()
     .min(GAME_SETTINGS_BOUNDS.maxPlayers.min)
     .max(GAME_SETTINGS_BOUNDS.maxPlayers.max),
+  banRepeatClues: z.boolean(),
+  discussionPhase: z.boolean(),
   categoryFilter: z.string().trim().min(2).max(40).nullable(),
+}).refine((settings) => !settings.hideRoles || settings.imposterHint === "DECOY", {
+  // Mirrors game_rooms_hide_roles_needs_decoy. The form keeps the two in step as
+  // you change them, so reaching this means the request did not come from it.
+  message: "Roles can only be hidden when the imposter gets a decoy word.",
+  path: ["hideRoles"],
 });
 
 /**

@@ -6,8 +6,9 @@
 -- Not SECURITY DEFINER -- it switches role itself so the game functions see the
 -- right auth.uid() at each step.
 create or replace function test_deal(
-  p_decoy boolean, p_hint boolean, p_guess boolean,
-  p_imposters integer, p_passes integer, p_seats integer
+  p_hint text, p_hide_roles boolean, p_guess boolean,
+  p_imposters integer, p_passes integer, p_seats integer,
+  p_ban_repeats boolean default true, p_discussion boolean default false
 )
 returns table (room_id uuid, round_id uuid, imposter_ids uuid[])
 language plpgsql
@@ -40,7 +41,9 @@ begin
   end loop;
 
   perform set_config('request.jwt.claim.sub', host::text, true);
-  perform public.update_game_room_settings(rm, p_decoy, p_hint, p_guess, p_imposters, p_passes, 20, null);
+  perform public.update_game_room_settings(
+    rm, p_hint, p_hide_roles, p_guess, p_imposters, p_passes, 20,
+    p_ban_repeats, p_discussion, null);
   rd := public.start_game_round(rm);
 
   execute 'set local role postgres';
@@ -52,23 +55,37 @@ end;
 $$;
 
 -- Test-only helper: play out every clue in every pass.
+--
+-- Reads whose turn it is as whichever player is still in the room, rather than
+-- as a fixed identity. `game_round_turn` refuses callers who are not members, so
+-- an observer who happens to be the player that just walked out returns null and
+-- the loop exits after one clue -- which looked exactly like the round stalling.
+-- Scenario E in 03_branches removes a randomly chosen player, so that was a one
+-- in five failure rather than a reliable one.
 create or replace function test_all_clues(p_round uuid)
 returns integer
 language plpgsql
 as $$
 declare
-  host constant uuid := '11111111-1111-1111-1111-111111111111';
+  observer uuid;
   turn uuid;
   given integer := 0;
 begin
+  execute 'set local role postgres';
+  select member.user_id into observer
+    from public.game_room_players member
+    join public.game_rounds round on round.room_id = member.room_id
+    where round.id = p_round
+    limit 1;
+
   execute 'set local role authenticated';
   loop
-    perform set_config('request.jwt.claim.sub', host::text, true);
+    perform set_config('request.jwt.claim.sub', observer::text, true);
     turn := public.game_round_turn(p_round);
     exit when turn is null;
     perform set_config('request.jwt.claim.sub', turn::text, true);
-    perform public.submit_game_clue(p_round, 'clue');
     given := given + 1;
+    perform public.submit_game_clue(p_round, 'clue ' || given);
   end loop;
   execute 'set local role postgres';
   return given;

@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GAME_CODE_ALPHABET, maxImpostersFor, normalizeGameCode, startBlocker } from "./game";
+import {
+  DEFAULT_GAME_SETTINGS,
+  GAME_CODE_ALPHABET,
+  IMPOSTER_HINTS,
+  IMPOSTER_HINT_LABELS,
+  canHideRoles,
+  gameSettingsEqual,
+  isImposterHint,
+  maxImpostersFor,
+  normalizeGameCode,
+  reconcileGameSettings,
+  startBlocker,
+  type GameSettings,
+} from "./game";
 
 test("forgives case and the separators people type into a code", () => {
   assert.equal(normalizeGameCode("abc234"), "ABC234");
@@ -56,4 +69,63 @@ test("blocks a start where the imposters would outnumber the game", () => {
 test("counts players in the not-enough-players message", () => {
   assert.match(startBlocker(1, 1)!.message, /2 more players/);
   assert.match(startBlocker(2, 1)!.message, /1 more player\b/);
+});
+
+test("hidden roles are only possible when the imposter holds a decoy", () => {
+  assert.equal(canHideRoles("DECOY"), true);
+  for (const hint of ["NONE", "CATEGORY", "RELATED"] as const) {
+    assert.equal(canHideRoles(hint), false, `${hint} has no word to hide behind`);
+  }
+});
+
+test("turning the hint down switches hidden roles back off", () => {
+  const hidden: GameSettings = { ...DEFAULT_GAME_SETTINGS, imposterHint: "DECOY", hideRoles: true };
+  assert.equal(reconcileGameSettings(hidden).hideRoles, true);
+
+  // Changing only the hint must not leave an impossible pairing behind -- the
+  // database rejects it, and the form would be refused for a field the host
+  // never touched.
+  const downgraded = reconcileGameSettings({ ...hidden, imposterHint: "CATEGORY" });
+  assert.equal(downgraded.hideRoles, false);
+  assert.equal(downgraded.imposterHint, "CATEGORY");
+});
+
+test("settings comparison notices every field", () => {
+  const base = DEFAULT_GAME_SETTINGS;
+  assert.equal(gameSettingsEqual(base, { ...base }), true);
+
+  const changes: Partial<GameSettings>[] = [
+    { imposterHint: "DECOY" },
+    { imposterFinalGuess: false },
+    { imposterCount: 2 },
+    { cluePasses: 3 },
+    { maxPlayers: 5 },
+    { banRepeatClues: false },
+    { discussionPhase: true },
+    { categoryFilter: "Animals" },
+  ];
+
+  for (const change of changes) {
+    const key = Object.keys(change)[0];
+    assert.equal(gameSettingsEqual(base, { ...base, ...change }), false, `${key} was treated as unchanged`);
+  }
+
+  // hideRoles needs the decoy alongside it to be a legal difference at all.
+  const hidden: GameSettings = { ...base, imposterHint: "DECOY", hideRoles: true };
+  assert.equal(gameSettingsEqual({ ...base, imposterHint: "DECOY" }, hidden), false);
+});
+
+test("every hint rung has copy to render", () => {
+  for (const hint of IMPOSTER_HINTS) {
+    assert.ok(IMPOSTER_HINT_LABELS[hint].label.length > 0, `${hint} has no label`);
+    assert.ok(IMPOSTER_HINT_LABELS[hint].description.length > 0, `${hint} has no description`);
+  }
+});
+
+test("isImposterHint rejects anything that is not a rung", () => {
+  assert.equal(isImposterHint("DECOY"), true);
+  assert.equal(isImposterHint("decoy"), false);
+  assert.equal(isImposterHint("SOMETHING_ELSE"), false);
+  assert.equal(isImposterHint(null), false);
+  assert.equal(isImposterHint(undefined), false);
 });

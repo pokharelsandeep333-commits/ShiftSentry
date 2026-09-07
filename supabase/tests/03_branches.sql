@@ -5,7 +5,7 @@ do $$
 declare
   deal record; imposter uuid; word text; held text; phase text; result text;
 begin
-  select * into deal from test_deal(true, false, true, 1, 1, 4);
+  select * into deal from test_deal('DECOY', false, true, 1, 1, 4);
   imposter := deal.imposter_ids[1];
 
   select assigned_word into held from public.game_round_secrets
@@ -51,7 +51,7 @@ do $$
 declare
   deal record; imposter uuid; victim uuid; who uuid; others uuid[]; phase text; result text;
 begin
-  select * into deal from test_deal(false, false, true, 1, 1, 4);
+  select * into deal from test_deal('NONE', false, true, 1, 1, 4);
   imposter := deal.imposter_ids[1];
   perform test_all_clues(deal.round_id);
 
@@ -91,7 +91,7 @@ do $$
 declare
   deal record; seats uuid[]; phase text; eliminated integer; who uuid;
 begin
-  select * into deal from test_deal(false, false, true, 1, 1, 4);
+  select * into deal from test_deal('NONE', false, true, 1, 1, 4);
   perform test_all_clues(deal.round_id);
 
   select array_agg(user_id order by turn_order) into seats
@@ -125,7 +125,7 @@ do $$
 declare
   deal record; seats uuid[]; phase text; result text; caught uuid; eliminated integer;
 begin
-  select * into deal from test_deal(false, false, true, 1, 1, 4);
+  select * into deal from test_deal('NONE', false, true, 1, 1, 4);
   perform test_all_clues(deal.round_id);
 
   select array_agg(user_id order by turn_order) into seats
@@ -161,7 +161,7 @@ do $$
 declare
   deal record; given integer; phase text;
 begin
-  select * into deal from test_deal(false, false, true, 1, 2, 4);
+  select * into deal from test_deal('NONE', false, true, 1, 2, 4);
   given := test_all_clues(deal.round_id);
   select status::text into phase from public.game_rounds where id = deal.round_id;
   if given <> 8 then raise exception 'D: expected 8 clues over 2 passes, got %', given; end if;
@@ -175,14 +175,14 @@ do $$
 declare
   deal record; leaver uuid; turn uuid; given integer; phase text;
 begin
-  select * into deal from test_deal(false, false, true, 1, 1, 5);
+  select * into deal from test_deal('NONE', false, true, 1, 1, 5);
 
   -- whoever is due to speak second walks out before saying anything
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
   turn := public.game_round_turn(deal.round_id);
   perform set_config('request.jwt.claim.sub', turn::text, true);
-  perform public.submit_game_clue(deal.round_id, 'first');
+  perform public.submit_game_clue(deal.round_id, 'first clue');
 
   perform set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', true);
   leaver := public.game_round_turn(deal.round_id);

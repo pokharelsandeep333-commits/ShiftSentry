@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import type { GameSettings } from "@/lib/game";
+import { isImposterHint, type GameSettings } from "@/lib/game";
 
 /**
  * Reads for the lobby. Everything here goes through the RLS-scoped client, so a
@@ -41,7 +41,7 @@ export type Lobby = {
 };
 
 const ROOM_COLUMNS =
-  "id,code,status,host_id,decoy_mode,category_hint,imposter_final_guess,imposter_count,clue_passes,max_players,category_filter";
+  "id,code,status,host_id,imposter_hint,hide_roles,imposter_final_guess,imposter_count,clue_passes,max_players,ban_repeat_clues,discussion_phase,category_filter";
 
 /**
  * One query, not two: the roster comes back as a PostgREST embed on the room.
@@ -82,12 +82,14 @@ export async function fetchLobby(code: string, viewerId: string): Promise<Lobby 
     hostId: data.host_id,
     isHost: data.host_id === viewerId,
     settings: {
-      decoyMode: data.decoy_mode,
-      categoryHint: data.category_hint,
+      imposterHint: isImposterHint(data.imposter_hint) ? data.imposter_hint : "NONE",
+      hideRoles: data.hide_roles,
       imposterFinalGuess: data.imposter_final_guess,
       imposterCount: data.imposter_count,
       cluePasses: data.clue_passes,
       maxPlayers: data.max_players,
+      banRepeatClues: data.ban_repeat_clues,
+      discussionPhase: data.discussion_phase,
       categoryFilter: data.category_filter,
     },
     players,
@@ -118,4 +120,28 @@ export async function fetchWordCategories(): Promise<{ category: string; wordCou
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.rpc("game_word_categories");
   return (data ?? []).map((row) => ({ category: row.category, wordCount: Number(row.word_count) }));
+}
+
+/**
+ * Was this a game the viewer was actually in, that has since ended?
+ *
+ * `fetchLobby` filters out ENDED rooms, so a finished game and a mistyped code
+ * both come back as null -- which is why ending a game used to drop everyone
+ * onto a card telling them to check their spelling. This looks the same room up
+ * without the status filter.
+ *
+ * It leaks nothing: the select policy on game_rooms still requires membership,
+ * so a stranger guessing a code gets null here exactly as before. Only someone
+ * who was in the room learns that the room existed, which they already knew.
+ */
+export async function fetchEndedRoom(code: string): Promise<{ code: string; endedAt: string | null } | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from("game_rooms")
+    .select("code,ended_at")
+    .eq("code", code)
+    .eq("status", "ENDED")
+    .maybeSingle();
+
+  return data ? { code: data.code, endedAt: data.ended_at } : null;
 }

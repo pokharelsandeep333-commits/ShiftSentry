@@ -1,9 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { Check, Play } from "lucide-react";
+import { Check, Dices, Play, Vote } from "lucide-react";
 import {
   finishGameRound,
+  kickGamePlayer,
+  openGameRoundVote,
+  rerollGameWord,
   startGameRound,
   submitGameClue,
   submitGameFinalGuess,
@@ -61,32 +64,92 @@ export function ClueForm({ roundId }: { roundId: string }) {
  * form reports which button sent it -- so there is no selected-state to hold and
  * no second confirm step between deciding and voting.
  */
-export function VotePanel({ roundId, seats, youHaveVoted }: { roundId: string; seats: RoundSeat[]; youHaveVoted: boolean }) {
+export function VotePanel({
+  roundId, seats, yourVoteTargetId,
+}: {
+  roundId: string; seats: RoundSeat[]; yourVoteTargetId: string | null;
+}) {
   const [state, formAction, pending] = useActionState(submitGameVote, emptyFormState);
   const candidates = seats.filter((seat) => !seat.eliminated && !seat.isYou);
 
   return <form action={formAction} className="grid gap-3">
     <input type="hidden" name="roundId" value={roundId} />
     <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-      {youHaveVoted
-        ? "Vote cast. You can change it until the last player votes."
+      {yourVoteTargetId
+        ? "Your vote is in. You can change it until the last player votes."
         : "Who do you think it is?"}
     </p>
     <div className="grid gap-2">
-      {candidates.map((seat) => <Button
-        key={seat.userId}
-        type="submit"
-        name="targetId"
-        value={seat.userId}
-        variant="outline"
-        disabled={pending}
-        className="justify-between"
-      >
-        <span className="truncate">{seat.displayName}</span>
-        {seat.hasLeft && <span className="text-xs font-normal text-[var(--muted-foreground)]">left</span>}
-      </Button>)}
+      {candidates.map((seat) => {
+        const chosen = seat.userId === yourVoteTargetId;
+        return <button
+          key={seat.userId}
+          type="submit"
+          name="targetId"
+          value={seat.userId}
+          disabled={pending}
+          aria-pressed={chosen}
+          className={cn(
+            "flex h-11 items-center justify-between gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
+            chosen
+              ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-glow)]"
+              : "bg-[var(--card)]/45 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--primary)_35%,var(--border))] hover:bg-[var(--primary-soft)]",
+          )}
+        >
+          <span className="truncate">{seat.displayName}</span>
+          <span className="flex shrink-0 items-center gap-2">
+            {seat.hasLeft && <span className="text-xs font-normal opacity-70">left</span>}
+            {chosen && <><span className="text-xs font-normal">your vote</span><Vote className="size-4" /></>}
+          </span>
+        </button>;
+      })}
     </div>
     <FormError message={state.message} />
+  </form>;
+}
+
+export function OpenVoteButton({ roundId }: { roundId: string }) {
+  const [state, formAction, pending] = useActionState(openGameRoundVote, emptyFormState);
+
+  return <form action={formAction} className="grid gap-3">
+    <input type="hidden" name="roundId" value={roundId} />
+    <FormError message={state.message} />
+    <Button type="submit" disabled={pending}>
+      <Vote className="size-4" />
+      {pending ? "Opening…" : "Open the vote"}
+    </Button>
+  </form>;
+}
+
+export function RerollWordButton({ roundId }: { roundId: string }) {
+  const [state, formAction, pending] = useActionState(rerollGameWord, emptyFormState);
+
+  return <form action={formAction} className="grid gap-2">
+    <input type="hidden" name="roundId" value={roundId} />
+    <FormError message={state.message} />
+    <Button type="submit" variant="outline" size="sm" disabled={pending}>
+      <Dices className="size-3.5" />
+      {pending ? "Swapping…" : "Different word"}
+    </Button>
+  </form>;
+}
+
+export function KickPlayerButton({ roomId, userId, displayName }: { roomId: string; userId: string; displayName: string }) {
+  const [state, formAction, pending] = useActionState(kickGamePlayer, emptyFormState);
+
+  return <form action={formAction} title={state.message || undefined}>
+    <input type="hidden" name="roomId" value={roomId} />
+    <input type="hidden" name="userId" value={userId} />
+    <Button
+      type="submit"
+      variant="ghost"
+      size="sm"
+      disabled={pending}
+      aria-label={`Remove ${displayName} from the game`}
+      className="text-[var(--muted-foreground)] hover:text-[var(--danger)]"
+    >
+      Remove
+    </Button>
   </form>;
 }
 
