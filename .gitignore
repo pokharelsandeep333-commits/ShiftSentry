@@ -55,3 +55,7 @@ mcp_config.json
 !.vscode/settings.json
 !.vscode/extensions.json
 !.vscode/tailwind.css-data.json
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/

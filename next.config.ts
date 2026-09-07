@@ -12,7 +12,12 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self' https://*.supabase.co",
+  // `wss:` for Supabase Realtime. CSP3 says an https host-source also covers
+  // wss on the same host, and Chrome and Firefox implement that -- but Safari
+  // has been inconsistent about it, and the failure mode is a socket that
+  // silently never connects on one browser. Naming it explicitly costs a few
+  // bytes and removes the ambiguity.
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
 ].join("; ");
 
 const nextConfig: NextConfig = {
