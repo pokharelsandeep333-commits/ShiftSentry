@@ -1,6 +1,7 @@
 import { EyeOff, MessagesSquare, Scale, Siren, Trophy, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AbandonRoundButton,
   ClueForm,
   FinalGuessForm,
   FinishRoundButton,
@@ -272,6 +273,17 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
           ? <FinishRoundButton roundId={round.id} />
           : <p className="text-center text-xs text-[var(--muted-foreground)]">Waiting for the host to start the next round.</p>}
       </>}
+
+      {/* Available in every live phase, not only at the reveal. Before this the
+          only exit from a dealt round was to play it out -- so a table that
+          wanted three clue passes instead of one, or a different category, sat
+          through a game nobody was playing. It sits last in the column on
+          purpose: it is the way out, not the thing to do next. */}
+      {isHost && round.status !== "REVEAL" && round.status !== "ENDED" && <Card className="border-dashed">
+        <CardContent className="pt-5 sm:pt-6">
+          <AbandonRoundButton roundId={round.id} />
+        </CardContent>
+      </Card>}
 
     </div>
 

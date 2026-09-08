@@ -346,6 +346,7 @@ export type Database = {
           ban_repeat_clues: boolean;
           discussion_phase: boolean;
           tiebreak_count: number;
+          abandoned_at: string | null;
         };
         Insert: {
           category_hint: boolean;
@@ -369,6 +370,7 @@ export type Database = {
           ban_repeat_clues?: boolean;
           discussion_phase?: boolean;
           tiebreak_count?: number;
+          abandoned_at?: string | null;
         };
         Update: {
           category_hint?: boolean;
@@ -392,6 +394,7 @@ export type Database = {
           ban_repeat_clues?: boolean;
           discussion_phase?: boolean;
           tiebreak_count?: number;
+          abandoned_at?: string | null;
         };
         Relationships: [
           {
@@ -704,6 +707,12 @@ export type Database = {
       end_game_room: {
         Args: {
           p_room_id: string;
+        };
+        Returns: undefined;
+      };
+      abandon_game_round: {
+        Args: {
+          p_round_id: string;
         };
         Returns: undefined;
       };

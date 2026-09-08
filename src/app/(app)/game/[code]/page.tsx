@@ -13,7 +13,7 @@ import { RoundBoard } from "@/components/game/round-board";
 import { KickPlayerButton, StartRoundButton } from "@/components/game/round-forms";
 import { endGameRoom, leaveGameRoom } from "@/app/actions/game";
 import { requireUser } from "@/lib/auth";
-import { fetchEndedRoom, fetchLobby, fetchWordCategories } from "@/lib/game-lobby";
+import { fetchAbandonedRoundNo, fetchEndedRoom, fetchLobby, fetchWordCategories } from "@/lib/game-lobby";
 import { fetchCurrentRound, fetchRoomScoreboard } from "@/lib/game-round";
 import { IMPOSTER_HINT_LABELS, WORD_DIFFICULTY_LABELS, describeGameSettings, normalizeGameCode, startBlocker } from "@/lib/game";
 import { cn } from "@/lib/utils";
@@ -97,11 +97,12 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
     }
   }
 
-  const [categories, scoreboard] = await Promise.all([
+  const [categories, scoreboard, abandonedRoundNo] = await Promise.all([
     // Only the host can change the settings, so only the host needs the picker's
     // options -- no reason to make everyone else pay for the query.
     lobby.isHost ? fetchWordCategories(lobby.settings.wordDifficulty) : Promise.resolve([]),
     fetchRoomScoreboard(lobby.id, lobby.players),
+    fetchAbandonedRoundNo(lobby.id),
   ]);
 
   const blocker = startBlocker(lobby.players.length, lobby.settings.imposterCount);
@@ -159,6 +160,14 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
 
         <Card>
           <CardContent className="grid gap-3 pt-5 sm:pt-6">
+            {/* Everyone in the room sees this, not just the host who pressed the
+                button -- the players who were mid-clue are the ones owed an
+                explanation. It clears itself the moment the next round starts,
+                because the round it names is no longer the latest one. */}
+            {abandonedRoundNo !== null && <p className="rounded-xl border border-dashed px-3 py-2.5 text-sm leading-5 text-[var(--muted-foreground)]">
+              Round {abandonedRoundNo} was ended early, so it counts for nobody. {lobby.isHost ? "Change whatever you like, then deal again." : "The host can change the setup before dealing again."}
+            </p>}
+
             {blocker
               ? <p className="rounded-xl bg-[var(--surface-subtle)] px-3 py-2.5 text-sm leading-5 text-[var(--muted-foreground)]">{blocker.message}</p>
               : <p className="rounded-xl bg-[var(--primary-soft)] px-3 py-2.5 text-sm leading-5 text-[var(--primary)]">Everyone&rsquo;s here. Ready when you are.</p>}
