@@ -129,6 +129,32 @@ export async function fetchWordCategories(difficulty: WordDifficulty): Promise<{
 }
 
 /**
+ * The number of the last round, if the host ended it early rather than playing
+ * it out -- otherwise null.
+ *
+ * Without this, abandoning a round teleports four other people from a clue box
+ * back to the lobby with nothing said about it, which reads as a crash. One
+ * extra select on a screen that already runs two, and it runs in the same
+ * `Promise.all`, so it costs no wall-clock time.
+ *
+ * `abandoned_at` rather than "ENDED with no outcome": every round that finishes
+ * normally records one, so the two are equivalent today, but a future phase that
+ * ends without a result would quietly start claiming the host abandoned it.
+ */
+export async function fetchAbandonedRoundNo(roomId: string): Promise<number | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from("game_rounds")
+    .select("round_no,abandoned_at")
+    .eq("room_id", roomId)
+    .order("round_no", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data?.abandoned_at ? data.round_no : null;
+}
+
+/**
  * Was this a game the viewer was actually in, that has since ended?
  *
  * `fetchLobby` filters out ENDED rooms, so a finished game and a mistyped code

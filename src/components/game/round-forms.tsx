@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { Check, Dices, Play, Vote } from "lucide-react";
+import { Check, Dices, DoorOpen, Play, Vote } from "lucide-react";
 import {
+  abandonGameRound,
   finishGameRound,
   kickGamePlayer,
   openGameRoundVote,
@@ -14,6 +15,7 @@ import {
 } from "@/app/actions/game";
 import { emptyFormState } from "@/lib/form-state";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import type { RoundSeat } from "@/lib/game-round";
 import { cn } from "@/lib/utils";
 
@@ -193,6 +195,31 @@ export function FinishRoundButton({ roundId }: { roundId: string }) {
       <Check className="size-4" />
       {pending ? "Closing…" : "Back to the lobby"}
     </Button>
+  </form>;
+}
+
+/**
+ * The host's way out of a round that is no longer worth finishing.
+ *
+ * Two-step, like every other control that acts on everybody else: a stray tap
+ * here would wipe a live round, and the phone-sized target sits a few
+ * millimetres from the clue box.
+ */
+export function AbandonRoundButton({ roundId }: { roundId: string }) {
+  const [state, formAction] = useActionState(abandonGameRound, emptyFormState);
+
+  return <form action={formAction} className="grid gap-2.5">
+    <input type="hidden" name="roundId" value={roundId} />
+    <FormError message={state.message} />
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <p className="min-w-0 flex-1 basis-40 text-xs leading-5 text-[var(--muted-foreground)]">
+        Ends this round for everyone and reopens the lobby, so you can change the settings before the next one.
+      </p>
+      <span className="flex items-center gap-1.5">
+        <DoorOpen aria-hidden className="size-3.5 shrink-0 text-[var(--muted-foreground)]" />
+        <ConfirmSubmit label="Back to lobby" confirmLabel="End this round?" variant="outline" />
+      </span>
+    </div>
   </form>;
 }
 

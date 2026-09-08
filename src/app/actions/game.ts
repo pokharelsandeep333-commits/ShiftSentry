@@ -275,6 +275,29 @@ export async function finishGameRound(_previous: FormActionState, formData: Form
 }
 
 /**
+ * Abandon the round in progress and go back to the lobby.
+ *
+ * Separate from `finishGameRound` rather than a flag on it, because the two mean
+ * different things to the room: one closes a round that produced a result, this
+ * one throws away a round that did not. The database records that difference on
+ * the round row, so the lobby can say why everyone was just moved.
+ */
+export async function abandonGameRound(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+  await requireUser();
+
+  const round = roundId(formData);
+  if (!round.success) return { message: "That round is no longer available." };
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("abandon_game_round", { p_round_id: round.data });
+
+  if (error) return { message: readableError(error, "We couldn't end the round. Please try again.") };
+
+  revalidatePath("/game", "layout");
+  return { message: "" };
+}
+
+/**
  * Host controls. Each is a single RPC that re-checks host-ness itself, so the
  * only thing this layer adds is turning a rejection into a sentence.
  */
