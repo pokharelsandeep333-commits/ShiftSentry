@@ -249,7 +249,26 @@ export async function addJobDeduction(_previousState: FormActionState, formData:
   revalidatePath("/jobs"); redirect("/jobs?saved=deduction-added");
 }
 
-export async function deleteJobDeduction(formData: FormData) { await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("job_deductions").delete().eq("id", id); if (error) fail("Unable to delete the deduction. Please try again."); revalidatePath("/jobs"); redirect("/jobs?saved=deduction-removed"); }
+/**
+ * The one mutation in this file with no `user_id` column to filter on --
+ * `job_deductions` is owned through its parent job. The RLS policy already scopes
+ * a delete to deductions on the caller's own jobs, so this resolves the id
+ * through that join first rather than trusting the policy to be the only check:
+ * every other action here carries its own predicate, and a deduction is the one
+ * row whose ownership is indirect. It also turns a blocked cross-account delete
+ * into "could not be found" instead of the cheerful "deduction removed" that a
+ * zero-row delete reports.
+ */
+export async function deleteJobDeduction(formData: FormData) {
+  const profile = await requireUser();
+  const id = resourceId(formData);
+  const supabase = await createServerSupabaseClient();
+  const { data: owned, error: lookupError } = await supabase.from("job_deductions").select("id,jobs!inner(user_id)").eq("id", id).eq("jobs.user_id", profile.id).maybeSingle();
+  if (lookupError || !owned) fail("This deduction could not be found.");
+  const { error } = await supabase.from("job_deductions").delete().eq("id", owned.id);
+  if (error) fail("Unable to delete the deduction. Please try again.");
+  revalidatePath("/jobs"); redirect("/jobs?saved=deduction-removed");
+}
 
 export async function archiveJob(formData: FormData) { const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("jobs").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", profile.id); if (error) fail("Unable to archive the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); redirect("/jobs?saved=job-archived"); }
 
