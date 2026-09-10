@@ -217,7 +217,7 @@ export function AbandonRoundButton({ roundId }: { roundId: string }) {
       </p>
       <span className="flex items-center gap-1.5">
         <DoorOpen aria-hidden className="size-3.5 shrink-0 text-[var(--muted-foreground)]" />
-        <ConfirmSubmit label="Back to lobby" confirmLabel="End this round?" variant="outline" />
+        <ConfirmSubmit label="Back to lobby" confirmLabel="End this round?" confirmActionLabel="End round" variant="outline" />
       </span>
     </div>
   </form>;

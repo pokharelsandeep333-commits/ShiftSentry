@@ -54,9 +54,10 @@ export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks }: Shi
               <Link href={duplicateHref} className={menuItemClass}><Copy className="size-4 text-[var(--primary)]" />Duplicate</Link>
             </DropdownMenu.Item>}
             <DropdownMenu.Separator className="my-1 h-px bg-[var(--border)]" />
-            {/* Deliberately not a DropdownMenu.Item: ConfirmSubmit arms on the
-                first click and submits on the second, so it has to survive a
-                click that would otherwise select the item and close the menu. */}
+            {/* Deliberately not a DropdownMenu.Item: ConfirmSubmit opens a
+                confirmation dialog rather than acting, so it has to survive a
+                click that would otherwise select the item and close the menu out
+                from under the question. */}
             <div className="px-2 py-1">{deleteForm}</div>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
