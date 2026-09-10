@@ -9,6 +9,13 @@ type ConfirmSubmitProps = {
   label: string;
   /** The question, e.g. "Archive job?". Should read as a question. */
   confirmLabel: string;
+  /**
+   * Text for the affirmative button in the dialog. Defaults to `label`, which
+   * reads correctly when the trigger names the act itself ("Delete", "Archive",
+   * "End game"). Pass this where the trigger names a destination rather than an
+   * action -- "Back to lobby" is a poor answer to "End this round?".
+   */
+  confirmActionLabel?: string;
   /** Variant for the trigger. The affirmative button is always danger. */
   variant?: ButtonProps["variant"];
   size?: ButtonProps["size"];
@@ -36,7 +43,7 @@ type ConfirmSubmitProps = {
  *
  * Still no dialog dependency -- this is the platform element, not a library.
  */
-export function ConfirmSubmit({ label, confirmLabel, variant = "ghost", size = "sm" }: ConfirmSubmitProps) {
+export function ConfirmSubmit({ label, confirmLabel, confirmActionLabel, variant = "ghost", size = "sm" }: ConfirmSubmitProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
   const { pending } = useFormStatus();
@@ -91,7 +98,7 @@ export function ConfirmSubmit({ label, confirmLabel, variant = "ghost", size = "
           <div className="flex flex-wrap justify-end gap-2">
             {/* Focused first: the safe way out should be what a stray Enter hits. */}
             <Button type="button" variant="ghost" size={size} autoFocus onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="danger" size={size} disabled={pending}>{pending ? "Working…" : label}</Button>
+            <Button type="submit" variant="danger" size={size} disabled={pending}>{pending ? "Working…" : confirmActionLabel ?? label}</Button>
           </div>
         </div>
       </dialog>
