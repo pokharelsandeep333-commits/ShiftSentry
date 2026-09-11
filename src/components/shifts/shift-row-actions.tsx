@@ -39,7 +39,9 @@ export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks }: Shi
     </div>
 
     <div className="sm:hidden">
-      <DropdownMenu.Root>
+      {/* Non-modal for the reason account-menu.tsx gives: the scroll lock
+          pads <body> for a scrollbar that never goes away. */}
+      <DropdownMenu.Root modal={false}>
         <DropdownMenu.Trigger asChild>
           <button type="button" aria-label="Shift actions" className="grid size-11 place-items-center rounded-xl text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
             <MoreHorizontal className="size-4" />
