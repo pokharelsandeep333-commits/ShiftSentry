@@ -21,7 +21,11 @@ export function AccountMenu({ email = "" }: { email?: string }) {
     });
   }
 
-  return <DropdownMenu.Root>
+  // Non-modal: a modal menu locks body scroll through react-remove-scroll,
+  // which pads <body> by the scrollbar's width to cover the track it expects
+  // to have removed. globals.css keeps that track permanently, so the padding
+  // only ever shoved the page 15px left for as long as the menu was open.
+  return <DropdownMenu.Root modal={false}>
     <DropdownMenu.Trigger asChild>
       <button type="button" aria-label="Open account menu" className="grid size-11 place-items-center rounded-xl sm:size-9 border border-[color-mix(in_srgb,var(--primary)_18%,var(--border))] bg-[var(--card)]/70 text-sm font-bold text-[var(--primary)] shadow-sm transition-[transform,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--primary)_38%,var(--border))] hover:bg-[var(--primary-soft)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
         {initial || <UserRound className="size-4" />}

@@ -55,25 +55,58 @@ function useProjectionsExplainer(): [boolean, () => void] {
   return [!dismissed, dismissProjectionsExplainer];
 }
 
-const COARSE_POINTER_QUERY = "(pointer: coarse)";
+const HOVER_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 
-function subscribeToPointer(listener: () => void) {
-  const query = window.matchMedia(COARSE_POINTER_QUERY);
-  query.addEventListener("change", listener);
-  return () => query.removeEventListener("change", listener);
+/**
+ * The media query only describes the browser's idea of the *primary* pointer,
+ * and a touch laptop is where that idea goes wrong: some browsers report it as
+ * coarse and the chart would sit in tap mode under a mouse. A real event is
+ * definitive, so the first one observed overrides the guess -- and keeps
+ * following the viewer, so a finger on that same laptop gets the tap readout.
+ */
+let observedPointerType: "mouse" | "touch" | null = null;
+const pointerListeners = new Set<() => void>();
+
+function notePointerType(event: PointerEvent) {
+  const next = event.pointerType === "touch" ? "touch" : "mouse";
+  if (next === observedPointerType) return;
+  observedPointerType = next;
+  pointerListeners.forEach((listener) => listener());
 }
 
-function readCoarsePointer() {
-  return window.matchMedia(COARSE_POINTER_QUERY).matches;
+function subscribeToPointer(listener: () => void) {
+  const query = window.matchMedia(HOVER_POINTER_QUERY);
+  query.addEventListener("change", listener);
+  if (pointerListeners.size === 0) {
+    // `pointerover` rather than `pointermove`: it fires once per element
+    // crossed instead of once per pixel, and a mouse still declares itself
+    // long before it reaches a bar.
+    window.addEventListener("pointerover", notePointerType, { passive: true });
+    window.addEventListener("pointerdown", notePointerType, { passive: true });
+  }
+  pointerListeners.add(listener);
+  return () => {
+    query.removeEventListener("change", listener);
+    pointerListeners.delete(listener);
+    if (pointerListeners.size === 0) {
+      window.removeEventListener("pointerover", notePointerType);
+      window.removeEventListener("pointerdown", notePointerType);
+    }
+  };
+}
+
+function readHoverPointer() {
+  if (observedPointerType) return observedPointerType === "mouse";
+  return window.matchMedia(HOVER_POINTER_QUERY).matches;
 }
 
 /**
  * Touch has no hover, so a floating tooltip appears under the finger that
- * summoned it and vanishes the moment the finger lifts. Coarse pointers get a
- * pinned readout below the chart instead; the server snapshot assumes a mouse.
+ * summoned it and vanishes the moment the finger lifts. Touch gets a pinned
+ * readout below the chart instead; the server snapshot assumes a mouse.
  */
-function useCoarsePointer() {
-  return useSyncExternalStore(subscribeToPointer, readCoarsePointer, () => false);
+function useHoverPointer() {
+  return useSyncExternalStore(subscribeToPointer, readHoverPointer, () => true);
 }
 
 /** Beyond this many, cap warnings stack past the fold and stop being read. */
@@ -397,7 +430,7 @@ function MonthBreakdown({ label, rows, total, isEarnings, className }: MonthBrea
 
 function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJobAllocation; metric: "earnings" | "hours" }) {
   const isEarnings = metric === "earnings";
-  const coarsePointer = useCoarsePointer();
+  const coarsePointer = !useHoverPointer();
   const [pinnedMonthKey, setPinnedMonthKey] = useState<string | null>(null);
   const chartData = allocation.months.map((month) => ({ label: month.label, monthKey: month.key, ...(isEarnings ? month.netCents : month.loggedMinutes) }));
   const seriesKeys = allocation.series.map((series) => series.key);
@@ -419,7 +452,9 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
       {/* Each entry wraps as a unit rather than mid-name, so a legend that needs
           two lines still reads as a list of jobs. */}
       <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2" aria-label={`${title} legend`}>{allocation.series.map((series) => <span key={series.key} className="flex items-center gap-2 whitespace-nowrap text-xs font-medium text-[var(--muted-foreground)]"><i className="size-2.5 shrink-0 rounded-full" style={{ background: series.color }} />{series.name}</span>)}</div>
-      <div className="h-64">
+      {/* A container so the tooltip can size itself against this chart's
+          width rather than the viewport's. */}
+      <div className="@container h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ left: 0, right: 8, top: 4 }} onClick={coarsePointer ? (state: { activeTooltipIndex?: unknown }) => pinMonthAt(state?.activeTooltipIndex) : undefined}>
             <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -435,7 +470,12 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
               content={({ active, payload }) => {
                 const monthKey = active ? (payload?.[0]?.payload as { monthKey?: string } | undefined)?.monthKey : undefined;
                 const breakdown = breakdownFor(allocation, monthKey ?? null, isEarnings);
-                return breakdown ? <MonthBreakdown {...breakdown} isEarnings={isEarnings} /> : null;
+                // Recharts keeps the tooltip inside the plot area (the chart
+                // less the 64px axis and 8px margin) by sliding it left; one
+                // wider than that area gets pinned to the axis and its right
+                // edge clipped. Capping it there makes long job names truncate
+                // instead.
+                return breakdown ? <MonthBreakdown {...breakdown} isEarnings={isEarnings} className="max-w-[calc(100cqw-4.5rem)]" /> : null;
               }}
             />}
             {allocation.series.map((series) => <Bar key={series.key} dataKey={series.key} name={series.name} stackId="allocation" fill={series.color} maxBarSize={44} animationDuration={700} shape={<StackedBarShape seriesKey={series.key} seriesKeys={seriesKeys} pinnedMonthKey={coarsePointer ? pinnedMonthKey : null} />} />)}

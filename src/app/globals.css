@@ -51,13 +51,16 @@
 }
 
 /*
- * Keep the scrollbar track permanently. Radix overlays (the job select, the
- * account menu) lock scrolling by putting `overflow: hidden` on <body> via
- * react-remove-scroll, which removed the 15px classic scrollbar on Windows --
- * measured: documentElement.clientWidth jumped 458 -> 473 on open and back on
- * close, relaying out the whole document twice per selection and reading as a
- * jump. Reserving the track makes opening an overlay a no-op for layout.
- * Platforms with overlay scrollbars (macOS, mobile) are unaffected.
+ * Keep the scrollbar track permanently. The mobile navigation drawer locks
+ * scrolling by putting `overflow: hidden` on <body>, which removed the 15px
+ * classic scrollbar on Windows -- measured: documentElement.clientWidth jumped
+ * 458 -> 473 on open and back on close, relaying out the whole document twice
+ * and reading as a jump. Reserving the track makes opening it a no-op for
+ * layout. Platforms with overlay scrollbars (macOS, mobile) are unaffected.
+ *
+ * This is also why the Radix dropdown menus are `modal={false}`: their scroll
+ * lock (react-remove-scroll) would pad <body> to cover a track it assumes it
+ * removed, and with the track reserved that padding just shifts the page.
  */
 html {
   overflow-y: scroll;
