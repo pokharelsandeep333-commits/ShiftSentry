@@ -29,9 +29,12 @@ cleanup() {
     echo ""
     echo "KEEP_DB=1 -- container '$CONTAINER' left running."
     echo "  docker exec -it $CONTAINER psql -U postgres -d app"
-    echo "  docker rm -f $CONTAINER"
+    echo "  docker rm -f -v $CONTAINER"
   else
-    docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+    # -v matters: the postgres image declares VOLUME /var/lib/postgresql/data,
+    # so every run creates an anonymous volume, and `rm -f` alone leaves it
+    # behind. Fifty-odd runs had leaked 2.7GB before anyone looked.
+    docker rm -f -v "$CONTAINER" >/dev/null 2>&1 || true
   fi
 }
 trap cleanup EXIT
