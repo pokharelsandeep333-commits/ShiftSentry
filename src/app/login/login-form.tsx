@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { NEXT_COOKIE, safeInternalRedirect } from "@/lib/request-origin";
 import { GoogleMark, GitHubMark } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,19 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState(search.get("error") ? "We could not complete that sign-in. Please try again." : "");
   const [busy, setBusy] = useState(false);
+  // Where to go once signed in. Same-origin paths only -- the helper refuses
+  // anything else, so a crafted link cannot bounce a fresh session off-site.
+  const next = safeInternalRedirect(search.get("next"));
+
+  // The OAuth and confirm-email flows come back through /auth/callback, which
+  // has to learn `next` somehow. Not as a query string on `redirectTo`: Supabase
+  // glob-matches that URL against the dashboard allow list, and an exact
+  // `/auth/callback` entry would refuse it -- at which point the exchange never
+  // runs and sign-in itself breaks. A short-lived cookie carries it instead,
+  // and the callback clears it.
+  function rememberNext() {
+    if (next !== "/") document.cookie = `${NEXT_COOKIE}=${encodeURIComponent(next)}; path=/; max-age=600; SameSite=Lax`;
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -23,6 +37,7 @@ export function LoginForm() {
     setMessage("");
 
     try {
+      rememberNext();
       const supabase = createClient();
       const result = mode === "signin"
         ? await supabase.auth.signInWithPassword({ email, password })
@@ -30,7 +45,7 @@ export function LoginForm() {
 
       if (result.error) setMessage(result.error.message);
       else if (mode === "signup" && !result.data.session) setMessage("Check your email to confirm your account, then sign in.");
-      else router.replace("/");
+      else router.replace(next);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to sign in.");
     } finally {
@@ -43,6 +58,7 @@ export function LoginForm() {
     setMessage("");
 
     try {
+      rememberNext();
       const { error } = await createClient().auth.signInWithOAuth({ provider, options: { redirectTo: `${location.origin}/auth/callback` } });
       if (error) setMessage(error.message);
     } catch (error) {

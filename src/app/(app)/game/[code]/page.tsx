@@ -7,6 +7,9 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { SavedToast } from "@/components/saved-toast";
 import { InviteCode } from "@/components/game/invite-code";
+import { JoinInvite } from "@/components/game/join-invite";
+import { SeatName } from "@/components/game/seat-name";
+import { TurnAttention } from "@/components/game/turn-attention";
 import { GameLive } from "@/components/game/game-live";
 import { LobbySettingsForm } from "@/components/game/lobby-settings";
 import { RoundBoard } from "@/components/game/round-board";
@@ -26,19 +29,19 @@ const SAVED_MESSAGES: Record<string, string> = {
 };
 
 /**
- * A code that matches no game this person can see.
- *
- * Kept separate from the finished-game card below, because conflating the two is
- * what made ending a game look like a typo. This one is genuinely all that can
- * be said: a room you were never in is invisible to your RLS-scoped read, which
- * is indistinguishable from a room that never existed -- deliberately, since
- * telling them apart would confirm a code to someone who was not invited.
+ * A URL whose code cannot be one -- wrong length, or a character the alphabet
+ * excludes. A well-formed code that matches no room this person can see does
+ * not land here: it gets the invite card, because a room you are not yet in is
+ * invisible to your RLS-scoped read, which is indistinguishable from a room
+ * that never existed -- deliberately, since telling them apart would confirm
+ * a code to someone who was not invited. The join function is the one place
+ * that can say which it was, and it says so only to someone who tried.
  */
 function NoSuchGame() {
   return <Card className="mx-auto max-w-lg text-center">
-    <CardHeader><CardTitle>That code doesn&rsquo;t match a game</CardTitle></CardHeader>
+    <CardHeader><CardTitle>That isn&rsquo;t a game code</CardTitle></CardHeader>
     <CardContent className="grid gap-4">
-      <p className="text-sm leading-6 text-[var(--muted-foreground)]">Check the six characters and try again, or ask whoever invited you to send it across.</p>
+      <p className="text-sm leading-6 text-[var(--muted-foreground)]">A code is six characters, like 7KQ2MP. Check what you were sent and try again.</p>
       <Link href="/game" className={cn(buttonVariants({ variant: "outline" }), "mx-auto")}>Back to Imposter</Link>
     </CardContent>
   </Card>;
@@ -72,9 +75,10 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
     // Ending a game used to drop every other player onto "check your spelling",
     // with the poll stopped and no way to find out what had happened. Someone
     // who was in the room can still read it once the ENDED filter comes off, so
-    // they get told the truth instead.
+    // they get told the truth instead. Everyone else -- which is what a link or
+    // a QR scan arrives as -- is offered the join.
     const finished = await fetchEndedRoom(code);
-    return finished ? <GameOver /> : <NoSuchGame />;
+    return finished ? <GameOver /> : <JoinInvite code={code} />;
   }
 
   // A room in play shows the round instead of the lobby. `finish_game_round`
@@ -85,8 +89,18 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
     const round = await fetchCurrentRound(lobby.id, profile.id, lobby.players);
 
     if (round) {
+      // What the round is waiting on this player for, if anything. Only players
+      // seated this round get a vote, which is the same gate the vote panel uses.
+      const seated = Boolean(round.yourRole || round.rolesHidden || round.yourWord);
+      const waitingOnYou =
+        round.isYourTurn ? "Your turn to give a clue"
+        : round.awaitingYourGuess ? "Your final guess"
+        : round.status === "VOTING" && seated && !round.youHaveVoted ? "Time to vote"
+        : null;
+
       return <>
         <GameLive roomId={lobby.id} />
+        {waitingOnYou && <TurnAttention prompt={`${waitingOnYou} · Imposter`} />}
         <PageHeader
           eyebrow={`Game ${lobby.code}`}
           title={`Round ${round.roundNo}`}
@@ -139,16 +153,23 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2">
-            {lobby.players.map((player) => <div key={player.userId} className="flex items-center gap-3 rounded-xl border bg-[var(--card)]/45 py-1.5 pl-3.5 pr-1.5">
+            {/* `min-w-0` here for the same reason as on the columns: the row is a
+                grid item, and without it the row sizes to its content and the name
+                never truncates -- the rename button was enough to push it off a
+                320px screen. */}
+            {lobby.players.map((player) => <div key={player.userId} className="flex min-w-0 items-center gap-3 rounded-xl border bg-[var(--card)]/45 py-1.5 pl-3.5 pr-1.5">
               <span
                 aria-hidden
                 className={cn("size-2.5 shrink-0 rounded-full", player.present ? "bg-[var(--success)]" : "bg-[var(--muted)]")}
               />
-              <span className="min-w-0 flex-1 truncate py-1 text-sm font-medium">{player.displayName}</span>
-              {/* Outside the truncating span, not inside it. `truncate` clips its
-                  overflow, so a long enough name would hide the one marker telling you
-                  which row is yours. */}
-              {player.isYou && <span className="shrink-0 text-xs font-normal text-[var(--muted-foreground)]">(you)</span>}
+              {/* Your own row carries the rename control; it renders the name and
+                  the "(you)" marker itself. The marker sits outside the truncating
+                  span in both branches: `truncate` clips its overflow, so a long
+                  enough name would hide the one thing telling you which row is
+                  yours. */}
+              {player.isYou
+                ? <SeatName roomId={lobby.id} displayName={player.displayName} />
+                : <span className="min-w-0 flex-1 truncate py-1 text-sm font-medium">{player.displayName}</span>}
               <span className="sr-only">{player.present ? "Connected" : "Away"}</span>
               {player.isHost
                 ? <span className="flex items-center gap-1 px-2 text-xs font-semibold text-[var(--primary)]"><Crown className="size-3.5" />Host</span>
