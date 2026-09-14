@@ -50,6 +50,10 @@ mcp_config.json
 # Claude Code local state (skills are vendored via skills-lock.json)
 .claude/
 
+# Agent guidance stays on the maintainer's machine, not in the public repo
+AGENTS.md
+CLAUDE.md
+
 # Editor config: share the project-wide CSS/Tailwind setup, keep personal files out
 .vscode/*
 !.vscode/settings.json
