@@ -16,6 +16,10 @@ COPY . .
 RUN npm run db:generate && npm run build
 
 FROM base AS runner
+# The commit this image was built from, so /api/health can say which build is
+# serving. Not a secret: it is the same SHA that names the image tag.
+ARG GIT_SHA
+ENV GIT_SHA=$GIT_SHA
 ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
