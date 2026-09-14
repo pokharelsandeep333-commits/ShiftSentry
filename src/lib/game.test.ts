@@ -6,6 +6,8 @@ import {
   IMPOSTER_HINTS,
   IMPOSTER_HINT_LABELS,
   canHideRoles,
+  extractGameCode,
+  gameInvitePath,
   gameSettingsEqual,
   isImposterHint,
   maxImpostersFor,
@@ -36,6 +38,22 @@ test("rejects codes of the wrong length", () => {
   assert.equal(normalizeGameCode("ABC23"), null);
   assert.equal(normalizeGameCode("ABC2345"), null);
   assert.equal(normalizeGameCode(""), null);
+});
+
+test("lifts the code out of a pasted invite link", () => {
+  assert.equal(extractGameCode("https://shiftsentry.example/game/ABC234"), "ABC234");
+  assert.equal(extractGameCode("https://shiftsentry.example/game/abc234/"), "ABC234");
+  assert.equal(extractGameCode("http://localhost:3000/game/ABC234?saved=room-created"), "ABC234");
+  // A plain code still goes through the same path as before.
+  assert.equal(extractGameCode(" abc-234 "), "ABC234");
+  // A link to anything else is not a code, and neither is a bad code in a link.
+  assert.equal(extractGameCode("https://shiftsentry.example/shifts"), null);
+  assert.equal(extractGameCode("https://shiftsentry.example/game/ABCDOEF"), null);
+  assert.equal(extractGameCode("https://shiftsentry.example/game/"), null);
+});
+
+test("the invite path is the room page", () => {
+  assert.equal(gameInvitePath("ABC234"), "/game/ABC234");
 });
 
 test("the code alphabet excludes every character pair that gets misread", () => {

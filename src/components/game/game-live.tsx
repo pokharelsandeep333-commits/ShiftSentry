@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { pollGameRoom } from "@/app/actions/game";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -25,13 +24,16 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
  * was before Realtime existed. Nothing about the game depends on the socket
  * working -- it only makes it faster.
  *
- * The timer refreshes only when the room's fingerprint actually changes. It used
- * to call `router.refresh()` on every tick, which re-ran the whole server render
- * -- lobby query, scoreboard, category list -- every 2.5 seconds per player, in a
- * room where usually nothing had happened. Worse, Next.js serialises Server
- * Actions, so a tap on "End game" queued behind whatever the poll had in flight
- * and looked like it had done nothing for a second or two. Now an idle room
- * costs one cheap query and no render at all.
+ * The heartbeat goes straight from the browser to PostgREST, not through a
+ * Server Action. It used to be one, and Next.js serialises Server Actions: a tap
+ * on "End game" queued behind whichever poll was in flight and looked dead for a
+ * second or two on a phone. Calling `poll_game_room` on the browser client costs
+ * the Next server nothing and cannot block a button. The function is security
+ * definer and scopes itself to `auth.uid()`, so the browser holds no more
+ * authority here than the page did.
+ *
+ * The timer refreshes only when the room's fingerprint actually changes. An idle
+ * room costs one cheap query and no render at all.
  */
 
 /** Heartbeat only: Realtime is delivering the updates. Under PRESENCE_WINDOW_MS. */
@@ -68,7 +70,11 @@ export function GameLive({ roomId }: { roomId: string }) {
           .channel(`game:${roomId}`, { config: { private: true } })
           .on("broadcast", { event: "changed" }, () => {
             lastVersion.current = null;
-            router.refresh();
+            // A hidden tab does not draw, so re-rendering it on every signal is
+            // server work nobody sees. Dropping the fingerprint is enough: the
+            // visibility handler below takes one refresh the moment it is
+            // looked at again.
+            if (document.visibilityState === "visible") router.refresh();
           })
           .subscribe((status) => {
             if (!cancelled) setLive(status === "SUBSCRIBED");
@@ -87,9 +93,12 @@ export function GameLive({ roomId }: { roomId: string }) {
   }, [roomId, router]);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     const interval = live ? LIVE_INTERVAL_MS : FALLBACK_INTERVAL_MS;
+    const supabase = createClient();
 
     async function tick() {
       // Nothing happens while the tab is hidden. A backgrounded lobby would
@@ -97,11 +106,14 @@ export function GameLive({ roomId }: { roomId: string }) {
       // wandered off hours ago would still read as present to a waiting host.
       if (document.visibilityState === "visible") {
         try {
-          const version = await pollGameRoom(roomId);
+          const { data: version, error } = await supabase.rpc("poll_game_room", { p_room_id: roomId });
 
           // First answer establishes the baseline rather than forcing a refresh
-          // the page has just done for itself.
-          if (!cancelled && version !== null) {
+          // the page has just done for itself. A failure returns nothing and is
+          // swallowed: one dropped heartbeat costs a stale presence dot for one
+          // tick, and an error in front of somebody who did nothing wrong would
+          // be worse.
+          if (!cancelled && !error && version !== null) {
             const changed = lastVersion.current !== null && version !== lastVersion.current;
             lastVersion.current = version;
             if (changed) router.refresh();
@@ -115,11 +127,10 @@ export function GameLive({ roomId }: { roomId: string }) {
 
     timer = setTimeout(tick, interval);
 
-    // Coming back to the tab should feel immediate rather than waiting out an
-    // interval scheduled before it was hidden.
+    // Coming back after the tab was hidden: the fingerprint is stale by
+    // definition, so drop it and take one refresh unconditionally rather than
+    // waiting out an interval scheduled before it was hidden.
     function onVisible() {
-      // Coming back after the tab was hidden: the fingerprint is stale by
-      // definition, so drop it and take one refresh unconditionally.
       if (document.visibilityState === "visible" && !cancelled) {
         lastVersion.current = null;
         router.refresh();

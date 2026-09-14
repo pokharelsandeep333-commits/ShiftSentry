@@ -15,7 +15,7 @@ import {
  * separate thing: what *you* like, so the next game you host starts where the
  * last one left off instead of back at the defaults. It is per-viewer and
  * per-device by nature, which is exactly what `createLocalPreference` is for --
- * and per `CLAUDE.md` it is the only sanctioned path to a remembered client
+ * and the only sanctioned path to a remembered client
  * setting.
  *
  * Written when a host saves settings, read when the settings panel first mounts

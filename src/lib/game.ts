@@ -44,6 +44,35 @@ export function normalizeGameCode(raw: string): string | null {
 }
 
 /**
+ * Pull a code out of whatever landed in the join box.
+ *
+ * People paste the whole invite link as often as the code itself, and a link
+ * pasted into a six-character field is refused for being forty characters long
+ * -- so if the text parses as a URL whose path is `/game/<code>`, the code is
+ * lifted out. Anything else goes through `normalizeGameCode` unchanged, so a
+ * bare code with a stray space still works and a mistyped one is still refused.
+ */
+export function extractGameCode(raw: string): string | null {
+  const text = raw.trim();
+  try {
+    const url = new URL(text);
+    const match = url.pathname.match(/\/game\/([^/]+)\/?$/);
+    if (match) return normalizeGameCode(match[1]);
+  } catch {
+    // Not a URL. Fall through to the plain-code path.
+  }
+  return normalizeGameCode(text);
+}
+
+/**
+ * Where an invite link points. One place, so the copy button, the QR code and
+ * the invite card cannot disagree about the shape.
+ */
+export function gameInvitePath(code: string): string {
+  return `/game/${code}`;
+}
+
+/**
  * How much help the imposter gets, as one scale rather than two switches.
  *
  * The rungs are ordered by how much they give away, and only the last hands over

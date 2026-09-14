@@ -52,8 +52,14 @@ export const gameCodeSchema = z.string()
   .refine((value) => normalizeGameCode(value) !== null, "A game code is six characters, like 7KQ2MP.")
   .transform((value) => normalizeGameCode(value) as string);
 
-/** Blank is allowed: the database falls back to the profile name, then the email handle. */
-export const gameDisplayNameSchema = z.string().trim().max(40, "Keep it under 40 characters.").optional();
+/**
+ * The name on your seat, set from inside the lobby. Required here because the
+ * only way to reach this is the rename control: the create and join paths send
+ * nothing and let the database fall back to the profile name.
+ */
+export const gameSeatNameSchema = z.string().trim()
+  .min(1, "Enter a name.")
+  .max(40, "Keep it under 40 characters.");
 
 export const gameRoomSettingsSchema = z.object({
   roomId: z.string().uuid(),

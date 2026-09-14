@@ -831,6 +831,13 @@ export type Database = {
         };
         Returns: undefined;
       };
+      rename_game_player: {
+        Args: {
+          p_room_id: string;
+          p_display_name: string;
+        };
+        Returns: undefined;
+      };
       poll_game_room: {
         Args: {
           p_room_id: string;

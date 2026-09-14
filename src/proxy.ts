@@ -7,6 +7,16 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const supabase = createServerClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, { cookies: { getAll: () => request.cookies.getAll(), setAll: (values) => { values.forEach(({ name, value }) => request.cookies.set(name, value)); response = NextResponse.next({ request }); values.forEach(({ name, value, options }) => response.cookies.set(name, value, options)); } } });
   const { data: { user } } = await supabase.auth.getUser();
+  // An invite link or a QR scan is the one deep link people follow signed out.
+  // `requireUser()` on the page would bounce to /login and forget the code, so
+  // the redirect is issued here with `next` set, the way /admin already does.
+  if (!user && request.nextUrl.pathname.startsWith("/game/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    url.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(url);
+  }
   if (request.nextUrl.pathname.startsWith("/admin")) {
     if (!user) { const url = request.nextUrl.clone(); url.pathname = "/login"; url.searchParams.set("next", request.nextUrl.pathname); return NextResponse.redirect(url); }
     const { data: profile } = await supabase.from("profiles").select("role,disabled_at").eq("id", user.id).maybeSingle();

@@ -23,18 +23,26 @@ const HOW_IT_WORKS = [
   "If the vote ties, nobody goes out — you all give one more clue and vote again. Twice at most, then the imposter takes it.",
 ];
 
-export default async function GamePage({ searchParams }: { searchParams: Promise<{ saved?: string | string[] }> }) {
-  const [profile, { saved }] = await Promise.all([requireUser(), searchParams]);
+function first(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+export default async function GamePage({ searchParams }: { searchParams: Promise<{ saved?: string | string[]; code?: string | string[] }> }) {
+  const [profile, { saved, code }] = await Promise.all([requireUser(), searchParams]);
   const activeCode = await fetchActiveRoomCode();
-  const defaultName = profile.display_name?.trim() || profile.email.split("@")[0];
-  const savedMessage = SAVED_MESSAGES[Array.isArray(saved) ? saved[0] ?? "" : saved ?? ""];
+  // The same fallback chain as the database, so the sentence on the create card
+  // names the seat you will actually get.
+  const playingAs = profile.display_name?.trim() || profile.email.split("@")[0];
+  const savedMessage = SAVED_MESSAGES[first(saved)];
+  // `/game?code=ABC234` lands with the box filled and submitting itself.
+  const initialCode = first(code) || null;
 
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
     <PageHeader
       eyebrow="Imposter"
       title="Find the imposter"
-      description={`A word game for ${MIN_PLAYERS_TO_START} or more people. Create a game, share the code, and play from wherever everyone is sitting.`}
+      description={`A word game for ${MIN_PLAYERS_TO_START} or more people. Create a game, let everyone scan the QR code, and play from wherever you are sitting.`}
     />
 
     {activeCode && <Card className="mb-6 border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[var(--primary-soft)]">
@@ -50,12 +58,12 @@ export default async function GamePage({ searchParams }: { searchParams: Promise
     <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
       <Card className="h-fit">
         <CardHeader><CardTitle>Start a game</CardTitle></CardHeader>
-        <CardContent><CreateRoomForm defaultName={defaultName} /></CardContent>
+        <CardContent><CreateRoomForm playingAs={playingAs} /></CardContent>
       </Card>
 
       <Card className="h-fit">
         <CardHeader><CardTitle>Join with a code</CardTitle></CardHeader>
-        <CardContent><JoinRoomForm defaultName={defaultName} /></CardContent>
+        <CardContent><JoinRoomForm initialCode={initialCode} /></CardContent>
       </Card>
     </div>
 

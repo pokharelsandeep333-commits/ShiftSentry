@@ -18,6 +18,13 @@ export function publicRequestOrigin(request: Request) {
   }
 }
 
+/**
+ * Where to send someone after an OAuth or confirm-email round trip, set by the
+ * login form and read once by the callback. A cookie rather than a query
+ * parameter on `redirectTo` because the allow list matches the whole URL.
+ */
+export const NEXT_COOKIE = "shiftsentry-next";
+
 export function safeInternalRedirect(value: string | null, fallback = "/") {
   if (!value) return fallback;
 

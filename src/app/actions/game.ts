@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { gameClueSchema, gameCodeSchema, gameDisplayNameSchema, gameGuessSchema, gameRoomSettingsSchema, resourceIdSchema } from "@/lib/validation";
+import { gameClueSchema, gameCodeSchema, gameGuessSchema, gameRoomSettingsSchema, gameSeatNameSchema, resourceIdSchema } from "@/lib/validation";
 import type { FormActionState, SavedFormState } from "@/lib/form-state";
 
 /**
@@ -43,16 +43,18 @@ function optionalText(formData: FormData, name: string): string | null {
   return value === "" ? null : value;
 }
 
-export async function createGameRoom(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+/**
+ * Neither create nor join takes a name any more. The function falls back to the
+ * profile display name and then the email handle, and a player who wants to be
+ * somebody else for this game renames their seat from inside the lobby -- the
+ * one control that also exists for people who arrive through a link or a QR
+ * code and never see either form.
+ */
+export async function createGameRoom(): Promise<FormActionState> {
   await requireUser();
 
-  const displayName = gameDisplayNameSchema.safeParse(formData.get("displayName") ?? undefined);
-  if (!displayName.success) return { message: displayName.error.issues[0]?.message ?? "Choose a shorter name." };
-
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.rpc("create_game_room", {
-    p_display_name: displayName.data ?? null,
-  });
+  const { data, error } = await supabase.rpc("create_game_room", { p_display_name: null });
 
   if (error || !data) return { message: readableError(error, "We couldn't start a game. Please try again.") };
 
@@ -65,14 +67,8 @@ export async function joinGameRoom(_previous: FormActionState, formData: FormDat
   const code = gameCodeSchema.safeParse(formData.get("code") ?? "");
   if (!code.success) return { message: code.error.issues[0]?.message ?? "Check the code and try again." };
 
-  const displayName = gameDisplayNameSchema.safeParse(formData.get("displayName") ?? undefined);
-  if (!displayName.success) return { message: displayName.error.issues[0]?.message ?? "Choose a shorter name." };
-
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.rpc("join_game_room", {
-    p_code: code.data,
-    p_display_name: displayName.data ?? null,
-  });
+  const { data, error } = await supabase.rpc("join_game_room", { p_code: code.data, p_display_name: null });
 
   if (error || !data) return { message: readableError(error, "We couldn't join that game. Please try again.") };
 
@@ -123,6 +119,28 @@ export async function updateGameSettings(_previous: SavedFormState, formData: Fo
   return { message: "", savedAt: Date.now() };
 }
 
+/**
+ * Rename your own seat. The function has no target parameter, so there is no
+ * way to aim it at anyone else; the room id only says which game.
+ */
+export async function renameGamePlayer(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+  await requireUser();
+
+  const roomId = resourceIdSchema.safeParse(formData.get("roomId"));
+  if (!roomId.success) return { message: "That game is no longer available." };
+
+  const name = gameSeatNameSchema.safeParse(formData.get("displayName") ?? "");
+  if (!name.success) return { message: name.error.issues[0]?.message ?? "Enter a name." };
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("rename_game_player", { p_room_id: roomId.data, p_display_name: name.data });
+
+  if (error) return { message: readableError(error, "We couldn't change your name. Please try again.") };
+
+  revalidatePath("/game", "layout");
+  return { message: "" };
+}
+
 export async function leaveGameRoom(formData: FormData): Promise<void> {
   await requireUser();
 
@@ -150,31 +168,6 @@ export async function endGameRoom(formData: FormData): Promise<void> {
   // so a failure here is close to impossible -- but announcing "Game ended" for
   // a game that is still running would be worse than saying nothing.
   redirect(error ? "/game" : "/game?saved=room-ended");
-}
-
-/**
- * The lobby poll: one call that refreshes presence and reports whether anything
- * on screen has changed.
- *
- * Returns a fingerprint rather than nothing, so the client can skip
- * `router.refresh()` when the room is idle. That refresh re-runs the entire
- * server render, and doing it unconditionally every couple of seconds was both
- * wasteful and the reason destructive buttons felt dead on a phone: Next.js
- * serialises Server Actions, so a tap queued behind whichever poll was in
- * flight.
- *
- * Failures return null and are swallowed. A dropped heartbeat costs a stale
- * presence dot for one tick, and putting an error in front of somebody who did
- * nothing wrong would be worse.
- */
-export async function pollGameRoom(roomId: string): Promise<string | null> {
-  const parsed = resourceIdSchema.safeParse(roomId);
-  if (!parsed.success) return null;
-
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.rpc("poll_game_room", { p_room_id: parsed.data });
-
-  return error ? null : data;
 }
 
 /**
