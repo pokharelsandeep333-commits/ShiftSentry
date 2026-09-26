@@ -78,27 +78,29 @@ begin
   end if;
   execute 'set local role authenticated';
 
-  -- 200 draws at the default must never surface a HARD word.
+  -- 200 draws at the default must never surface a HARD word. Drawn as the owner:
+  -- the draw is internal since 20260926120000, and auth.uid() still reads Alice,
+  -- so its host check still applies.
+  execute 'set local role postgres';
   for i in 1..200 loop
     drawn := public.draw_game_word(room);
-    execute 'set local role postgres';
     select drew_hard + count(*) into drew_hard
       from public.game_words where id = drawn and difficulty = 'HARD';
-    execute 'set local role authenticated';
   end loop;
+  execute 'set local role authenticated';
 
   if drew_hard <> 0 then raise exception '% HARD words drawn at the NORMAL ceiling', drew_hard; end if;
   raise notice '200 draws at NORMAL, no HARD word surfaced';
 
   -- On EASY, every draw is EASY.
   perform public.update_game_room_settings(room, 'NONE', false, true, 1, 1, 8, true, false, 'EASY', null);
+  execute 'set local role postgres';
   for i in 1..100 loop
     drawn := public.draw_game_word(room);
-    execute 'set local role postgres';
     select drew_hard + count(*) into drew_hard
       from public.game_words where id = drawn and difficulty <> 'EASY';
-    execute 'set local role authenticated';
   end loop;
+  execute 'set local role authenticated';
   if drew_hard <> 0 then raise exception '% non-EASY words drawn at the EASY ceiling', drew_hard; end if;
   raise notice '100 draws at EASY, all easy';
 end;

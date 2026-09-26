@@ -103,3 +103,40 @@ begin
   return given - already;
 end;
 $$;
+
+-- Two-connection races, for the suites that need one (13, 15). One psql session
+-- cannot race itself, so a case opens dblink connections, holds a lock in an
+-- open transaction on one, and sends the competing call on the other.
+create extension if not exists dblink;
+
+-- Test-only helper: true once some backend is waiting on an advisory lock, false
+-- after about five seconds. Reads pg_locks rather than pg_stat_activity, which
+-- is snapshotted for the length of the calling transaction.
+create or replace function test_await_advisory_waiter()
+returns boolean
+language plpgsql
+as $$
+declare
+  i integer;
+begin
+  for i in 1..100 loop
+    if exists (select 1 from pg_locks where locktype = 'advisory' and not granted) then
+      return true;
+    end if;
+    perform pg_sleep(0.05);
+  end loop;
+  return false;
+end;
+$$;
+
+-- Test-only helper: a second connection acting as p_user through the API role.
+create or replace function test_connect_as(p_name text, p_user uuid)
+returns void
+language plpgsql
+as $$
+begin
+  perform dblink_connect(p_name, format('dbname=%s user=postgres', current_database()));
+  perform dblink_exec(p_name, 'set role authenticated');
+  perform dblink_exec(p_name, format('set request.jwt.claim.sub = %L', p_user));
+end;
+$$;

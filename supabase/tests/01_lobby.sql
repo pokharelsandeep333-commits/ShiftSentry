@@ -106,6 +106,11 @@ begin
 
   select word_count into bank from public.game_word_categories('HARD') where category = 'Clothing';
 
+  -- The draw is internal since 20260926120000 (12_word_draw_is_internal pins
+  -- that), so it is exercised as the owner, the way start_game_round calls it.
+  -- auth.uid() still reads Bob, so the host check inside it still applies.
+  execute 'set local role postgres';
+
   for i in 1..bank loop
     drawn := public.draw_game_word(room);
     drawn_ids := drawn_ids || drawn;
