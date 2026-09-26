@@ -25,13 +25,24 @@ export function publicRequestOrigin(request: Request) {
  */
 export const NEXT_COOKIE = "shiftsentry-next";
 
+/** A path a browser reads as same-origin: one leading slash, not `//` or `/\`. */
+function isOriginRelativePath(value: string) {
+  return /^\/(?![/\\])/.test(value);
+}
+
 export function safeInternalRedirect(value: string | null, fallback = "/") {
-  if (!value) return fallback;
+  // Only a path is accepted, never an absolute URL -- even one naming the
+  // placeholder origin below, which would otherwise pass the origin check.
+  if (!value || !isOriginRelativePath(value)) return fallback;
 
   try {
     const base = "https://internal.invalid";
     const url = new URL(value, base);
-    return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : fallback;
+    const path = `${url.pathname}${url.search}${url.hash}`;
+    // Checked again after parsing, because dot segments collapse: "/.//evil.com"
+    // normalizes to "//evil.com", which both `new URL(next, origin)` and the
+    // client router resolve to another host.
+    return url.origin === base && isOriginRelativePath(path) ? path : fallback;
   } catch {
     return fallback;
   }

@@ -31,3 +31,21 @@ test("accepts only origin-relative post-auth redirects", () => {
   assert.equal(safeInternalRedirect("/\\attacker.example"), "/");
   assert.equal(safeInternalRedirect("https://attacker.example"), "/");
 });
+
+test("refuses paths that normalize to a protocol-relative URL", () => {
+  // Each of these passed the origin check before and came back as "//evil.com".
+  assert.equal(safeInternalRedirect("https://internal.invalid//attacker.example"), "/");
+  assert.equal(safeInternalRedirect("/.//attacker.example"), "/");
+  assert.equal(safeInternalRedirect("/..//attacker.example"), "/");
+  assert.equal(safeInternalRedirect("/./\t/attacker.example"), "/");
+  assert.equal(safeInternalRedirect("/.\\/attacker.example"), "/");
+  assert.equal(safeInternalRedirect("\\\\attacker.example"), "/");
+  assert.equal(safeInternalRedirect("game/ABC123"), "/");
+});
+
+test("keeps ordinary in-app paths intact", () => {
+  assert.equal(safeInternalRedirect("/game/ABC123"), "/game/ABC123");
+  assert.equal(safeInternalRedirect("/shifts/../jobs"), "/jobs");
+  assert.equal(safeInternalRedirect(null), "/");
+  assert.equal(safeInternalRedirect("", "/shifts"), "/shifts");
+});
