@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
@@ -49,8 +50,10 @@ export const viewport: Viewport = {
  * This runs synchronously in the head, before the body renders, so the class is
  * already correct when the first pixel is drawn. It has to be inline for that:
  * an external script would be another round trip, and the flash is exactly the
- * gap it would open. The CSP allows `'unsafe-inline'` for scripts, so no change
- * is needed there.
+ * gap it would open. The CSP does not allow `'unsafe-inline'` scripts, so it
+ * carries the per-request nonce from `src/proxy.ts`. Reading it makes every
+ * route dynamic, `/offline` included; the service worker caches that page with
+ * its CSP header, so the nonce in the cached HTML still matches.
  *
  * The string is a compile-time constant with no interpolation of anything --
  * this is not a channel for user input, which is what the repo's rule about
@@ -68,11 +71,12 @@ try {
 } catch (e) {}
 `;
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html suppressHydrationWarning lang="en" className="h-full antialiased">
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider><ToastProvider>{children}<ServiceWorkerRegistrar /></ToastProvider></ThemeProvider>
