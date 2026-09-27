@@ -1,30 +1,19 @@
 import type { NextConfig } from "next";
+import { contentSecurityPolicy } from "./src/lib/content-security-policy";
 
-const isDevelopment = process.env.NODE_ENV === "development";
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  // `wss:` for Supabase Realtime. CSP3 says an https host-source also covers
-  // wss on the same host, and Chrome and Firefox implement that -- but Safari
-  // has been inconsistent about it, and the failure mode is a socket that
-  // silently never connects on one browser. Naming it explicitly costs a few
-  // bytes and removes the ambiguity.
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-].join("; ");
+// The nonce-less fallback, for the paths the proxy does not match. Every page
+// goes through `src/proxy.ts`, which replaces this with the per-request policy.
+const fallbackContentSecurityPolicy = contentSecurityPolicy({
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  development: process.env.NODE_ENV === "development",
+});
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
   async headers() {
     const headers = [
-      { key: "Content-Security-Policy", value: contentSecurityPolicy },
+      { key: "Content-Security-Policy", value: fallbackContentSecurityPolicy },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

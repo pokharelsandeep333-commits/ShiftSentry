@@ -1,9 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/database.types";
+import { contentSecurityPolicy, createNonce } from "@/lib/content-security-policy";
 
 export async function proxy(request: NextRequest) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) return NextResponse.next();
+  // Set on the request so Next.js can find the nonce while it renders, and on
+  // the response so the browser enforces it. `set`, not `append`: a client that
+  // sends its own `x-nonce` must not get to choose the value.
+  const nonce = createNonce();
+  const csp = contentSecurityPolicy({ nonce, supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL, development: process.env.NODE_ENV === "development" });
+  request.headers.set("x-nonce", nonce);
+  request.headers.set("Content-Security-Policy", csp);
+
+  const response = await route(request);
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
+async function route(request: NextRequest) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) return NextResponse.next({ request });
   let response = NextResponse.next({ request });
   const supabase = createServerClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, { cookies: { getAll: () => request.cookies.getAll(), setAll: (values) => { values.forEach(({ name, value }) => request.cookies.set(name, value)); response = NextResponse.next({ request }); values.forEach(({ name, value, options }) => response.cookies.set(name, value, options)); } } });
   const { data: { user } } = await supabase.auth.getUser();
