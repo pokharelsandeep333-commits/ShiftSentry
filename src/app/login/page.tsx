@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ShieldCheck, Sparkles } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,10 @@ export default function LoginPage() {
           <CardTitle className="text-xl">Welcome to ShiftSentry</CardTitle>
           <CardDescription className="mt-1.5 leading-6">Sign in to manage your hours and upcoming shifts.</CardDescription>
         </CardHeader>
-        <CardContent><LoginForm /></CardContent>
+        <CardContent>
+          <LoginForm />
+          <p className="mt-5 border-t pt-4 text-center text-xs text-[var(--muted-foreground)]"><Link href="/privacy" className="font-semibold transition-opacity hover:opacity-75">Privacy Policy</Link></p>
+        </CardContent>
       </Card>
     </section>
   </main>;
