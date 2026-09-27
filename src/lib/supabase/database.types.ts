@@ -490,6 +490,53 @@ export type Database = {
         };
         Relationships: [];
       };
+      google_calendar_connections: {
+        Row: {
+          access_token_ciphertext: string | null;
+          access_token_expires_at: string | null;
+          created_at: string;
+          google_email: string;
+          refresh_token_ciphertext: string;
+          scopes: string[];
+          selected_calendar_ids: string[];
+          status: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          access_token_ciphertext?: string | null;
+          access_token_expires_at?: string | null;
+          created_at?: string;
+          google_email: string;
+          refresh_token_ciphertext: string;
+          scopes: string[];
+          selected_calendar_ids?: string[];
+          status?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          access_token_ciphertext?: string | null;
+          access_token_expires_at?: string | null;
+          created_at?: string;
+          google_email?: string;
+          refresh_token_ciphertext?: string;
+          scopes?: string[];
+          selected_calendar_ids?: string[];
+          status?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_connections_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       job_deductions: {
         Row: {
           created_at: string;

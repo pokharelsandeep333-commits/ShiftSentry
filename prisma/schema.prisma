@@ -27,6 +27,7 @@ model Profile {
   jobs                     Job[]
   shifts                   Shift[]
   auditEvents              AuditEvent[] @relation("AuditActor")
+  googleCalendarConnection GoogleCalendarConnection?
 
   @@map("profiles")
 }
@@ -100,4 +101,20 @@ model AuditEvent {
   @@index([createdAt])
   @@index([targetUserId, createdAt])
   @@map("audit_events")
+}
+
+model GoogleCalendarConnection {
+  userId                 String    @id @map("user_id") @db.Uuid
+  googleEmail            String    @map("google_email")
+  refreshTokenCiphertext String    @map("refresh_token_ciphertext")
+  accessTokenCiphertext  String?   @map("access_token_ciphertext")
+  accessTokenExpiresAt   DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  scopes                 String[]
+  selectedCalendarIds    String[]  @default(["primary"]) @map("selected_calendar_ids")
+  status                 String    @default("active")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile                Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("google_calendar_connections")
 }
