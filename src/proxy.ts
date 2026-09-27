@@ -32,6 +32,15 @@ async function route(request: NextRequest) {
     url.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
+  // The site's root is its public home page for anyone signed out: Google's
+  // OAuth review rejects a home page that is only a login wall. A rewrite, not
+  // a redirect, so the address stays `/`; signed-in visitors fall through to
+  // the dashboard at the same URL.
+  if (!user && request.nextUrl.pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/welcome";
+    return rewriteWithCookies(url, request, response);
+  }
   if (request.nextUrl.pathname.startsWith("/admin")) {
     if (!user) { const url = request.nextUrl.clone(); url.pathname = "/login"; url.searchParams.set("next", request.nextUrl.pathname); return NextResponse.redirect(url); }
     const { data: profile } = await supabase.from("profiles").select("role,disabled_at").eq("id", user.id).maybeSingle();
@@ -41,4 +50,15 @@ async function route(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"] };
+/**
+ * A rewrite has to carry what the ordinary response would have: the request
+ * headers (the nonce rides on them) and any session cookies `getUser` just
+ * refreshed or cleared, or a stale session would be set again on every visit.
+ */
+function rewriteWithCookies(url: URL, request: NextRequest, from: NextResponse) {
+  const rewritten = NextResponse.rewrite(url, { request });
+  from.cookies.getAll().forEach((cookie) => rewritten.cookies.set(cookie));
+  return rewritten;
+}
+
+export const config ={ matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"] };
