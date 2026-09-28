@@ -29,11 +29,11 @@ export async function GET(request: Request) {
   // The job being entered, so a Google copy of this very shift reads as a match, not a clash.
   const jobId = url.searchParams.get("job");
   const supabase = await createServerSupabaseClient();
-  const { data: job } = jobId ? await supabase.from("jobs").select("name").eq("id", jobId).eq("user_id", profile.id).maybeSingle() : { data: null };
+  const { data: job } = jobId ? await supabase.from("jobs").select("name,google_keyword").eq("id", jobId).eq("user_id", profile.id).maybeSingle() : { data: null };
 
   const result = await withCalendarAccess(profile.id, (token, calendarIds) => listEvents(token, calendarIds, { timeMin: range.startsAt, timeMax: range.endsAt }, profile.time_zone));
   if (result.status !== "ok") return json({ status: result.status });
-  const copies = result.value.filter((event) => isSameShift(event, { jobName: job?.name ?? "", ...range }));
+  const copies = result.value.filter((event) => isSameShift(event, { jobName: job?.name ?? "", keyword: job?.google_keyword, ...range }));
   const others = result.value.filter((event) => !copies.includes(event));
   const pick = ({ id, title, startsAt, endsAt }: (typeof result.value)[number]) => ({ id, title, startsAt, endsAt });
   return json({ status: "ok", clashes: findClashes(range, others).map(pick), matches: copies.map(pick) });

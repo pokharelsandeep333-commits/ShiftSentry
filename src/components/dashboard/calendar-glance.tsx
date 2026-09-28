@@ -30,7 +30,7 @@ export async function CalendarGlance({ userId, timeZone }: { userId: string; tim
       const [events, calendars] = await Promise.all([listEvents(token, calendarIds, range, timeZone), listCalendars(token).catch(() => [])]);
       return { events, colors: calendarColorMap(calendars) };
     }),
-    supabase.from("shifts").select("id,starts_at,ends_at,jobs!inner(name,archived_at)").eq("user_id", userId).is("jobs.archived_at", null).lt("starts_at", range.timeMax).gt("ends_at", range.timeMin),
+    supabase.from("shifts").select("id,starts_at,ends_at,jobs!inner(name,archived_at,google_keyword)").eq("user_id", userId).is("jobs.archived_at", null).lt("starts_at", range.timeMax).gt("ends_at", range.timeMin),
   ]);
 
   if (access.status !== "ok") {
@@ -41,7 +41,7 @@ export async function CalendarGlance({ userId, timeZone }: { userId: string; tim
 
   // Without the shifts, a work shift kept in Google would be listed here as an event.
   if (shiftError) return <Shell><p className="text-sm text-[var(--muted-foreground)]">Couldn&apos;t load your calendar right now.</p></Shell>;
-  const shifts: GlanceShift[] = (shiftRows ?? []).map((row) => ({ id: row.id, jobName: row.jobs.name, startsAt: row.starts_at, endsAt: row.ends_at }));
+  const shifts: GlanceShift[] = (shiftRows ?? []).map((row) => ({ id: row.id, jobName: row.jobs.name, keyword: row.jobs.google_keyword, startsAt: row.starts_at, endsAt: row.ends_at }));
   // Google copies of shifts are already under "Coming up"; list only the rest.
   const copies = matchEventsToShifts(access.value.events, shifts);
   const { days, hidden } = buildGlance(access.value.events.filter((event) => !copies.has(`${event.calendarId}:${event.id}`)), shifts, now, timeZone);

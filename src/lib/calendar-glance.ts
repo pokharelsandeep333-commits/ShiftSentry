@@ -7,7 +7,7 @@ import { findClashes, type CalendarEvent } from "./calendar-clash";
  * seventh local day, grouped by the viewer's local day. A multi-day event is
  * listed once, on the first day it is visible, rather than repeated.
  */
-export type GlanceShift = { id: string; jobName: string; startsAt: string; endsAt: string };
+export type GlanceShift = { id: string; jobName: string; keyword?: string | null; startsAt: string; endsAt: string };
 export type GlanceRow = { event: CalendarEvent; overlapsJob: string | null };
 export type GlanceDay = { key: string; label: string; rows: GlanceRow[] };
 

@@ -34,3 +34,10 @@ test("suggests the job whose name the title contains, preferring the longest nam
   assert.equal(suggestJob(event("j", "Chem lab", shift.startsAt, shift.endsAt), jobs), null);
   assert.equal(suggestJob(event("k", "Campus desk", "2026-09-28T05:00:00.000Z", "2026-09-29T05:00:00.000Z", { allDay: true }), jobs), null);
 });
+
+test("a job's Google keyword replaces its name for recognition and suggestions", () => {
+  const keyed = { ...shift, keyword: "Work" };
+  assert.equal(isSameShift(event("w", "Work", "2026-09-28T20:00:00.000Z", "2026-09-29T01:00:00.000Z"), keyed), true);
+  assert.equal(isSameShift(event("n", "Campus desk", "2026-09-28T20:00:00.000Z", "2026-09-29T01:00:00.000Z"), keyed), false);
+  assert.equal(suggestJob(event("s", "Work shift", shift.startsAt, shift.endsAt), [{ id: "j", name: "Campus desk", keyword: "Work" }])?.id, "j");
+});

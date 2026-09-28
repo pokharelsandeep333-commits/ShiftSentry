@@ -98,3 +98,16 @@ export const gameClueSchema = z.string().trim()
 export const gameGuessSchema = z.string().trim()
   .min(1, "Enter the word you think it was.")
   .max(40, "That is longer than any word in the game.");
+
+/**
+ * A job's Google Calendar settings. An empty keyword means "use the job name";
+ * an empty calendar means "any selected calendar"; the sync checkbox is absent
+ * from the form data when unticked.
+ */
+const optionalTrimmed = (max: number) => z.preprocess((value) => (typeof value === "string" && value.trim() ? value.trim() : null), z.string().max(max).nullable());
+export const jobGoogleSettingsSchema = z.object({
+  jobId: z.string().uuid(),
+  keyword: optionalTrimmed(80),
+  calendarId: optionalTrimmed(255),
+  sync: z.preprocess((value) => value === "on", z.boolean()),
+});

@@ -5,6 +5,10 @@ import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { archiveJob, deleteJob, deleteJobDeduction, unarchiveJob } from "@/app/actions/work";
 import { AddDeductionForm, CreateJobForm, JobDetailsForm } from "@/components/jobs/job-forms";
+import { JobGoogleForm } from "@/components/jobs/job-google-form";
+import { listCalendars } from "@/lib/google/client";
+import { isGoogleCalendarEnabled } from "@/lib/google/config";
+import { withCalendarAccess } from "@/lib/google/connection";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { formatCents } from "@/lib/earnings";
 import { formatMinutes } from "@/lib/utils";
@@ -39,7 +43,10 @@ function shiftCount(job: { shifts: { count: number }[] }) {
 export default async function JobsPage({ searchParams }: { searchParams: Promise<{ saved?: string | string[] }> }) {
   const [profile, { saved }] = await Promise.all([requireUser(), searchParams]);
   const supabase = await createServerSupabaseClient();
-  const { data: allJobs } = await supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,job_deductions(id,name,rate_basis_points),shifts(count)").eq("user_id", profile.id).order("name");
+  // Google settings show only for a connected account: the calendar picker needs the live list.
+  const googleAccess = isGoogleCalendarEnabled() ? await withCalendarAccess(profile.id, (token) => listCalendars(token)) : null;
+  const googleCalendars = googleAccess?.status === "ok" ? googleAccess.value : null;
+  const { data: allJobs } = await supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_keyword,google_calendar_id,google_sync,job_deductions(id,name,rate_basis_points),shifts(count)").eq("user_id", profile.id).order("name");
   const jobs = (allJobs ?? []).filter((job) => !job.archived_at);
   const archivedJobs = (allJobs ?? []).filter((job) => job.archived_at);
   const savedMessage = SAVED_MESSAGES[Array.isArray(saved) ? saved[0] ?? "" : saved ?? ""];
@@ -54,6 +61,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
           <div className="flex items-start gap-3"><span className="mt-1.5 size-3 shrink-0 rounded-full shadow-sm" style={{ background: job.color }} /><div className="min-w-0 flex-1"><p className="font-display text-lg font-semibold">{job.name}</p><p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">{formatCents(job.hourly_rate_cents)}/hr · {job.tax_rate_basis_points / 100}% tax · {job.weekly_limit_minutes ? `${formatMinutes(job.weekly_limit_minutes)} weekly limit` : "No hour limit"}</p></div><form action={archiveJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Archive" confirmLabel="Archive job?" /></form></div>
           <details className="group mt-4 border-t pt-4"><summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-1 py-1 text-sm font-semibold text-[var(--primary)] outline-none transition-colors hover:text-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]"><span>Manage job settings, pay, and deductions</span><span className="text-lg transition-transform duration-300 group-open:rotate-45">+</span></summary><div className="mt-4 grid gap-5">
             <JobDetailsForm id={job.id} name={job.name} hourlyRateCents={job.hourly_rate_cents} taxRateBasisPoints={job.tax_rate_basis_points} color={job.color} weeklyLimitMinutes={job.weekly_limit_minutes} />
+            {googleCalendars && <JobGoogleForm jobId={job.id} jobName={job.name} keyword={job.google_keyword} calendarId={job.google_calendar_id} sync={job.google_sync} calendars={googleCalendars} />}
             <div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Percentage deductions</p><div className="space-y-2">{job.job_deductions.map((deduction) => <div key={deduction.id} className="flex items-center justify-between rounded-xl bg-[var(--surface-subtle)] px-3 py-2.5 text-sm"><span>{deduction.name} · {deduction.rate_basis_points / 100}%</span><form action={deleteJobDeduction}><input type="hidden" name="id" value={deduction.id} /><Button size="sm" variant="ghost">Remove</Button></form></div>)}</div><AddDeductionForm jobId={job.id} /></div>
           </div></details>
         </div>) : <div className="rounded-2xl border border-dashed px-5 py-10 text-center"><p className="text-sm leading-6 text-[var(--muted-foreground)]">No jobs yet. A job holds the pay rate, tax, and weekly cap that every shift you log against it inherits.</p></div>}</CardContent>

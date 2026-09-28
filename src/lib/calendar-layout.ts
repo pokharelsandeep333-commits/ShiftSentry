@@ -10,7 +10,7 @@ import { matchEventsToShifts, suggestJob, type MatchJob } from "./shift-match";
  * days it touches. Overlapping items are split into lanes; back-to-back ones
  * are not overlapping (half-open, like the clash rule).
  */
-export type CalendarShiftInput = { id: string; jobName: string; color: string; startsAt: string; endsAt: string };
+export type CalendarShiftInput = { id: string; jobName: string; keyword?: string | null; color: string; startsAt: string; endsAt: string };
 export type CalendarItem = {
   key: string; kind: "shift" | "event"; title: string; startsAt: string; endsAt: string; allDay: boolean; color: string; href: string | null; overlap: boolean;
   /** A shift that also sits in Google Calendar; its copy is merged in rather than drawn twice. */
