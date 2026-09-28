@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:earnings": "tsx --test src/lib/earnings.test.ts src/lib/local-preference.test.ts src/lib/earnings-range.test.ts src/lib/greeting.test.ts src/lib/job-allocation.test.ts src/lib/period-totals.test.ts src/lib/shift-date-time.test.ts src/lib/time.test.ts src/lib/welcome-week.test.ts",
-    "test:auth": "tsx --test src/lib/request-origin.test.ts src/lib/validation.test.ts src/lib/content-security-policy.test.ts",
+    "test:auth": "tsx --test src/lib/request-origin.test.ts src/lib/validation.test.ts src/lib/content-security-policy.test.ts src/lib/google/token-crypto.test.ts src/lib/google/config.test.ts",
     "test:game": "tsx --test src/lib/game.test.ts",
     "test:sql": "bash scripts/run-sql-tests.sh",
     "db:generate": "prisma generate",
