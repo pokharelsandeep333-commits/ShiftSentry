@@ -72,17 +72,25 @@ export async function listCalendars(accessToken: string): Promise<GoogleCalendar
   return (body.items ?? []).map((item) => ({ id: item.id, summary: item.summaryOverride ?? item.summary ?? item.id, color: item.backgroundColor ?? "#9486ff", primary: item.primary === true }));
 }
 
-export async function listEvents(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string): Promise<CalendarEvent[]> {
+export async function listEvents(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string, maxResults = 50): Promise<CalendarEvent[]> {
   const pages = await Promise.allSettled(calendarIds.map(async (calendarId) => {
     const body = await calendarGet<{ items?: GoogleEventResource[] }>(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
       timeMin: range.timeMin,
       timeMax: range.timeMax,
       singleEvents: "true",
       orderBy: "startTime",
-      maxResults: "50",
+      maxResults: String(maxResults),
       fields: "items(id,status,summary,transparency,start,end,attendees(self,responseStatus))",
     });
     return (body.items ?? []).map((item) => normalizeGoogleEvent(item, calendarId, timeZone)).filter((event): event is CalendarEvent => event !== null);
   }));
   return mergeCalendarResults(pages, (reason) => reason instanceof GoogleAuthError);
+}
+
+/** Calendar id → colour, with Google's "primary" alias pointing at the primary calendar's colour. */
+export function calendarColorMap(calendars: GoogleCalendarListEntry[]) {
+  const colors = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
+  const primary = calendars.find((calendar) => calendar.primary);
+  if (primary) colors.set("primary", primary.color);
+  return colors;
 }
