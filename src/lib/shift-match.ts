@@ -20,7 +20,18 @@ export const MATCH_TOLERANCE_MS = 15 * 60_000;
 export type MatchShift = { id: string; jobName: string; keyword?: string | null; startsAt: string; endsAt: string };
 export type MatchJob = { id: string; name: string; keyword?: string | null };
 
-const titleHas = (title: string, name: string) => name.trim().length >= 2 && title.toLowerCase().includes(name.trim().toLowerCase());
+/**
+ * The keyword appears in the title as whole words ("TA" in "TA shift", not in
+ * "Statistics"), case-insensitive. Shorter than two characters never matches:
+ * a one-letter keyword would claim half a calendar.
+ */
+export function titleHasKeyword(title: string, keyword: string) {
+  const word = keyword.trim();
+  if (word.length < 2) return false;
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "iu").test(title);
+}
+const titleHas = titleHasKeyword;
 const distance = (event: CalendarEvent, shift: { startsAt: string; endsAt: string }) => Math.abs(Date.parse(event.startsAt) - Date.parse(shift.startsAt)) + Math.abs(Date.parse(event.endsAt) - Date.parse(shift.endsAt));
 
 export function isSameShift(event: CalendarEvent, shift: { jobName: string; keyword?: string | null; startsAt: string; endsAt: string }) {

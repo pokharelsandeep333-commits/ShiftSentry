@@ -27,12 +27,12 @@ export function GoogleSyncTrigger() {
 
 export function SyncNowButton() {
   const router = useRouter();
-  const [state, setState] = useState<"idle" | "busy" | "done" | "failed">("idle");
+  const [state, setState] = useState<"idle" | "busy" | "done" | "recent" | "failed">("idle");
   async function sync() {
     setState("busy");
     try {
       const result = await runSync(true);
-      setState(result.status === "ok" || result.status === "skipped" ? "done" : "failed");
+      setState(result.status === "ok" ? "done" : result.status === "skipped" ? "recent" : "failed");
       router.refresh();
     } catch {
       setState("failed");
@@ -40,6 +40,6 @@ export function SyncNowButton() {
   }
   return <div className="flex items-center gap-2">
     <Button type="button" variant="outline" onClick={sync} disabled={state === "busy"}><RefreshCw className={state === "busy" ? "size-4 animate-spin" : "size-4"} />{state === "busy" ? "Syncing…" : "Sync now"}</Button>
-    <span role="status" className="text-xs text-[var(--muted-foreground)]">{state === "done" ? "Up to date" : state === "failed" ? "Couldn't sync" : ""}</span>
+    <span role="status" className="text-xs text-[var(--muted-foreground)]">{state === "done" ? "Up to date" : state === "recent" ? "Synced moments ago" : state === "failed" ? "Couldn't sync" : ""}</span>
   </div>;
 }

@@ -8,6 +8,7 @@ import { deleteConnection, withCalendarAccess } from "@/lib/google/connection";
 import type { SavedFormState } from "@/lib/form-state";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { jobGoogleSettingsSchema } from "@/lib/validation";
+import { isGoogleCalendarEnabled } from "@/lib/google/config";
 
 /** Keeps only ids present in the user's live Google calendar list; "primary" stays valid as Google's alias. */
 export async function saveCalendarSelection(_previous: SavedFormState, formData: FormData): Promise<SavedFormState> {
@@ -49,6 +50,7 @@ export async function disconnectGoogleCalendar() {
  */
 export async function saveJobGoogleSettings(_previous: SavedFormState, formData: FormData): Promise<SavedFormState> {
   const profile = await requireUser();
+  if (!isGoogleCalendarEnabled()) return { message: "Google Calendar isn't available right now.", savedAt: null };
   const parsed = jobGoogleSettingsSchema.safeParse({ jobId: formData.get("jobId"), keyword: formData.get("keyword"), calendarId: formData.get("calendarId"), sync: formData.get("sync") });
   if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "Check the Google Calendar settings.", savedAt: null };
   const { jobId, keyword, sync } = parsed.data;

@@ -8,11 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { getConnectionSummary } from "@/lib/google/connection";
-import { updateShiftNotes } from "@/app/actions/work";
+import { stopFollowingGoogle, updateShiftNotes } from "@/app/actions/work";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+
+/** Read at request time; a synced shift that has started no longer follows Google. */
+function hasStarted(startsAt: string) {
+  return Date.parse(startsAt) <= new Date().getTime();
+}
 
 export default async function EditShiftPage({ params }: { params: Promise<{ id: string }> }) {
   const profile = await requireUser();
@@ -34,8 +39,12 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
   // A synced shift follows its Google event, so here it is read-only apart from its notes.
   if (shift.google_event_id) {
     const job = (jobs ?? []).find((candidate) => candidate.id === shift.job_id);
+    const started = hasStarted(shift.starts_at);
+    const description = started
+      ? "This shift has started, so changes in Google Calendar no longer move it. To correct it, stop following Google and edit it here."
+      : "This shift follows its event in Google Calendar: change the time there and it updates here on the next sync. Or stop following Google and edit it here.";
     return <>
-      <PageHeader eyebrow="Shift log" title="Shift from Google Calendar" description="This shift follows its event in Google Calendar. Change the time there; it updates here on the next sync." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Back</Link>} />
+      <PageHeader eyebrow="Shift log" title="Shift from Google Calendar" description={description} actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Back</Link>} />
       <Card className="max-w-2xl">
         <CardHeader><CardTitle>{job?.name ?? "Shift"}</CardTitle></CardHeader>
         <CardContent className="grid gap-5">
@@ -44,6 +53,11 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
             <input type="hidden" name="id" value={shift.id} />
             <label className="field-label"><span>Notes</span><textarea name="notes" defaultValue={shift.notes ?? ""} maxLength={500} className="field-textarea text-sm" placeholder="Optional notes" /></label>
             <div><SubmitButton label="Save notes" pendingLabel="Saving…" /></div>
+          </form>
+          <form action={stopFollowingGoogle} className="border-t pt-5">
+            <input type="hidden" name="id" value={shift.id} />
+            <p className="mb-3 text-sm text-[var(--muted-foreground)]">Stop following Google to change the job or times here. Google Calendar will no longer update this shift, and its event won&apos;t be added again.</p>
+            <SubmitButton label="Stop following Google and edit here" pendingLabel="Updating…" variant="outline" />
           </form>
         </CardContent>
       </Card>

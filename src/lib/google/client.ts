@@ -135,3 +135,22 @@ export async function listEventsForSync(accessToken: string, calendarIds: string
     .filter((event) => (seen.has(event.id) ? false : (seen.add(event.id), true)));
   return { events, failedCalendarIds };
 }
+
+/**
+ * One event by id: whether an event missing from a sync fetch is really gone.
+ * Deleted (404/410) or cancelled is "gone"; anything unreadable throws, so the
+ * caller keeps the shift rather than guessing.
+ */
+export async function getEvent(accessToken: string, calendarId: string, eventId: string, timeZone: string): Promise<CalendarEvent | "gone"> {
+  const url = new URL(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
+  url.search = new URLSearchParams({ fields: "id,status,summary,transparency,start,end,attendees(self,responseStatus)" }).toString();
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+  if (response.status === 404 || response.status === 410) return "gone";
+  if (response.status === 401) throw new GoogleAuthError("expired");
+  if (!response.ok) throw new Error(`Calendar API event returned ${response.status}`);
+  const body = (await response.json()) as GoogleEventResource;
+  if (body.status === "cancelled") return "gone";
+  const event = normalizeGoogleEvent(body, calendarId, timeZone);
+  if (!event) throw new Error("Calendar API event could not be read");
+  return event;
+}

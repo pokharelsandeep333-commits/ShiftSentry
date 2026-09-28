@@ -107,7 +107,7 @@ export const gameGuessSchema = z.string().trim()
 const optionalTrimmed = (max: number) => z.preprocess((value) => (typeof value === "string" && value.trim() ? value.trim() : null), z.string().max(max).nullable());
 export const jobGoogleSettingsSchema = z.object({
   jobId: z.string().uuid(),
-  keyword: optionalTrimmed(80),
+  keyword: optionalTrimmed(80).refine((value) => value === null || value.length >= 2, "Use a keyword of at least 2 characters."),
   calendarId: optionalTrimmed(255),
   sync: z.preprocess((value) => value === "on", z.boolean()),
 });

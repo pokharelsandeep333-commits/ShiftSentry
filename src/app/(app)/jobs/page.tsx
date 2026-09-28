@@ -9,7 +9,7 @@ import { JobGoogleForm } from "@/components/jobs/job-google-form";
 import { LoadError } from "@/components/load-error";
 import { listCalendars } from "@/lib/google/client";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
-import { withCalendarAccess } from "@/lib/google/connection";
+import { getConnectionSummary, withCalendarAccess } from "@/lib/google/connection";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { formatCents } from "@/lib/earnings";
 import { formatMinutes } from "@/lib/utils";
@@ -44,10 +44,16 @@ function shiftCount(job: { shifts: { count: number }[] }) {
 export default async function JobsPage({ searchParams }: { searchParams: Promise<{ saved?: string | string[] }> }) {
   const [profile, { saved }] = await Promise.all([requireUser(), searchParams]);
   const supabase = await createServerSupabaseClient();
-  // Google settings show only for a connected account: the calendar picker needs the live list.
-  const googleAccess = isGoogleCalendarEnabled() ? await withCalendarAccess(profile.id, (token) => listCalendars(token)) : null;
-  const googleCalendars = googleAccess?.status === "ok" ? googleAccess.value : null;
-  const { data: allJobs, error: jobsError } = await supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_keyword,google_calendar_id,google_sync,job_deductions(id,name,rate_basis_points),shifts(count)").eq("user_id", profile.id).order("name");
+  // Google settings show for any connected account, even when Google is
+  // unreachable -- turning sync off must never depend on Google answering.
+  // The calendar list is fetched alongside the jobs, not before them.
+  const googleOn = isGoogleCalendarEnabled();
+  const [googleConnection, googleAccess, { data: allJobs, error: jobsError }] = await Promise.all([
+    googleOn ? getConnectionSummary(profile.id) : Promise.resolve(null),
+    googleOn ? withCalendarAccess(profile.id, (token) => listCalendars(token)) : Promise.resolve(null),
+    supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_keyword,google_calendar_id,google_sync,job_deductions(id,name,rate_basis_points),shifts(count)").eq("user_id", profile.id).order("name"),
+  ]);
+  const googleCalendars = googleConnection ? (googleAccess?.status === "ok" ? googleAccess.value : []) : null;
   const jobs = (allJobs ?? []).filter((job) => !job.archived_at);
   const archivedJobs = (allJobs ?? []).filter((job) => job.archived_at);
   const savedMessage = SAVED_MESSAGES[Array.isArray(saved) ? saved[0] ?? "" : saved ?? ""];

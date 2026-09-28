@@ -28,6 +28,20 @@ begin
   exception when check_violation then refused := true;
   end;
   if not refused then raise exception 'a shift was linked to an event with no calendar'; end if;
+  refused := false;
+  begin
+    insert into public.shifts (user_id, job_id, starts_at, ends_at, google_calendar_id)
+      values (alice, job, '2030-01-08 14:00+00', '2030-01-08 18:00+00', 'primary');
+  exception when check_violation then refused := true;
+  end;
+  if not refused then raise exception 'a shift was linked to a calendar with no event'; end if;
+  refused := false;
+  begin
+    insert into public.shifts (user_id, job_id, starts_at, ends_at, google_adopted)
+      values (alice, job, '2030-01-08 14:00+00', '2030-01-08 18:00+00', true);
+  exception when check_violation then refused := true;
+  end;
+  if not refused then raise exception 'an unlinked shift was marked adopted'; end if;
 
   -- ---- one event feeds one shift ---------------------------------------------
   refused := false;
@@ -51,6 +65,18 @@ begin
   if not refused then raise exception 'an 81-character Google keyword was accepted'; end if;
   refused := false;
   begin
+    update public.jobs set google_keyword = '   ' where id = job;
+  exception when check_violation then refused := true;
+  end;
+  if not refused then raise exception 'a blank Google keyword was accepted'; end if;
+  refused := false;
+  begin
+    update public.jobs set google_calendar_id = repeat('c', 256) where id = job;
+  exception when check_violation then refused := true;
+  end;
+  if not refused then raise exception 'a 256-character calendar id was accepted'; end if;
+  refused := false;
+  begin
     update public.jobs set google_sync_ignored = array(select 'primary:e' || n from generate_series(1, 501) n) where id = job;
   exception when check_violation then refused := true;
   end;
@@ -66,6 +92,12 @@ begin
   exception when check_violation then refused := true;
   end;
   if not refused then raise exception 'sync_issues accepted a non-array'; end if;
+  refused := false;
+  begin
+    update public.google_calendar_connections set sync_issues = (select jsonb_agg(jsonb_build_object('reason', n)) from generate_series(1, 21) n) where user_id = alice;
+  exception when check_violation then refused := true;
+  end;
+  if not refused then raise exception 'sync_issues accepted 21 entries'; end if;
 
   -- ---- linked shifts stay private --------------------------------------------
   perform set_config('request.jwt.claim.sub', bob::text, true);
@@ -75,6 +107,6 @@ end;
 $$;
 
 reset role;
-delete from public.google_calendar_connections;
+delete from public.google_calendar_connections where user_id = '11111111-1111-1111-1111-111111111111';
 delete from public.shifts where job_id = 'c0000000-0000-4000-8000-000000000017';
 delete from public.jobs where id = 'c0000000-0000-4000-8000-000000000017';

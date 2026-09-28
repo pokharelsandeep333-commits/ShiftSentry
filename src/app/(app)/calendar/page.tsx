@@ -61,7 +61,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     {showSync && <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
       {issues.length > 0 ? <div className="min-w-0 flex-1 rounded-2xl bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] px-4 py-3 text-sm">
         <p className="font-semibold">Couldn&apos;t add from Google</p>
-        <ul className="mt-1 space-y-0.5 text-[var(--muted-foreground)]">{issues.map((issue) => <li key={`${issue.startsAt}-${issue.jobName}`}><b className="font-medium text-[var(--foreground)]">{issue.jobName}</b> · {issueTime(issue.startsAt)} · {issue.reason}</li>)}</ul>
+        <ul className="mt-1 space-y-0.5 text-[var(--muted-foreground)]">{issues.map((issue, index) => <li key={index}><b className="font-medium text-[var(--foreground)]">{issue.jobName}</b> · {issueTime(issue.startsAt)} · {issue.reason}</li>)}</ul>
       </div> : <span />}
       <SyncNowButton />
     </div>}

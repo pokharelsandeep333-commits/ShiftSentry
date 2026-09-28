@@ -26,8 +26,13 @@ comment on column public.jobs.google_sync_ignored is 'calendarId:eventId keys of
 alter table public.shifts
   add column google_calendar_id text check (google_calendar_id is null or char_length(google_calendar_id) <= 1024),
   add column google_event_id text check (google_event_id is null or char_length(google_event_id) <= 1024),
+  -- A shift the user typed that sync then linked to its event. Sync never
+  -- deletes one of these, only unlinks it; they are the user's own entries.
+  add column google_adopted boolean not null default false,
   add constraint shifts_google_link_complete
-    check ((google_calendar_id is null) = (google_event_id is null));
+    check ((google_calendar_id is null) = (google_event_id is null)),
+  add constraint shifts_google_adopted_linked
+    check (not google_adopted or google_event_id is not null);
 
 -- One Google event feeds at most one of a user's shifts. Partial, so the
 -- ordinary unlinked shifts are not indexed at all.

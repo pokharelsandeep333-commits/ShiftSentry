@@ -100,6 +100,12 @@ export async function deleteConnection(userId: string) {
   if (row && config) {
     try { await revokeToken(decryptToken(row.refresh_token_ciphertext, userId, config.encryptionKey)); } catch { /* undecryptable: nothing to revoke */ }
   }
+  // Disconnecting stops every sync and forgets Google's identifiers: synced
+  // shifts stay as ordinary shifts the user can edit, and no event or calendar
+  // id is left behind (a shared calendar's id is often someone's address).
+  const { error: shiftError } = await supabase.from("shifts").update({ google_calendar_id: null, google_event_id: null, google_adopted: false }).eq("user_id", userId).not("google_event_id", "is", null);
+  const { error: jobError } = await supabase.from("jobs").update({ google_sync: false, google_sync_ignored: [], google_calendar_id: null }).eq("user_id", userId);
+  if (shiftError || jobError) throw new Error("Could not unlink synced shifts.");
   const { data: deleted, error } = await supabase.from("google_calendar_connections").delete().eq("user_id", userId).select("user_id");
   // RLS that filters out every row reports no error, so a delete that removed
   // nothing has to be caught here or Disconnect would claim success.

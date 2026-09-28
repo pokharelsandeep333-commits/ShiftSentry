@@ -682,6 +682,7 @@ export type Database = {
           deduction_cents: number;
           deductions_snapshot: Json;
           ends_at: string;
+          google_adopted: boolean;
           google_calendar_id: string | null;
           google_event_id: string | null;
           gross_cents: number;
@@ -701,6 +702,7 @@ export type Database = {
           deduction_cents?: number;
           deductions_snapshot?: Json;
           ends_at: string;
+          google_adopted?: boolean;
           google_calendar_id?: string | null;
           google_event_id?: string | null;
           gross_cents?: number;
@@ -720,6 +722,7 @@ export type Database = {
           deduction_cents?: number;
           deductions_snapshot?: Json;
           ends_at?: string;
+          google_adopted?: boolean;
           google_calendar_id?: string | null;
           google_event_id?: string | null;
           gross_cents?: number;
