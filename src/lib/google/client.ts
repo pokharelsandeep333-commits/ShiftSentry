@@ -95,3 +95,43 @@ export function calendarColorMap(calendars: GoogleCalendarListEntry[]) {
   if (primary) colors.set("primary", primary.color);
   return colors;
 }
+
+/**
+ * Events for a sync run: every page (at most 10 of 250 per calendar), and which
+ * calendars failed. The sync deletes shifts whose events are gone, so a
+ * calendar that failed or was cut short must be reported rather than silently
+ * returning fewer events. An auth failure still fails the whole call.
+ */
+export async function listEventsForSync(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string): Promise<{ events: CalendarEvent[]; failedCalendarIds: string[] }> {
+  const results = await Promise.allSettled(calendarIds.map(async (calendarId) => {
+    const events: CalendarEvent[] = [];
+    let pageToken: string | undefined;
+    for (let page = 0; page < 10; page += 1) {
+      const body = await calendarGet<{ items?: GoogleEventResource[]; nextPageToken?: string }>(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
+        timeMin: range.timeMin,
+        timeMax: range.timeMax,
+        singleEvents: "true",
+        orderBy: "startTime",
+        maxResults: "250",
+        fields: "items(id,status,summary,transparency,start,end,attendees(self,responseStatus)),nextPageToken",
+        ...(pageToken ? { pageToken } : {}),
+      });
+      for (const item of body.items ?? []) {
+        const event = normalizeGoogleEvent(item, calendarId, timeZone);
+        if (event) events.push(event);
+      }
+      if (!body.nextPageToken) return events;
+      pageToken = body.nextPageToken;
+    }
+    throw new Error("Calendar has more events than one sync reads");
+  }));
+
+  const auth = results.find((result): result is PromiseRejectedResult => result.status === "rejected" && result.reason instanceof GoogleAuthError);
+  if (auth) throw auth.reason;
+  const failedCalendarIds = calendarIds.filter((_, index) => results[index].status === "rejected");
+  const seen = new Set<string>();
+  const events = results
+    .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+    .filter((event) => (seen.has(event.id) ? false : (seen.add(event.id), true)));
+  return { events, failedCalendarIds };
+}

@@ -16,6 +16,9 @@ import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
 import { weekStartFor } from "@/lib/time";
 import { WEEKS_PER_PAGE, clampWeeks } from "@/lib/shift-log";
 import { formatMinutes } from "@/lib/utils";
+import { GoogleSyncTrigger } from "@/components/google-sync-trigger";
+import { isGoogleCalendarEnabled } from "@/lib/google/config";
+import { hasSyncingJob } from "@/lib/google/shift-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +99,7 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const saved = savedMessage(params);
   const weeks = clampWeeks(single(params.weeks));
+  const syncing = isGoogleCalendarEnabled() && await hasSyncingJob(profile.id);
 
   const currentWeekStart = weekStartFor(new Date(), profile.time_zone, profile.week_starts_on);
   const windowStart = addDays(currentWeekStart, -7 * (weeks - 1));
@@ -124,6 +128,7 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   const firstWeekNumber = (weeksBefore ?? 0) + 1;
 
   return <>
+    {syncing && <GoogleSyncTrigger />}
     {saved && <SavedToast message={saved} clearParams={["created", "skipped", "saved"]} />}
     <PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." actions={<Link href="/shifts/new" className={buttonVariants()}><CalendarClock className="size-4" />Add shift</Link>} />
 

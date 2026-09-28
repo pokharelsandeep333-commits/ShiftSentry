@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { formatInTimeZone } from "date-fns-tz";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AgendaList } from "@/components/calendar/agenda-list";
 import { CalendarViewMemory } from "@/components/calendar/calendar-view-memory";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { WeekGrid } from "@/components/calendar/week-grid";
+import { GoogleSyncTrigger, SyncNowButton } from "@/components/google-sync-trigger";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { loadCalendarPage } from "@/lib/calendar-page-data";
 import { resolveCalendarRange } from "@/lib/calendar-range";
+import { getSyncIssues, hasSyncingJob } from "@/lib/google/shift-sync";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +34,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const view = typeof params.view === "string" ? params.view : undefined;
   const date = typeof params.date === "string" ? params.date : undefined;
   const range = resolveCalendarRange({ view, date }, new Date(), profile.time_zone, profile.week_starts_on);
-  const { items, google } = await loadCalendarPage(profile, range);
+  const [{ items, google }, syncing] = await Promise.all([loadCalendarPage(profile, range), hasSyncingJob(profile.id)]);
+  const showSync = google === "ok" && syncing;
+  const issues = showSync ? await getSyncIssues(profile.id) : [];
+  const issueTime = (iso: string) => formatInTimeZone(iso, profile.time_zone, "EEE MMM d, h:mm a");
   const link = (target: { view?: string; date?: string }) => `/calendar?view=${target.view ?? range.view}&date=${target.date ?? range.anchor}`;
   const segment = (active: boolean) => cn("inline-flex h-9 items-center rounded-lg px-3 text-sm font-semibold transition-colors", active ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]");
 
   return <>
     <CalendarViewMemory view={range.view} explicit={view === "week" || view === "month"} date={date} />
+    {showSync && <GoogleSyncTrigger />}
     <PageHeader eyebrow="Schedule" title="Calendar" description="Your shifts, and your Google Calendar when it's connected." actions={<Link href="/shifts/new" className={buttonVariants()}><Plus className="size-4" />Add shift</Link>} />
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2">
@@ -51,6 +58,13 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       </nav>
     </div>
     {google !== "off" && google !== "ok" && <p className="mb-4 text-sm text-[var(--muted-foreground)]">{GOOGLE_NOTES[google]}</p>}
+    {showSync && <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      {issues.length > 0 ? <div className="min-w-0 flex-1 rounded-2xl bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] px-4 py-3 text-sm">
+        <p className="font-semibold">Couldn&apos;t add from Google</p>
+        <ul className="mt-1 space-y-0.5 text-[var(--muted-foreground)]">{issues.map((issue) => <li key={`${issue.startsAt}-${issue.jobName}`}><b className="font-medium text-[var(--foreground)]">{issue.jobName}</b> · {issueTime(issue.startsAt)} · {issue.reason}</li>)}</ul>
+      </div> : <span />}
+      <SyncNowButton />
+    </div>}
     <div className="hidden lg:block">
       {range.view === "week"
         ? <WeekGrid days={range.days} today={range.today} items={items} timeZone={profile.time_zone} />

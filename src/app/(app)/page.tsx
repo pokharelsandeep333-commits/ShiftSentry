@@ -6,6 +6,8 @@ import { getDashboardData } from "@/lib/dashboard";
 import { demoDashboard } from "@/lib/dashboard-demo";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { getConnectionSummary } from "@/lib/google/connection";
+import { hasSyncingJob } from "@/lib/google/shift-sync";
+import { GoogleSyncTrigger } from "@/components/google-sync-trigger";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const dynamic = "force-dynamic";
@@ -15,5 +17,6 @@ export default async function Home() {
   const profile = await requireUser();
   const [data, connection] = await Promise.all([getDashboardData(profile), isGoogleCalendarEnabled() ? getConnectionSummary(profile.id) : null]);
   const calendarSlot = connection ? <Suspense fallback={<CalendarGlanceSkeleton />}><CalendarGlance userId={profile.id} timeZone={profile.time_zone} /></Suspense> : undefined;
-  return <DashboardView data={data} calendarSlot={calendarSlot} />;
+  const syncing = connection?.status === "active" && await hasSyncingJob(profile.id);
+  return <>{syncing && <GoogleSyncTrigger />}<DashboardView data={data} calendarSlot={calendarSlot} /></>;
 }
