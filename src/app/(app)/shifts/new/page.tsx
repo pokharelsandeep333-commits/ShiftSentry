@@ -18,12 +18,13 @@ function single(value: string | string[] | undefined) {
 }
 
 /**
- * Prefill from a "Duplicate" link. Every field is treated as untrusted URL
- * input: the job has to be one of the viewer's active jobs and both timestamps
- * have to parse, otherwise the form opens blank.
+ * Prefill from a "Duplicate" link or an empty hour on the calendar. Every field
+ * is treated as untrusted URL input: both timestamps have to parse, and a job,
+ * when one is named, has to be one of the viewer's active jobs -- otherwise the
+ * form opens blank. The calendar names no job, so the first active job is used.
  */
 function prefillFromQuery(params: SearchParams, jobs: ShiftFormJob[]) {
-  const jobId = single(params.jobId);
+  const jobId = single(params.jobId) ?? jobs[0]?.id;
   const startsAt = parseShiftDateTimeInput(single(params.startsAt) ?? "");
   const endsAt = parseShiftDateTimeInput(single(params.endsAt) ?? "");
   if (!jobId || !jobs.some((job) => job.id === jobId) || !startsAt || !endsAt) return undefined;
