@@ -2,14 +2,14 @@
 
 -- Google Calendar connections are private to their owner, go with the profile,
 -- and are closed to a disabled account like every other table of personal data.
--- Alice owns one; Bob must not see or touch it; Carol is disabled mid-suite and
--- re-enabled at the end.
+-- Alice owns one; Bob must not see or touch it. The disabled and cascade cases
+-- use throwaway accounts, so no shared fixture moves for later suites.
 
 do $$
 declare
   alice constant uuid := '11111111-1111-1111-1111-111111111111';
   bob constant uuid := '22222222-2222-2222-2222-222222222222';
-  carol constant uuid := '33333333-3333-3333-3333-333333333333';
+  grace constant uuid := '77777777-7777-7777-7777-777777777777';
   seen integer; touched integer; refused boolean;
 begin
   execute 'set local role authenticated';
@@ -23,6 +23,14 @@ begin
   update public.google_calendar_connections set selected_calendar_ids = array['primary', 'work'] where user_id = alice;
   get diagnostics touched = row_count;
   if touched <> 1 then raise exception 'Alice could not update her own connection'; end if;
+
+  -- Disconnect deletes the row as the user. Without an owner delete policy the
+  -- delete matches nothing and PostgREST reports no error, so pin the count.
+  delete from public.google_calendar_connections where user_id = alice;
+  get diagnostics touched = row_count;
+  if touched <> 1 then raise exception 'Alice could not delete her own connection'; end if;
+  insert into public.google_calendar_connections (user_id, google_email, refresh_token_ciphertext, scopes)
+    values (alice, 'alice@gmail.com', 'v1:opaque', array['openid']);
 
   -- ---- nobody can write a row for someone else --------------------------------
   refused := false;
@@ -54,22 +62,42 @@ begin
   if not refused then raise exception 'status accepted a value outside the check'; end if;
 
   -- ---- a disabled account is locked out ---------------------------------------
-  perform set_config('request.jwt.claim.sub', carol::text, true);
-  insert into public.google_calendar_connections (user_id, google_email, refresh_token_ciphertext, scopes)
-    values (carol, 'carol@gmail.com', 'v1:opaque', array['openid']);
+  -- Every command, not only reads: a token issued before the ban still reaches
+  -- PostgREST, so insert and delete are pinned as well as select and update.
   execute 'set local role postgres';
   perform set_config('request.jwt.claim.sub', '', true);
-  update public.profiles set disabled_at = now() where id = carol;
+  insert into auth.users (id, email) values (grace, 'grace@example.com');
+  insert into public.google_calendar_connections (user_id, google_email, refresh_token_ciphertext, scopes)
+    values (grace, 'grace@gmail.com', 'v1:opaque', array['openid']);
+  update public.profiles set disabled_at = now() where id = grace;
+
   execute 'set local role authenticated';
-  perform set_config('request.jwt.claim.sub', carol::text, true);
+  perform set_config('request.jwt.claim.sub', grace::text, true);
   select count(*) into seen from public.google_calendar_connections;
   if seen <> 0 then raise exception 'a disabled account can still read its connection'; end if;
-  update public.google_calendar_connections set status = 'needs_reconnect' where user_id = carol;
+  update public.google_calendar_connections set status = 'needs_reconnect' where user_id = grace;
   get diagnostics touched = row_count;
   if touched <> 0 then raise exception 'a disabled account can still update its connection'; end if;
+  delete from public.google_calendar_connections where user_id = grace;
+  get diagnostics touched = row_count;
+  if touched <> 0 then raise exception 'a disabled account can still delete its connection'; end if;
+
   execute 'set local role postgres';
   perform set_config('request.jwt.claim.sub', '', true);
-  update public.profiles set disabled_at = null where id = carol;
+  delete from public.google_calendar_connections where user_id = grace;
+  execute 'set local role authenticated';
+  perform set_config('request.jwt.claim.sub', grace::text, true);
+  refused := false;
+  begin
+    insert into public.google_calendar_connections (user_id, google_email, refresh_token_ciphertext, scopes)
+      values (grace, 'grace@gmail.com', 'v1:opaque', array['openid']);
+  exception when insufficient_privilege then refused := true;
+  end;
+  if not refused then raise exception 'a disabled account can still create a connection'; end if;
+
+  execute 'set local role postgres';
+  perform set_config('request.jwt.claim.sub', '', true);
+  delete from auth.users where id = grace;
 
   -- ---- anon has no access at all ----------------------------------------------
   execute 'set local role anon';

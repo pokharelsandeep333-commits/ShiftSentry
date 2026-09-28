@@ -8,7 +8,7 @@
 -- holding a job and hosting a room, then acts through the API role exactly as
 -- a still-valid token would.
 --
--- Runs last: it re-enables Erin at the end, but every seat she held is gone.
+-- Re-enables Erin at the end, but every seat she held is gone.
 
 create temp table disabled_fixture (room_id uuid, room_code text);
 
