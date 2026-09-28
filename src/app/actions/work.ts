@@ -170,8 +170,10 @@ export async function updateShift(_previousState: ShiftActionState, formData: Fo
   const id = resourceIdSchema.safeParse(formData.get("id"));
   if (!id.success) return shiftError("This shift could not be found.");
   const supabase = await createServerSupabaseClient();
-  const { data: existing, error: existingError } = await supabase.from("shifts").select("id,job_id,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot").eq("id", id.data).eq("user_id", profile.id).maybeSingle();
+  const { data: existing, error: existingError } = await supabase.from("shifts").select("id,job_id,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,google_event_id").eq("id", id.data).eq("user_id", profile.id).maybeSingle();
   if (existingError || !existing) return shiftError("This shift could not be found.");
+  // A synced shift follows its Google event; only its notes are edited here.
+  if (existing.google_event_id) return shiftError("This shift follows Google Calendar. Choose “Stop following Google” to edit it here.");
 
   const input = parseShiftInput(formData, profile.time_zone);
   if ("error" in input) return input.error;
@@ -194,6 +196,9 @@ export async function deleteShift(formData: FormData) {
   const profile = await requireUser();
   const id = resourceId(formData);
   const supabase = await createServerSupabaseClient();
+  // A synced shift the user deletes stays deleted: its event goes on the job's
+  // ignore list so the next Google sync does not add it back.
+  if (!(await forgetGoogleEvent(supabase, profile.id, id))) fail("Unable to delete the shift. Please try again.");
   const { error } = await supabase.from("shifts").delete().eq("id", id).eq("user_id", profile.id);
   if (error) fail("Unable to delete the shift. Please try again.");
   revalidatePath("/"); revalidatePath("/shifts");
@@ -304,4 +309,45 @@ export async function updateSettings(_previousState: FormActionState, formData: 
   });
   if (problem) return { message: problem };
   revalidatePath("/"); revalidatePath("/settings"); redirect("/settings?saved=1");
+}
+
+/** Notes are the one thing edited here on a shift that comes from Google Calendar. */
+export async function updateShiftNotes(formData: FormData) {
+  const profile = await requireUser();
+  const id = resourceId(formData);
+  const notes = String(formData.get("notes") ?? "").trim().slice(0, 500) || null;
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("shifts").update({ notes }).eq("id", id).eq("user_id", profile.id);
+  if (error) fail("Unable to save the notes. Please try again.");
+  revalidatePath("/shifts"); revalidatePath(`/shifts/${id}/edit`); revalidatePath("/calendar");
+  redirect("/shifts?saved=shift-notes");
+}
+
+/**
+ * Puts a synced shift's event on its job's ignore list, so sync will not add
+ * it again. True when there was nothing to remember or it was remembered.
+ */
+async function forgetGoogleEvent(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, shiftId: string) {
+  const { data: linked } = await supabase.from("shifts").select("job_id,google_calendar_id,google_event_id,jobs(google_sync_ignored)").eq("id", shiftId).eq("user_id", userId).maybeSingle();
+  if (!linked?.google_calendar_id || !linked.google_event_id) return true;
+  const key = `${linked.google_calendar_id}:${linked.google_event_id}`;
+  const ignored = [...new Set([...(linked.jobs?.google_sync_ignored ?? []), key])].slice(-500);
+  const { error } = await supabase.from("jobs").update({ google_sync_ignored: ignored }).eq("id", linked.job_id).eq("user_id", userId);
+  return !error;
+}
+
+/**
+ * Stops one synced shift following Google, so it can be corrected here -- the
+ * only way to fix a shift already worked, since sync never moves one. Its
+ * event is remembered so sync does not add it again as a second shift.
+ */
+export async function stopFollowingGoogle(formData: FormData) {
+  const profile = await requireUser();
+  const id = resourceId(formData);
+  const supabase = await createServerSupabaseClient();
+  if (!(await forgetGoogleEvent(supabase, profile.id, id))) fail("Unable to update the shift. Please try again.");
+  const { error } = await supabase.from("shifts").update({ google_calendar_id: null, google_event_id: null, google_adopted: false }).eq("id", id).eq("user_id", profile.id);
+  if (error) fail("Unable to update the shift. Please try again.");
+  revalidatePath("/shifts"); revalidatePath("/calendar");
+  redirect(`/shifts/${id}/edit`);
 }

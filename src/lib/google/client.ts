@@ -69,20 +69,88 @@ export type GoogleCalendarListEntry = { id: string; summary: string; color: stri
 
 export async function listCalendars(accessToken: string): Promise<GoogleCalendarListEntry[]> {
   const body = await calendarGet<{ items?: { id: string; summary?: string; summaryOverride?: string; backgroundColor?: string; primary?: boolean }[] }>(accessToken, "/users/me/calendarList", { minAccessRole: "reader", maxResults: "100", fields: "items(id,summary,summaryOverride,backgroundColor,primary)" });
-  return (body.items ?? []).map((item) => ({ id: item.id, summary: item.summaryOverride ?? item.summary ?? item.id, color: item.backgroundColor ?? "#9486ff", primary: item.primary === true }));
+  // The colour goes into inline styles, so only a plain hex value is accepted from Google.
+  return (body.items ?? []).map((item) => ({ id: item.id, summary: item.summaryOverride ?? item.summary ?? item.id, color: /^#[0-9a-f]{6}$/i.test(item.backgroundColor ?? "") ? item.backgroundColor! : "#9486ff", primary: item.primary === true }));
 }
 
-export async function listEvents(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string): Promise<CalendarEvent[]> {
+export async function listEvents(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string, maxResults = 50): Promise<CalendarEvent[]> {
   const pages = await Promise.allSettled(calendarIds.map(async (calendarId) => {
     const body = await calendarGet<{ items?: GoogleEventResource[] }>(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
       timeMin: range.timeMin,
       timeMax: range.timeMax,
       singleEvents: "true",
       orderBy: "startTime",
-      maxResults: "50",
+      maxResults: String(maxResults),
       fields: "items(id,status,summary,transparency,start,end,attendees(self,responseStatus))",
     });
     return (body.items ?? []).map((item) => normalizeGoogleEvent(item, calendarId, timeZone)).filter((event): event is CalendarEvent => event !== null);
   }));
   return mergeCalendarResults(pages, (reason) => reason instanceof GoogleAuthError);
+}
+
+/** Calendar id → colour, with Google's "primary" alias pointing at the primary calendar's colour. */
+export function calendarColorMap(calendars: GoogleCalendarListEntry[]) {
+  const colors = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
+  const primary = calendars.find((calendar) => calendar.primary);
+  if (primary) colors.set("primary", primary.color);
+  return colors;
+}
+
+/**
+ * Events for a sync run: every page (at most 10 of 250 per calendar), and which
+ * calendars failed. The sync deletes shifts whose events are gone, so a
+ * calendar that failed or was cut short must be reported rather than silently
+ * returning fewer events. An auth failure still fails the whole call.
+ */
+export async function listEventsForSync(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string): Promise<{ events: CalendarEvent[]; failedCalendarIds: string[] }> {
+  const results = await Promise.allSettled(calendarIds.map(async (calendarId) => {
+    const events: CalendarEvent[] = [];
+    let pageToken: string | undefined;
+    for (let page = 0; page < 10; page += 1) {
+      const body = await calendarGet<{ items?: GoogleEventResource[]; nextPageToken?: string }>(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
+        timeMin: range.timeMin,
+        timeMax: range.timeMax,
+        singleEvents: "true",
+        orderBy: "startTime",
+        maxResults: "250",
+        fields: "items(id,status,summary,transparency,start,end,attendees(self,responseStatus)),nextPageToken",
+        ...(pageToken ? { pageToken } : {}),
+      });
+      for (const item of body.items ?? []) {
+        const event = normalizeGoogleEvent(item, calendarId, timeZone);
+        if (event) events.push(event);
+      }
+      if (!body.nextPageToken) return events;
+      pageToken = body.nextPageToken;
+    }
+    throw new Error("Calendar has more events than one sync reads");
+  }));
+
+  const auth = results.find((result): result is PromiseRejectedResult => result.status === "rejected" && result.reason instanceof GoogleAuthError);
+  if (auth) throw auth.reason;
+  const failedCalendarIds = calendarIds.filter((_, index) => results[index].status === "rejected");
+  const seen = new Set<string>();
+  const events = results
+    .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+    .filter((event) => (seen.has(event.id) ? false : (seen.add(event.id), true)));
+  return { events, failedCalendarIds };
+}
+
+/**
+ * One event by id: whether an event missing from a sync fetch is really gone.
+ * Deleted (404/410) or cancelled is "gone"; anything unreadable throws, so the
+ * caller keeps the shift rather than guessing.
+ */
+export async function getEvent(accessToken: string, calendarId: string, eventId: string, timeZone: string): Promise<CalendarEvent | "gone"> {
+  const url = new URL(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
+  url.search = new URLSearchParams({ fields: "id,status,summary,transparency,start,end,attendees(self,responseStatus)" }).toString();
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+  if (response.status === 404 || response.status === 410) return "gone";
+  if (response.status === 401) throw new GoogleAuthError("expired");
+  if (!response.ok) throw new Error(`Calendar API event returned ${response.status}`);
+  const body = (await response.json()) as GoogleEventResource;
+  if (body.status === "cancelled") return "gone";
+  const event = normalizeGoogleEvent(body, calendarId, timeZone);
+  if (!event) throw new Error("Calendar API event could not be read");
+  return event;
 }

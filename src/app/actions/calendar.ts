@@ -7,6 +7,8 @@ import { listCalendars } from "@/lib/google/client";
 import { deleteConnection, withCalendarAccess } from "@/lib/google/connection";
 import type { SavedFormState } from "@/lib/form-state";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { jobGoogleSettingsSchema } from "@/lib/validation";
+import { isGoogleCalendarEnabled } from "@/lib/google/config";
 
 /** Keeps only ids present in the user's live Google calendar list; "primary" stays valid as Google's alias. */
 export async function saveCalendarSelection(_previous: SavedFormState, formData: FormData): Promise<SavedFormState> {
@@ -37,4 +39,42 @@ export async function disconnectGoogleCalendar() {
   revalidatePath("/");
   revalidatePath("/settings");
   redirect("/settings?saved=google-disconnected");
+}
+
+/**
+ * A job's Google Calendar settings. A named calendar must be one of the user's
+ * live calendars (the primary one is stored as Google's "primary" alias, which
+ * is how the calendar picker and the sync fetch it). Turning sync off detaches
+ * the job's synced shifts -- they stay, as ordinary shifts -- and forgets the
+ * events the user had deleted.
+ */
+export async function saveJobGoogleSettings(_previous: SavedFormState, formData: FormData): Promise<SavedFormState> {
+  const profile = await requireUser();
+  if (!isGoogleCalendarEnabled()) return { message: "Google Calendar isn't available right now.", savedAt: null };
+  const parsed = jobGoogleSettingsSchema.safeParse({ jobId: formData.get("jobId"), keyword: formData.get("keyword"), calendarId: formData.get("calendarId"), sync: formData.get("sync") });
+  if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "Check the Google Calendar settings.", savedAt: null };
+  const { jobId, keyword, sync } = parsed.data;
+  let calendarId = parsed.data.calendarId;
+  if (calendarId && calendarId !== "primary") {
+    const access = await withCalendarAccess(profile.id, (token) => listCalendars(token));
+    if (access.status !== "ok") return { message: "Couldn't reach Google Calendar to check that calendar. Try again.", savedAt: null };
+    const match = access.value.find((calendar) => calendar.id === calendarId);
+    if (!match) return { message: "Choose one of your Google calendars.", savedAt: null };
+    if (match.primary) calendarId = "primary";
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const { data: job } = await supabase.from("jobs").select("id,google_sync").eq("id", jobId).eq("user_id", profile.id).maybeSingle();
+  if (!job) return { message: "This job could not be found.", savedAt: null };
+  const turningOff = job.google_sync && !sync;
+  if (turningOff) {
+    const { error: detachError } = await supabase.from("shifts").update({ google_calendar_id: null, google_event_id: null }).eq("job_id", jobId).eq("user_id", profile.id).not("google_event_id", "is", null);
+    if (detachError) return { message: "Couldn't turn off sync. Try again.", savedAt: null };
+  }
+  const { error } = await supabase.from("jobs").update({ google_keyword: keyword, google_calendar_id: calendarId, google_sync: sync, ...(turningOff ? { google_sync_ignored: [] } : {}) }).eq("id", jobId).eq("user_id", profile.id);
+  if (error) return { message: "Couldn't save the Google Calendar settings. Try again.", savedAt: null };
+  // Let the next page visit sync straight away rather than waiting out the throttle.
+  if (sync) await supabase.from("google_calendar_connections").update({ shifts_synced_at: null }).eq("user_id", profile.id);
+  revalidatePath("/"); revalidatePath("/jobs"); revalidatePath("/calendar"); revalidatePath("/shifts");
+  return { message: "", savedAt: Date.now() };
 }

@@ -175,7 +175,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
       <PreviewFigure label="Tax + deductions" value={`−${formatCents(preview.pay.taxCents + preview.pay.deductionCents)}`} />
       <PreviewFigure label="Net" value={formatCents(preview.pay.netCents)} accent />
     </dl>}
-    {calendarCheck && <CalendarClashNotice startsAt={span?.startsAt ?? null} endsAt={span?.endsAt ?? null} timeZone={timeZone} repeatWeeks={repeatWeeks} />}
+    {calendarCheck && <CalendarClashNotice startsAt={span?.startsAt ?? null} endsAt={span?.endsAt ?? null} jobId={jobId} timeZone={timeZone} repeatWeeks={repeatWeeks} />}
     {preview && repeatWeeks > 1 && <p className="-mt-2 text-sm text-[var(--muted-foreground)]">{repeatWeeks} shifts · {formatMinutes(preview.minutes * repeatWeeks)} · {formatCents(preview.pay.netCents * repeatWeeks)} net, if every week fits your caps.</p>}
     {mode === "create" && <div className="field-label"><span id="repeat-label">Repeat</span><PremiumSelect name="repeatWeeks" defaultValue="1" options={REPEAT_OPTIONS} labelledBy="repeat-label" onValueChange={(value) => setRepeatWeeks(Number(value))} /></div>}
     {generalMessage && <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{generalMessage}</p>}

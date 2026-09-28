@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, ChartNoAxesCombined, ClipboardClock, Drama, Menu, Moon, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ClipboardClock, Drama, Menu, Moon, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -12,12 +12,13 @@ import { AccountMenu } from "@/components/account-menu";
 import { Brand } from "@/components/brand";
 
 /**
- * The work the app is for. These four are the bottom tab bar on a phone, where
+ * The work the app is for. These five are the bottom tab bar on a phone, where
  * there is room for exactly this many thumb-sized targets and no more.
  */
 const navigation = [
   { href: "/", label: "Overview", icon: ChartNoAxesCombined },
   { href: "/shifts", label: "Shifts", icon: ClipboardClock },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/jobs", label: "Jobs", icon: BriefcaseBusiness },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -27,7 +28,7 @@ const navigation = [
  * more entry than the bottom bar.
  *
  * Imposter is a diversion, not part of tracking your hours, so it does not
- * belong in the four permanent tabs a phone shows over every page. Putting it
+ * belong in the five permanent tabs a phone shows over every page. Putting it
  * only in the drawer would hide it from desktop entirely, since the drawer is
  * `lg:hidden` and the sidebar takes over there -- so "menu" means both of them,
  * and the bottom bar is the one place it stays out of.
@@ -93,7 +94,7 @@ function BottomNavigationLink({ item, active }: { item: NavigationItem; active: 
  * clear of the iOS home indicator and the Android gesture bar -- without it the
  * bar looks correct in a browser and gets cropped inside the installed app.
  *
- * Admin stays in the drawer; these four are the everyday destinations.
+ * Admin stays in the drawer; these five are the everyday destinations.
  */
 function BottomNavigation({ pathname }: { pathname: string }) {
   return <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t bg-[var(--background)]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">

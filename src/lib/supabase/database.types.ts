@@ -498,6 +498,8 @@ export type Database = {
           google_email: string;
           refresh_token_ciphertext: string;
           scopes: string[];
+          shifts_synced_at: string | null;
+          sync_issues: Json;
           selected_calendar_ids: string[];
           status: string;
           updated_at: string;
@@ -510,6 +512,8 @@ export type Database = {
           google_email: string;
           refresh_token_ciphertext: string;
           scopes: string[];
+          shifts_synced_at?: string | null;
+          sync_issues?: Json;
           selected_calendar_ids?: string[];
           status?: string;
           updated_at?: string;
@@ -522,6 +526,8 @@ export type Database = {
           google_email?: string;
           refresh_token_ciphertext?: string;
           scopes?: string[];
+          shifts_synced_at?: string | null;
+          sync_issues?: Json;
           selected_calendar_ids?: string[];
           status?: string;
           updated_at?: string;
@@ -577,6 +583,10 @@ export type Database = {
           archived_at: string | null;
           color: string;
           created_at: string;
+          google_calendar_id: string | null;
+          google_keyword: string | null;
+          google_sync: boolean;
+          google_sync_ignored: string[];
           hourly_rate_cents: number;
           id: string;
           name: string;
@@ -589,6 +599,10 @@ export type Database = {
           archived_at?: string | null;
           color?: string;
           created_at?: string;
+          google_calendar_id?: string | null;
+          google_keyword?: string | null;
+          google_sync?: boolean;
+          google_sync_ignored?: string[];
           hourly_rate_cents?: number;
           id?: string;
           name: string;
@@ -601,6 +615,10 @@ export type Database = {
           archived_at?: string | null;
           color?: string;
           created_at?: string;
+          google_calendar_id?: string | null;
+          google_keyword?: string | null;
+          google_sync?: boolean;
+          google_sync_ignored?: string[];
           hourly_rate_cents?: number;
           id?: string;
           name?: string;
@@ -664,6 +682,9 @@ export type Database = {
           deduction_cents: number;
           deductions_snapshot: Json;
           ends_at: string;
+          google_adopted: boolean;
+          google_calendar_id: string | null;
+          google_event_id: string | null;
           gross_cents: number;
           hourly_rate_cents: number;
           id: string;
@@ -681,6 +702,9 @@ export type Database = {
           deduction_cents?: number;
           deductions_snapshot?: Json;
           ends_at: string;
+          google_adopted?: boolean;
+          google_calendar_id?: string | null;
+          google_event_id?: string | null;
           gross_cents?: number;
           hourly_rate_cents?: number;
           id?: string;
@@ -698,6 +722,9 @@ export type Database = {
           deduction_cents?: number;
           deductions_snapshot?: Json;
           ends_at?: string;
+          google_adopted?: boolean;
+          google_calendar_id?: string | null;
+          google_event_id?: string | null;
           gross_cents?: number;
           hourly_rate_cents?: number;
           id?: string;

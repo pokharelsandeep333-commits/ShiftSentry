@@ -16,6 +16,10 @@ import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
 import { weekStartFor } from "@/lib/time";
 import { WEEKS_PER_PAGE, clampWeeks } from "@/lib/shift-log";
 import { formatMinutes } from "@/lib/utils";
+import { GoogleSyncTrigger } from "@/components/google-sync-trigger";
+import { LoadError } from "@/components/load-error";
+import { isGoogleCalendarEnabled } from "@/lib/google/config";
+import { hasSyncingJob } from "@/lib/google/shift-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +28,7 @@ type JobRef = { name: string; color: string; archived_at: string | null };
 type ShiftRow = {
   id: string;
   job_id: string;
+  google_event_id: string | null;
   starts_at: string;
   ends_at: string;
   notes: string | null;
@@ -52,6 +57,7 @@ function createdMessage(created: number, skipped: number) {
 /** What a mutation that redirected back here should confirm. */
 function savedMessage(params: SearchParams) {
   if (single(params.saved) === "shift-deleted") return "Shift deleted";
+  if (single(params.saved) === "shift-notes") return "Notes saved";
   return createdMessage(Number(params.created ?? 0), Number(params.skipped ?? 0));
 }
 
@@ -96,6 +102,7 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const saved = savedMessage(params);
   const weeks = clampWeeks(single(params.weeks));
+  const syncing = isGoogleCalendarEnabled() && await hasSyncingJob(profile.id);
 
   const currentWeekStart = weekStartFor(new Date(), profile.time_zone, profile.week_starts_on);
   const windowStart = addDays(currentWeekStart, -7 * (weeks - 1));
@@ -104,8 +111,8 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   // No upper bound: scheduled future shifts always belong on this page. The
   // second query only asks whether anything older exists, so "Load older weeks"
   // never appears when it would do nothing.
-  const [{ data: shifts }, { count: olderCount }, { data: weeksBefore }] = await Promise.all([
-    supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,net_cents,jobs(name,color,archived_at)").eq("user_id", profile.id).gte("starts_at", windowStart.toISOString()).order("starts_at", { ascending: false }),
+  const [{ data: shifts, error: shiftsError }, { count: olderCount }, { data: weeksBefore }] = await Promise.all([
+    supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,net_cents,google_event_id,jobs(name,color,archived_at)").eq("user_id", profile.id).gte("starts_at", windowStart.toISOString()).order("starts_at", { ascending: false }),
     supabase.from("shifts").select("id", { count: "exact", head: true }).eq("user_id", profile.id).lt("starts_at", windowStart.toISOString()),
     supabase.rpc("shift_week_count_before", { p_time_zone: profile.time_zone, p_week_starts_on: profile.week_starts_on, p_before: windowStart.toISOString() }),
   ]);
@@ -123,7 +130,10 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   // within the window, rather than the page failing outright.
   const firstWeekNumber = (weeksBefore ?? 0) + 1;
 
+  if (shiftsError) return <><PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." /><LoadError what="shifts" /></>;
+
   return <>
+    {syncing && <GoogleSyncTrigger />}
     {saved && <SavedToast message={saved} clearParams={["created", "skipped", "saved"]} />}
     <PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." actions={<Link href="/shifts/new" className={buttonVariants()}><CalendarClock className="size-4" />Add shift</Link>} />
 
@@ -169,7 +179,7 @@ function ShiftListRow({ shift, timeZone, weeks }: { shift: ShiftRow; timeZone: s
 
   return <div className="flex flex-wrap items-center gap-4 rounded-2xl p-3.5 transition-colors hover:bg-[var(--surface-subtle)] sm:p-4">
     <span className="grid size-10 place-items-center rounded-xl" style={{ background: `${job?.color ?? "#98a2b3"}22`, color: job?.color ?? "#98a2b3" }}><Clock3 className="size-4" /></span>
-    <div className="min-w-48 flex-1"><p className="font-semibold">{job?.name ?? "Archived job"}</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.starts_at, timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.ends_at, timeZone, "h:mm a")}</p>{shift.notes && <p className="mt-1.5 line-clamp-1 text-sm text-[var(--muted-foreground)]">{shift.notes}</p>}</div>
+    <div className="min-w-48 flex-1"><p className="font-semibold">{job?.name ?? "Archived job"}{shift.google_event_id && <span className="ml-2 rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 align-middle text-[11px] font-semibold text-[var(--muted-foreground)]">From Google Calendar</span>}</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.starts_at, timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.ends_at, timeZone, "h:mm a")}</p>{shift.notes && <p className="mt-1.5 line-clamp-1 text-sm text-[var(--muted-foreground)]">{shift.notes}</p>}</div>
     <span className="rounded-xl bg-[var(--surface-subtle)] px-3 py-1.5 text-sm font-semibold">{formatMinutes(shiftMinutes(shift))}</span>
     <Badge variant={future ? "default" : "muted"} className="rounded-xl px-3 py-1.5">{future ? "Scheduled" : "Logged"}</Badge>
     <ShiftRowActions

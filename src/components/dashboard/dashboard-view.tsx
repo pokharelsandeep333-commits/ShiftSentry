@@ -135,7 +135,7 @@ function CapAlerts({ alerts }: { alerts: ThresholdAlert[] }) {
   </>;
 }
 
-export function DashboardView({ data }: { data: DashboardData }) {
+export function DashboardView({ data, calendarSlot }: { data: DashboardData; calendarSlot?: React.ReactNode }) {
   const [showProjections, dismissProjections] = useProjectionsExplainer();
   const projected = data.loggedMinutes + data.scheduledMinutes;
   // Hours large, leftover minutes small: the hero keeps its typography without
@@ -194,8 +194,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
       <Reveal delay={0.06}><Card className="h-full hover:-translate-y-0.5"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <EmptyState message="Add a job to start tracking its limit." href="/jobs" cta="Create your first job" />}</CardContent></Card></Reveal>
     </section>
 
-    <section className={cn("mt-6 grid grid-cols-1 gap-6", showProjections && "xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]")}>
+    <section className={cn("mt-6 grid grid-cols-1 gap-6", (showProjections || calendarSlot) && "xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]")}>
       <Reveal><Card className="h-full hover:-translate-y-0.5"><CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>Coming up</CardTitle><CardDescription>Your next scheduled shifts</CardDescription></div><Link href="/shifts" className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-semibold text-[var(--primary)] sm:min-h-0 transition-colors hover:bg-[var(--primary-soft)]">See all</Link></div></CardHeader><CardContent className="space-y-1">{data.upcomingShifts.length ? data.upcomingShifts.map((shift) => <Link key={shift.id} href={`/shifts/${shift.id}/edit`} className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-[var(--surface-subtle)]"><span className="grid size-10 place-items-center rounded-xl" style={{ background: `${shift.jobColor}22`, color: shift.jobColor }}><Clock3 className="size-4" /></span><div className="min-w-0 flex-1"><p className="font-semibold">{shift.jobName}</p><p className="truncate text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.startsAt, data.viewer.timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.endsAt, data.viewer.timeZone, "h:mm a")}</p></div><ArrowRight className="size-4 text-[var(--muted-foreground)]" /></Link>) : <EmptyState message="Nothing scheduled this week." href="/shifts/new" cta="Schedule your first shift" />}</CardContent></Card></Reveal>
+      {calendarSlot && <Reveal delay={0.06}>{calendarSlot}</Reveal>}
       {showProjections && <Reveal delay={0.06}><Card className="h-full hover:-translate-y-0.5"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>How projections work</CardTitle><CardDescription>Stay ahead instead of reacting late.</CardDescription></div><button type="button" onClick={dismissProjections} aria-label="Hide this explainer" className="-mr-1 -mt-1 grid size-11 shrink-0 place-items-center rounded-xl sm:size-8 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"><X className="size-4" /></button></div></CardHeader><CardContent className="space-y-2 text-sm"><ProjectionStep icon={CheckCircle2} color="var(--success)">Past and current shifts count as logged time.</ProjectionStep><ProjectionStep icon={CalendarClock} color="var(--primary)">Future shifts are included in your projected total.</ProjectionStep><ProjectionStep icon={AlertTriangle} color="var(--warning)">We alert you at 80%, 90%, and 100%.</ProjectionStep></CardContent></Card></Reveal>}
     </section>
   </>;
