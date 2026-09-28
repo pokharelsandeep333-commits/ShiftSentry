@@ -170,8 +170,10 @@ export async function updateShift(_previousState: ShiftActionState, formData: Fo
   const id = resourceIdSchema.safeParse(formData.get("id"));
   if (!id.success) return shiftError("This shift could not be found.");
   const supabase = await createServerSupabaseClient();
-  const { data: existing, error: existingError } = await supabase.from("shifts").select("id,job_id,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot").eq("id", id.data).eq("user_id", profile.id).maybeSingle();
+  const { data: existing, error: existingError } = await supabase.from("shifts").select("id,job_id,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,google_event_id").eq("id", id.data).eq("user_id", profile.id).maybeSingle();
   if (existingError || !existing) return shiftError("This shift could not be found.");
+  // A synced shift follows its Google event; only its notes are edited here.
+  if (existing.google_event_id) return shiftError("This shift comes from Google Calendar. Change its time there.");
 
   const input = parseShiftInput(formData, profile.time_zone);
   if ("error" in input) return input.error;
@@ -194,6 +196,15 @@ export async function deleteShift(formData: FormData) {
   const profile = await requireUser();
   const id = resourceId(formData);
   const supabase = await createServerSupabaseClient();
+  // A synced shift the user deletes stays deleted: its event goes on the job's
+  // ignore list so the next Google sync does not add it back.
+  const { data: linked } = await supabase.from("shifts").select("job_id,google_calendar_id,google_event_id,jobs(google_sync_ignored)").eq("id", id).eq("user_id", profile.id).maybeSingle();
+  if (linked?.google_calendar_id && linked.google_event_id) {
+    const key = `${linked.google_calendar_id}:${linked.google_event_id}`;
+    const ignored = [...new Set([...(linked.jobs?.google_sync_ignored ?? []), key])].slice(-500);
+    const { error: ignoreError } = await supabase.from("jobs").update({ google_sync_ignored: ignored }).eq("id", linked.job_id).eq("user_id", profile.id);
+    if (ignoreError) fail("Unable to delete the shift. Please try again.");
+  }
   const { error } = await supabase.from("shifts").delete().eq("id", id).eq("user_id", profile.id);
   if (error) fail("Unable to delete the shift. Please try again.");
   revalidatePath("/"); revalidatePath("/shifts");
@@ -304,4 +315,16 @@ export async function updateSettings(_previousState: FormActionState, formData: 
   });
   if (problem) return { message: problem };
   revalidatePath("/"); revalidatePath("/settings"); redirect("/settings?saved=1");
+}
+
+/** Notes are the one thing edited here on a shift that comes from Google Calendar. */
+export async function updateShiftNotes(formData: FormData) {
+  const profile = await requireUser();
+  const id = resourceId(formData);
+  const notes = String(formData.get("notes") ?? "").trim().slice(0, 500) || null;
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.from("shifts").update({ notes }).eq("id", id).eq("user_id", profile.id);
+  if (error) fail("Unable to save the notes. Please try again.");
+  revalidatePath("/shifts"); revalidatePath(`/shifts/${id}/edit`); revalidatePath("/calendar");
+  redirect("/shifts?saved=shift-notes");
 }

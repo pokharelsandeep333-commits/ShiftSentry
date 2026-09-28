@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { getConnectionSummary } from "@/lib/google/connection";
+import { updateShiftNotes } from "@/app/actions/work";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +20,7 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const supabase = await createServerSupabaseClient();
   const [{ data: shift }, { data: jobs }] = await Promise.all([
-    supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot").eq("id", id).eq("user_id", profile.id).maybeSingle(),
+    supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,google_event_id").eq("id", id).eq("user_id", profile.id).maybeSingle(),
     supabase.from("jobs").select("id,name,color,hourly_rate_cents,tax_rate_basis_points,job_deductions(name,rate_basis_points),archived_at").eq("user_id", profile.id).order("name"),
   ]);
   if (!shift) notFound();
@@ -28,6 +30,25 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
   const paySnapshot = { hourlyRateCents: shift.hourly_rate_cents, taxRateBasisPoints: shift.tax_rate_basis_points, deductions: Array.isArray(shift.deductions_snapshot) ? shift.deductions_snapshot as { name: string; rateBasisPoints: number }[] : [] };
 
   const selectableJobs = (jobs ?? []).filter((job) => !job.archived_at || job.id === shift.job_id).map((job) => ({ id: job.id, name: job.name, color: job.color, archived: Boolean(job.archived_at), hourlyRateCents: job.hourly_rate_cents, taxRateBasisPoints: job.tax_rate_basis_points, deductions: (job.job_deductions ?? []).map((deduction) => ({ name: deduction.name, rateBasisPoints: deduction.rate_basis_points })) }));
+
+  // A synced shift follows its Google event, so here it is read-only apart from its notes.
+  if (shift.google_event_id) {
+    const job = (jobs ?? []).find((candidate) => candidate.id === shift.job_id);
+    return <>
+      <PageHeader eyebrow="Shift log" title="Shift from Google Calendar" description="This shift follows its event in Google Calendar. Change the time there; it updates here on the next sync." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Back</Link>} />
+      <Card className="max-w-2xl">
+        <CardHeader><CardTitle>{job?.name ?? "Shift"}</CardTitle></CardHeader>
+        <CardContent className="grid gap-5">
+          <p className="text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.starts_at, profile.time_zone, "EEEE, MMM d · h:mm a")} – {formatInTimeZone(shift.ends_at, profile.time_zone, "h:mm a")}</p>
+          <form action={updateShiftNotes} className="grid gap-3">
+            <input type="hidden" name="id" value={shift.id} />
+            <label className="field-label"><span>Notes</span><textarea name="notes" defaultValue={shift.notes ?? ""} maxLength={500} className="field-textarea text-sm" placeholder="Optional notes" /></label>
+            <div><SubmitButton label="Save notes" pendingLabel="Saving…" /></div>
+          </form>
+        </CardContent>
+      </Card>
+    </>;
+  }
 
   return <>
     <PageHeader eyebrow="Shift log" title="Edit shift" description="Update the job, schedule, or notes for this shift." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />

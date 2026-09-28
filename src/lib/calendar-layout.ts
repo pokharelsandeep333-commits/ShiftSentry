@@ -10,7 +10,8 @@ import { matchEventsToShifts, suggestJob, type MatchJob } from "./shift-match";
  * days it touches. Overlapping items are split into lanes; back-to-back ones
  * are not overlapping (half-open, like the clash rule).
  */
-export type CalendarShiftInput = { id: string; jobName: string; keyword?: string | null; color: string; startsAt: string; endsAt: string };
+/** `linked`: the shift was added by Google sync and follows its event. */
+export type CalendarShiftInput = { id: string; jobName: string; keyword?: string | null; color: string; startsAt: string; endsAt: string; linked?: boolean };
 export type CalendarItem = {
   key: string; kind: "shift" | "event"; title: string; startsAt: string; endsAt: string; allDay: boolean; color: string; href: string | null; overlap: boolean;
   /** A shift that also sits in Google Calendar; its copy is merged in rather than drawn twice. */
@@ -36,7 +37,7 @@ export function buildCalendarItems(shifts: CalendarShiftInput[], events: Calenda
   const shiftItems = shifts.map((shift): CalendarItem => ({
     key: `shift:${shift.id}`, kind: "shift", title: shift.jobName, startsAt: shift.startsAt, endsAt: shift.endsAt, allDay: false,
     color: shift.color, href: `/shifts/${shift.id}/edit`, overlap: findClashes(shift, otherEvents).length > 0,
-    alsoInGoogle: copied.has(shift.id), importHref: null, importJob: null,
+    alsoInGoogle: copied.has(shift.id) || Boolean(shift.linked), importHref: null, importJob: null,
   }));
   const eventItems = otherEvents.map((event): CalendarItem => {
     const job = options.jobs && options.timeZone ? suggestJob(event, options.jobs) : null;
