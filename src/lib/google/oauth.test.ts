@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { REQUIRED_CALENDAR_SCOPES, buildAuthorizationUrl, createPkcePair, decodeOAuthCookie, encodeOAuthCookie, googleRedirectUri, hasRequiredScopes, readIdTokenEmail, statesMatch } from "./oauth";
+import { classifyTokenError } from "./client";
 
 test("PKCE challenge is the S256 of the verifier, base64url", () => {
   const { verifier, challenge } = createPkcePair();
@@ -49,4 +50,10 @@ test("state comparison", () => {
   assert.equal(statesMatch("abc", "abc"), true);
   assert.equal(statesMatch("abc", "abd"), false);
   assert.equal(statesMatch("abc", "abcd"), false);
+});
+
+test("an invalid_grant from the token endpoint means reconnect; anything else is transient", () => {
+  assert.equal(classifyTokenError(400, { error: "invalid_grant" }), "invalid_grant");
+  assert.equal(classifyTokenError(400, { error: "invalid_request" }), "other");
+  assert.equal(classifyTokenError(503, null), "other");
 });
