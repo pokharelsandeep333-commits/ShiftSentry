@@ -4,6 +4,8 @@ import { findClashes } from "@/lib/calendar-clash";
 import { listEvents } from "@/lib/google/client";
 import { withCalendarAccess } from "@/lib/google/connection";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { isSameShift } from "@/lib/shift-match";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +26,15 @@ export async function GET(request: Request) {
   const end = Date.parse(url.searchParams.get("end") ?? "");
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > 24 * 60 * 60_000) return json({ status: "unavailable" }, 400);
   const range = { startsAt: new Date(start).toISOString(), endsAt: new Date(end).toISOString() };
+  // The job being entered, so a Google copy of this very shift reads as a match, not a clash.
+  const jobId = url.searchParams.get("job");
+  const supabase = await createServerSupabaseClient();
+  const { data: job } = jobId ? await supabase.from("jobs").select("name").eq("id", jobId).eq("user_id", profile.id).maybeSingle() : { data: null };
 
   const result = await withCalendarAccess(profile.id, (token, calendarIds) => listEvents(token, calendarIds, { timeMin: range.startsAt, timeMax: range.endsAt }, profile.time_zone));
   if (result.status !== "ok") return json({ status: result.status });
-  return json({ status: "ok", clashes: findClashes(range, result.value).map(({ id, title, startsAt, endsAt }) => ({ id, title, startsAt, endsAt })) });
+  const copies = result.value.filter((event) => isSameShift(event, { jobName: job?.name ?? "", ...range }));
+  const others = result.value.filter((event) => !copies.includes(event));
+  const pick = ({ id, title, startsAt, endsAt }: (typeof result.value)[number]) => ({ id, title, startsAt, endsAt });
+  return json({ status: "ok", clashes: findClashes(range, others).map(pick), matches: copies.map(pick) });
 }

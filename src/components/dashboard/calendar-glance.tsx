@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { buildGlance, glanceWindow, type GlanceShift } from "@/lib/calendar-glance";
 import { calendarColorMap, listCalendars, listEvents } from "@/lib/google/client";
 import { withCalendarAccess } from "@/lib/google/connection";
+import { matchEventsToShifts } from "@/lib/shift-match";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -23,9 +24,10 @@ export async function CalendarGlance({ userId, timeZone }: { userId: string; tim
   const now = new Date();
   const range = glanceWindow(now, timeZone);
   const supabase = await createServerSupabaseClient();
-  const [access, { data: shiftRows }] = await Promise.all([
+  const [access, { data: shiftRows, error: shiftError }] = await Promise.all([
     withCalendarAccess(userId, async (token, calendarIds) => {
-      const [events, calendars] = await Promise.all([listEvents(token, calendarIds, range, timeZone), listCalendars(token)]);
+      // The calendar list only supplies colours; losing it must not lose the events.
+      const [events, calendars] = await Promise.all([listEvents(token, calendarIds, range, timeZone), listCalendars(token).catch(() => [])]);
       return { events, colors: calendarColorMap(calendars) };
     }),
     supabase.from("shifts").select("id,starts_at,ends_at,jobs!inner(name,archived_at)").eq("user_id", userId).is("jobs.archived_at", null).lt("starts_at", range.timeMax).gt("ends_at", range.timeMin),
@@ -37,8 +39,12 @@ export async function CalendarGlance({ userId, timeZone }: { userId: string; tim
     return null;
   }
 
+  // Without the shifts, a work shift kept in Google would be listed here as an event.
+  if (shiftError) return <Shell><p className="text-sm text-[var(--muted-foreground)]">Couldn&apos;t load your calendar right now.</p></Shell>;
   const shifts: GlanceShift[] = (shiftRows ?? []).map((row) => ({ id: row.id, jobName: row.jobs.name, startsAt: row.starts_at, endsAt: row.ends_at }));
-  const { days, hidden } = buildGlance(access.value.events, shifts, now, timeZone);
+  // Google copies of shifts are already under "Coming up"; list only the rest.
+  const copies = matchEventsToShifts(access.value.events, shifts);
+  const { days, hidden } = buildGlance(access.value.events.filter((event) => !copies.has(`${event.calendarId}:${event.id}`)), shifts, now, timeZone);
   if (days.length === 0) return <Shell><p className="text-sm text-[var(--muted-foreground)]">Nothing on your calendar for the next 7 days.</p></Shell>;
 
   const time = (iso: string) => formatInTimeZone(iso, timeZone, "h:mm a");

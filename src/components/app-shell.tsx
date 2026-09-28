@@ -12,7 +12,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { Brand } from "@/components/brand";
 
 /**
- * The work the app is for. These four are the bottom tab bar on a phone, where
+ * The work the app is for. These five are the bottom tab bar on a phone, where
  * there is room for exactly this many thumb-sized targets and no more.
  */
 const navigation = [
@@ -28,7 +28,7 @@ const navigation = [
  * more entry than the bottom bar.
  *
  * Imposter is a diversion, not part of tracking your hours, so it does not
- * belong in the four permanent tabs a phone shows over every page. Putting it
+ * belong in the five permanent tabs a phone shows over every page. Putting it
  * only in the drawer would hide it from desktop entirely, since the drawer is
  * `lg:hidden` and the sidebar takes over there -- so "menu" means both of them,
  * and the bottom bar is the one place it stays out of.

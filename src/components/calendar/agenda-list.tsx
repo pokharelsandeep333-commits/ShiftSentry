@@ -18,12 +18,14 @@ export function AgendaList({ days, today, items, timeZone }: { days: string[]; t
             <span className={cn("mt-1.5 size-2.5 shrink-0 rounded-full", item.kind === "event" && "ring-2 ring-inset ring-[var(--card)]")} style={{ backgroundColor: item.color }} />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium">{item.title}</span>
-              <span className="block text-sm text-[var(--muted-foreground)]">{item.allDay ? "All day" : `${time(item.startsAt)} – ${time(item.endsAt)}`}{item.kind === "event" ? " · Google Calendar" : ""}</span>
+              <span className="block text-sm text-[var(--muted-foreground)]">{item.allDay ? "All day" : `${time(item.startsAt)} – ${time(item.endsAt)}`}{item.kind === "event" ? " · Google Calendar" : item.alsoInGoogle ? " · also in Google Calendar" : ""}</span>
+              {item.importJob && <span className="mt-1 block text-sm font-semibold text-[var(--primary)]">+ Add as {item.importJob} shift</span>}
             </span>
             {item.overlap && <span className="shrink-0 rounded-lg bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] px-2 py-0.5 text-xs font-semibold text-[color-mix(in_srgb,var(--warning)_62%,var(--foreground))]">Overlap</span>}
           </>;
-          return <li key={item.key}>{item.href
-            ? <Link href={item.href} className="flex items-start gap-3 rounded-2xl border bg-[var(--card)] p-3 transition-colors hover:bg-[var(--surface-subtle)]">{body}</Link>
+          const target = item.href ?? item.importHref;
+          return <li key={item.key}>{target
+            ? <Link href={target} className="flex items-start gap-3 rounded-2xl border bg-[var(--card)] p-3 transition-colors hover:bg-[var(--surface-subtle)]">{body}</Link>
             : <div className="flex items-start gap-3 rounded-2xl border bg-[var(--card)] p-3">{body}</div>}</li>;
         })}
       </ul>

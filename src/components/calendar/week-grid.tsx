@@ -37,9 +37,10 @@ export function WeekGrid({ days, today, items, timeZone }: { days: string[]; tod
           {hours.map((hour) => <Link key={hour} href={newShiftHref(day, hour)} tabIndex={-1} aria-hidden="true" className="block border-t border-[color-mix(in_srgb,var(--border)_60%,transparent)] transition-colors hover:bg-[var(--surface-subtle)]" style={{ height: HOUR }} />)}
           {layoutDay(items, day, timeZone).map(({ item, top, height, lane, lanes }) => {
             const style = { ...itemStyle(item), top: (top / 60) * HOUR, height: Math.max(20, (height / 60) * HOUR - 2), left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` };
-            const body = <><span className="block truncate">{item.title}</span><span className="block truncate font-normal opacity-80">{time(item.startsAt)}–{time(item.endsAt)}</span></>;
-            return item.href
-              ? <Link key={item.key} href={item.href} className={cn(itemClass(item), "absolute z-10")} style={style}>{body}</Link>
+            const body = <><span className="block truncate">{item.title}</span><span className="block truncate font-normal opacity-80">{time(item.startsAt)}–{time(item.endsAt)}{item.alsoInGoogle ? " · in Google" : ""}</span>{item.importJob && <span className="mt-0.5 block truncate text-[var(--primary)]">+ Add as {item.importJob}</span>}</>;
+            const target = item.href ?? item.importHref;
+            return target
+              ? <Link key={item.key} href={target} title={item.importJob ? `Add as a ${item.importJob} shift` : undefined} className={cn(itemClass(item), "absolute z-10")} style={style}>{body}</Link>
               : <div key={item.key} className={cn(itemClass(item), "absolute z-10")} style={style}>{body}</div>;
           })}
         </div>)}

@@ -69,7 +69,8 @@ export type GoogleCalendarListEntry = { id: string; summary: string; color: stri
 
 export async function listCalendars(accessToken: string): Promise<GoogleCalendarListEntry[]> {
   const body = await calendarGet<{ items?: { id: string; summary?: string; summaryOverride?: string; backgroundColor?: string; primary?: boolean }[] }>(accessToken, "/users/me/calendarList", { minAccessRole: "reader", maxResults: "100", fields: "items(id,summary,summaryOverride,backgroundColor,primary)" });
-  return (body.items ?? []).map((item) => ({ id: item.id, summary: item.summaryOverride ?? item.summary ?? item.id, color: item.backgroundColor ?? "#9486ff", primary: item.primary === true }));
+  // The colour goes into inline styles, so only a plain hex value is accepted from Google.
+  return (body.items ?? []).map((item) => ({ id: item.id, summary: item.summaryOverride ?? item.summary ?? item.id, color: /^#[0-9a-f]{6}$/i.test(item.backgroundColor ?? "") ? item.backgroundColor! : "#9486ff", primary: item.primary === true }));
 }
 
 export async function listEvents(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string, maxResults = 50): Promise<CalendarEvent[]> {

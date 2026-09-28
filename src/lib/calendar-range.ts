@@ -28,9 +28,16 @@ function startOfWeek(date: string, weekStartsOn: number) {
   return addLocalDays(date, -((noon(date).getUTCDay() - weekStartsOn + 7) % 7));
 }
 
-/** A real calendar date or null: "2026-02-30" parses, then rolls to March, so compare the round trip. */
+/**
+ * A real calendar date in a sane range, or null. "2026-02-30" parses and rolls
+ * to March, so the round trip is compared. The year is bounded because the date
+ * comes from the URL: year 0000 steps into year -1, whose ISO form no longer
+ * sorts like a date, and the day loop below would never end.
+ */
 function validDate(value: string | undefined) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const year = Number(value.slice(0, 4));
+  if (year < 1900 || year > 2200) return null;
   const parsed = noon(value);
   return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? null : value;
 }
@@ -63,7 +70,8 @@ export function resolveCalendarRange(input: { view?: string; date?: string }, no
   }
 
   const days: string[] = [];
-  for (let day = first; day < end; day = addLocalDays(day, 1)) days.push(day);
+  // Bounded as well as terminated: a month grid is at most six weeks.
+  for (let day = first; day < end && days.length < 42; day = addLocalDays(day, 1)) days.push(day);
   return {
     view, anchor, today, month: anchor.slice(0, 7), days, prev, next, label,
     timeMin: fromZonedTime(`${first}T00:00:00`, timeZone).toISOString(),

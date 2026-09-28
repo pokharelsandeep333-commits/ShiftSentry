@@ -36,7 +36,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const segment = (active: boolean) => cn("inline-flex h-9 items-center rounded-lg px-3 text-sm font-semibold transition-colors", active ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]");
 
   return <>
-    <CalendarViewMemory view={range.view} explicit={view === "week" || view === "month"} />
+    <CalendarViewMemory view={range.view} explicit={view === "week" || view === "month"} date={date} />
     <PageHeader eyebrow="Schedule" title="Calendar" description="Your shifts, and your Google Calendar when it's connected." actions={<Link href="/shifts/new" className={buttonVariants()}><Plus className="size-4" />Add shift</Link>} />
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2">
@@ -56,6 +56,6 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         ? <WeekGrid days={range.days} today={range.today} items={items} timeZone={profile.time_zone} />
         : <MonthGrid days={range.days} today={range.today} month={range.month} items={items} timeZone={profile.time_zone} />}
     </div>
-    <div className="lg:hidden"><AgendaList days={range.days} today={range.today} items={items} timeZone={profile.time_zone} /></div>
+    <div className="lg:hidden"><AgendaList days={range.view === "month" ? range.days.filter((day) => day.slice(0, 7) === range.month) : range.days} today={range.today} items={items} timeZone={profile.time_zone} /></div>
   </>;
 }

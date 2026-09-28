@@ -47,3 +47,13 @@ test("local day arithmetic crosses months and years", () => {
   assert.equal(addLocalDays("2026-12-31", 1), "2027-01-01");
   assert.equal(addLocalDays("2026-03-01", -1), "2026-02-28");
 });
+
+test("an extreme year falls back to today instead of looping or overflowing", () => {
+  for (const date of ["0000-01-01", "0000-01-20", "9999-12-31", "1899-12-31", "2201-01-01"]) {
+    for (const view of ["week", "month"]) {
+      const range = resolveCalendarRange({ view, date }, now, tz, 0);
+      assert.equal(range.anchor, "2026-09-30", `${view} ${date}`);
+      assert.ok(range.days.length === 7 || (range.days.length >= 28 && range.days.length <= 42), `${view} ${date}: ${range.days.length} days`);
+    }
+  }
+});

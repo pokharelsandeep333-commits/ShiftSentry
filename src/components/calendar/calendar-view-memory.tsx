@@ -12,11 +12,11 @@ const calendarViewPreference = createLocalPreference<"week" | "month">("shiftsen
  * localStorage, so this is one client-side replace -- and never a loop, because
  * the replaced URL names its view.
  */
-export function CalendarViewMemory({ view, explicit }: { view: "week" | "month"; explicit: boolean }) {
+export function CalendarViewMemory({ view, explicit, date }: { view: "week" | "month"; explicit: boolean; date?: string }) {
   const router = useRouter();
   useEffect(() => {
     if (explicit) { calendarViewPreference.write(view); return; }
-    if (view === "week" && calendarViewPreference.read() === "month") router.replace("/calendar?view=month");
-  }, [explicit, router, view]);
+    if (view === "week" && calendarViewPreference.read() === "month") router.replace(`/calendar?view=month${date ? `&date=${encodeURIComponent(date)}` : ""}`);
+  }, [date, explicit, router, view]);
   return null;
 }

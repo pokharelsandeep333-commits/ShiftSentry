@@ -17,8 +17,8 @@ export function MonthGrid({ days, today, month, items, timeZone }: { days: strin
         return <div key={day} className={cn("min-h-28 min-w-0 border-b p-1.5", index % 7 !== 0 && "border-l", !inMonth && "bg-[var(--surface-subtle)]")}>
           <Link href={`/calendar?view=week&date=${day}`} aria-label={formatInTimeZone(`${day}T12:00:00.000Z`, "UTC", "EEEE, MMMM d")} className={cn("inline-grid size-7 place-items-center rounded-full text-xs font-semibold transition-colors", day === today ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : inMonth ? "hover:bg-[var(--surface-subtle)]" : "text-[var(--muted-foreground)]")}>{Number(day.slice(8))}</Link>
           <div className="mt-1 space-y-1">
-            {dayItems.slice(0, 3).map((item) => item.href
-              ? <Link key={item.key} href={item.href} className={itemClass(item)} style={itemStyle(item)}><span className="block truncate">{item.title}</span></Link>
+            {dayItems.slice(0, 3).map((item) => (item.href ?? item.importHref)
+              ? <Link key={item.key} href={(item.href ?? item.importHref)!} title={item.importJob ? `Add as a ${item.importJob} shift` : undefined} className={itemClass(item)} style={itemStyle(item)}><span className="block truncate">{item.importJob ? "+ " : ""}{item.title}</span></Link>
               : <span key={item.key} className={itemClass(item)} style={itemStyle(item)}><span className="block truncate">{item.title}</span></span>)}
             {dayItems.length > 3 && <Link href={`/calendar?view=week&date=${day}`} className="block px-1 text-[11px] font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)]">+{dayItems.length - 3} more</Link>}
           </div>
