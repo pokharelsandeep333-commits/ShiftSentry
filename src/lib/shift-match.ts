@@ -1,0 +1,46 @@
+import { findClashes, type CalendarEvent } from "./calendar-clash";
+
+/**
+ * People keep their work shifts in Google Calendar too, often in the same
+ * calendar as their classes. A Google event that *is* one of their ShiftSentry
+ * shifts must not be drawn twice or reported as clashing with itself, so this
+ * decides when an event and a shift are the same thing:
+ *
+ *   - its start and its end are each within 15 minutes of the shift's, whatever
+ *     the title (a work app's "Shift" or "Work"), or
+ *   - it overlaps the shift and its title contains the job's name.
+ *
+ * All-day and declined events are never a shift. The title rule also lets an
+ * event with no ShiftSentry shift yet suggest which job to add it as.
+ */
+export const MATCH_TOLERANCE_MS = 15 * 60_000;
+
+export type MatchShift = { id: string; jobName: string; startsAt: string; endsAt: string };
+export type MatchJob = { id: string; name: string };
+
+const titleHas = (title: string, name: string) => name.trim().length >= 2 && title.toLowerCase().includes(name.trim().toLowerCase());
+const distance = (event: CalendarEvent, shift: { startsAt: string; endsAt: string }) => Math.abs(Date.parse(event.startsAt) - Date.parse(shift.startsAt)) + Math.abs(Date.parse(event.endsAt) - Date.parse(shift.endsAt));
+
+export function isSameShift(event: CalendarEvent, shift: { jobName: string; startsAt: string; endsAt: string }) {
+  if (event.allDay || event.declined) return false;
+  const sameSpan = Math.abs(Date.parse(event.startsAt) - Date.parse(shift.startsAt)) <= MATCH_TOLERANCE_MS && Math.abs(Date.parse(event.endsAt) - Date.parse(shift.endsAt)) <= MATCH_TOLERANCE_MS;
+  if (sameSpan) return true;
+  return titleHas(event.title, shift.jobName) && findClashes(shift, [{ ...event, free: false }]).length > 0;
+}
+
+/** Event key (`calendarId:id`) → the id of the closest shift it is a copy of. */
+export function matchEventsToShifts(events: CalendarEvent[], shifts: MatchShift[]) {
+  const matches = new Map<string, string>();
+  for (const event of events) {
+    let best: MatchShift | null = null;
+    for (const shift of shifts) if (isSameShift(event, shift) && (!best || distance(event, shift) < distance(event, best))) best = shift;
+    if (best) matches.set(`${event.calendarId}:${event.id}`, best.id);
+  }
+  return matches;
+}
+
+/** The job an unmatched event looks like, by name in its title; the longest name wins ("Campus desk" over "Desk"). */
+export function suggestJob(event: CalendarEvent, jobs: MatchJob[]): MatchJob | null {
+  if (event.allDay || event.declined) return null;
+  return jobs.filter((job) => titleHas(event.title, job.name)).sort((a, b) => b.name.length - a.name.length)[0] ?? null;
+}
