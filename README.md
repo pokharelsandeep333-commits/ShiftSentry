@@ -145,7 +145,7 @@ npm install
 Copy-Item .env.example .env.local
 ```
 
-Fill in the five placeholders in `.env.local`. The two `NEXT_PUBLIC_SUPABASE_*` values are safe for the browser; `SUPABASE_SECRET_KEY`, `DATABASE_URL`, and `ADMIN_EMAIL_ALLOWLIST` are server-only. Never commit the file.
+Fill in the five Supabase and admin placeholders in `.env.local`. The two `NEXT_PUBLIC_SUPABASE_*` values are safe for the browser; `SUPABASE_SECRET_KEY`, `DATABASE_URL`, and `ADMIN_EMAIL_ALLOWLIST` are server-only. The four `GOOGLE_*` values are optional and server-only: they enable the read-only Google Calendar connection, which stays off unless `GOOGLE_CALENDAR_ENABLED=true`. Never commit the file.
 
 ### 2. Initialize Database
 
