@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { fromZonedTime } from "date-fns-tz";
 import { createShift, updateShift, type ShiftActionState } from "@/app/actions/work";
 import { Button } from "@/components/ui/button";
+import { CalendarClashNotice } from "@/components/shifts/calendar-clash-notice";
 import { ShiftScheduleFields, type ShiftDateTimeParts, type ShiftSchedule } from "@/components/shifts/date-time-picker";
 import { PremiumSelect } from "@/components/ui/premium-select";
 import { calculateEarnings, formatCents, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
@@ -37,6 +38,8 @@ type ShiftFormProps = {
     /** What this shift was actually worked at. Absent when duplicating into a new shift. */
     paySnapshot?: PaySnapshot;
   };
+  /** True when the viewer has a Google Calendar connected: check the span for clashes. */
+  calendarCheck?: boolean;
 };
 
 type FormProblem = { field: ShiftField | null; message: string };
@@ -88,7 +91,7 @@ function PreviewFigure({ label, value, accent = false }: { label: string; value:
   return <div><dt className="text-xs font-medium text-[var(--muted-foreground)]">{label}</dt><dd className={accent ? "mt-1 font-display text-lg font-semibold text-[var(--success)]" : "mt-1 font-display text-lg font-semibold"}>{value}</dd></div>;
 }
 
-export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps) {
+export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = false }: ShiftFormProps) {
   const initialStart = partsFromValue(initialShift?.startsAt);
   const initialEnd = partsFromValue(initialShift?.endsAt);
   // Read once at render: the compiler cannot verify a memo whose dependency is
@@ -116,6 +119,14 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps
     return minutes > 24 * 60 ? { field: "endsAt" as const, message: "A shift cannot be longer than 24 hours." } : null;
   }, [endsAt.date, endsAt.time, startsAt.date, startsAt.time, timeZone]);
   const activeProblem = intervalProblem ?? submissionProblem;
+
+  // The same span the server will store, as UTC instants, for the calendar check.
+  const span = useMemo(() => {
+    const start = combineShiftDateAndTime(startsAt.date, startsAt.time);
+    const end = combineShiftDateAndTime(endsAt.date, endsAt.time);
+    if (!start || !end || intervalProblem) return null;
+    return { startsAt: fromZonedTime(start, timeZone).toISOString(), endsAt: fromZonedTime(end, timeZone).toISOString() };
+  }, [endsAt.date, endsAt.time, intervalProblem, startsAt.date, startsAt.time, timeZone]);
 
   const preview = useMemo(() => {
     const minutes = previewMinutes(startsAt, endsAt, timeZone);
@@ -164,6 +175,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift }: ShiftFormProps
       <PreviewFigure label="Tax + deductions" value={`−${formatCents(preview.pay.taxCents + preview.pay.deductionCents)}`} />
       <PreviewFigure label="Net" value={formatCents(preview.pay.netCents)} accent />
     </dl>}
+    {calendarCheck && <CalendarClashNotice startsAt={span?.startsAt ?? null} endsAt={span?.endsAt ?? null} timeZone={timeZone} repeatWeeks={repeatWeeks} />}
     {preview && repeatWeeks > 1 && <p className="-mt-2 text-sm text-[var(--muted-foreground)]">{repeatWeeks} shifts · {formatMinutes(preview.minutes * repeatWeeks)} · {formatCents(preview.pay.netCents * repeatWeeks)} net, if every week fits your caps.</p>}
     {mode === "create" && <div className="field-label"><span id="repeat-label">Repeat</span><PremiumSelect name="repeatWeeks" defaultValue="1" options={REPEAT_OPTIONS} labelledBy="repeat-label" onValueChange={(value) => setRepeatWeeks(Number(value))} /></div>}
     {generalMessage && <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{generalMessage}</p>}

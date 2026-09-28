@@ -6,12 +6,15 @@ import { ShiftForm } from "@/components/shifts/shift-form";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
+import { isGoogleCalendarEnabled } from "@/lib/google/config";
+import { getConnectionSummary } from "@/lib/google/connection";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditShiftPage({ params }: { params: Promise<{ id: string }> }) {
   const profile = await requireUser();
+  const calendarCheck = isGoogleCalendarEnabled() && (await getConnectionSummary(profile.id)) !== null;
   const { id } = await params;
   const supabase = await createServerSupabaseClient();
   const [{ data: shift }, { data: jobs }] = await Promise.all([
@@ -30,7 +33,7 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
     <PageHeader eyebrow="Shift log" title="Edit shift" description="Update the job, schedule, or notes for this shift." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />
     <Card className="max-w-4xl">
       <CardHeader><CardTitle>Shift details</CardTitle></CardHeader>
-      <CardContent><ShiftForm mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} /></CardContent>
+      <CardContent><ShiftForm calendarCheck={calendarCheck} mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} /></CardContent>
     </Card>
   </>;
 }
