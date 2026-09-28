@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { archiveJob, deleteJob, deleteJobDeduction, unarchiveJob } from "@/app/actions/work";
 import { AddDeductionForm, CreateJobForm, JobDetailsForm } from "@/components/jobs/job-forms";
 import { JobGoogleForm } from "@/components/jobs/job-google-form";
+import { LoadError } from "@/components/load-error";
 import { listCalendars } from "@/lib/google/client";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { withCalendarAccess } from "@/lib/google/connection";
@@ -46,14 +47,17 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   // Google settings show only for a connected account: the calendar picker needs the live list.
   const googleAccess = isGoogleCalendarEnabled() ? await withCalendarAccess(profile.id, (token) => listCalendars(token)) : null;
   const googleCalendars = googleAccess?.status === "ok" ? googleAccess.value : null;
-  const { data: allJobs } = await supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_keyword,google_calendar_id,google_sync,job_deductions(id,name,rate_basis_points),shifts(count)").eq("user_id", profile.id).order("name");
+  const { data: allJobs, error: jobsError } = await supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_keyword,google_calendar_id,google_sync,job_deductions(id,name,rate_basis_points),shifts(count)").eq("user_id", profile.id).order("name");
   const jobs = (allJobs ?? []).filter((job) => !job.archived_at);
   const archivedJobs = (allJobs ?? []).filter((job) => job.archived_at);
   const savedMessage = SAVED_MESSAGES[Array.isArray(saved) ? saved[0] ?? "" : saved ?? ""];
 
+  const header = <PageHeader eyebrow="Jobs" title="Jobs, pay, and deductions" description="Rates are saved onto each new shift, so changing them never changes past earnings." />;
+  if (jobsError) return <>{header}<LoadError what="jobs" /></>;
+
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
-    <PageHeader eyebrow="Jobs" title="Jobs, pay, and deductions" description="Rates are saved onto each new shift, so changing them never changes past earnings." />
+    {header}
     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
       <Card>
         <CardHeader><CardTitle>Your active jobs</CardTitle></CardHeader>

@@ -17,6 +17,7 @@ import { weekStartFor } from "@/lib/time";
 import { WEEKS_PER_PAGE, clampWeeks } from "@/lib/shift-log";
 import { formatMinutes } from "@/lib/utils";
 import { GoogleSyncTrigger } from "@/components/google-sync-trigger";
+import { LoadError } from "@/components/load-error";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { hasSyncingJob } from "@/lib/google/shift-sync";
 
@@ -110,7 +111,7 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   // No upper bound: scheduled future shifts always belong on this page. The
   // second query only asks whether anything older exists, so "Load older weeks"
   // never appears when it would do nothing.
-  const [{ data: shifts }, { count: olderCount }, { data: weeksBefore }] = await Promise.all([
+  const [{ data: shifts, error: shiftsError }, { count: olderCount }, { data: weeksBefore }] = await Promise.all([
     supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,net_cents,google_event_id,jobs(name,color,archived_at)").eq("user_id", profile.id).gte("starts_at", windowStart.toISOString()).order("starts_at", { ascending: false }),
     supabase.from("shifts").select("id", { count: "exact", head: true }).eq("user_id", profile.id).lt("starts_at", windowStart.toISOString()),
     supabase.rpc("shift_week_count_before", { p_time_zone: profile.time_zone, p_week_starts_on: profile.week_starts_on, p_before: windowStart.toISOString() }),
@@ -128,6 +129,8 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   // has not been applied yet: the log still renders, numbered from week 1
   // within the window, rather than the page failing outright.
   const firstWeekNumber = (weeksBefore ?? 0) + 1;
+
+  if (shiftsError) return <><PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." /><LoadError what="shifts" /></>;
 
   return <>
     {syncing && <GoogleSyncTrigger />}
