@@ -52,3 +52,22 @@ export function findClashes(range: { startsAt: string; endsAt: string }, events:
     .filter((event) => Date.parse(event.startsAt) < end && start < Date.parse(event.endsAt))
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
+
+/**
+ * One result per selected calendar, merged. A calendar that fails on its own --
+ * deleted, unshared, unsubscribed since it was ticked -- is skipped, so one
+ * stale selection cannot switch the whole check off; only every calendar
+ * failing, or an auth failure (which says the connection itself is bad), fails
+ * the merge. The same event reached through two calendars is listed once.
+ */
+export function mergeCalendarResults(results: PromiseSettledResult<CalendarEvent[]>[], isAuthFailure: (reason: unknown) => boolean = () => false): CalendarEvent[] {
+  const auth = results.find((result): result is PromiseRejectedResult => result.status === "rejected" && isAuthFailure(result.reason));
+  if (auth) throw auth.reason;
+  const fulfilled = results.filter((result): result is PromiseFulfilledResult<CalendarEvent[]> => result.status === "fulfilled");
+  if (results.length > 0 && fulfilled.length === 0) throw (results[0] as PromiseRejectedResult).reason;
+  const seen = new Set<string>();
+  return fulfilled
+    .flatMap((result) => result.value)
+    .filter((event) => (seen.has(event.id) ? false : (seen.add(event.id), true)))
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findClashes, normalizeGoogleEvent, type CalendarEvent } from "./calendar-clash";
+import { findClashes, mergeCalendarResults, normalizeGoogleEvent, type CalendarEvent } from "./calendar-clash";
 
 const tz = "America/Chicago";
 const timed = (id: string, startsAt: string, endsAt: string, extra: Partial<CalendarEvent> = {}): CalendarEvent => ({ id, calendarId: "primary", title: id, startsAt, endsAt, allDay: false, free: false, declined: false, ...extra });
@@ -52,4 +52,21 @@ test("reads free and declined, and drops cancelled or malformed events", () => {
   assert.equal(normalizeGoogleEvent({ id: "n", attendees: [{ self: true, responseStatus: "declined" }], start: { dateTime: "2026-09-28T14:00:00Z" }, end: { dateTime: "2026-09-28T15:00:00Z" } }, "primary", tz)?.declined, true);
   assert.equal(normalizeGoogleEvent({ id: "c", status: "cancelled", start: { dateTime: "2026-09-28T14:00:00Z" }, end: { dateTime: "2026-09-28T15:00:00Z" } }, "primary", tz), null);
   assert.equal(normalizeGoogleEvent({ id: "m", start: {}, end: {} }, "primary", tz), null);
+});
+
+test("merging per-calendar results skips a calendar that failed and drops duplicate events", () => {
+  const lab = { id: "lab", calendarId: "primary", title: "lab", startsAt: "2026-09-28T20:00:00.000Z", endsAt: "2026-09-28T21:00:00.000Z", allDay: false, free: false, declined: false };
+  const merged = mergeCalendarResults([
+    { status: "fulfilled", value: [lab] },
+    { status: "fulfilled", value: [{ ...lab, calendarId: "shared" }] },
+    { status: "rejected", reason: new Error("Calendar API events returned 404") },
+  ]);
+  assert.deepEqual(merged.map((event) => `${event.calendarId}:${event.id}`), ["primary:lab"]);
+});
+
+test("merging fails when every calendar failed, and passes an auth failure straight through", () => {
+  class AuthFailure extends Error {}
+  assert.throws(() => mergeCalendarResults([{ status: "rejected", reason: new Error("down") }]), /down/);
+  assert.throws(() => mergeCalendarResults([{ status: "fulfilled", value: [] }, { status: "rejected", reason: new AuthFailure("expired") }], (reason) => reason instanceof AuthFailure), AuthFailure);
+  assert.deepEqual(mergeCalendarResults([]), []);
 });

@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SavedToast } from "@/components/saved-toast";
-import { GoogleCalendarCard } from "@/components/settings/google-calendar-card";
+import { GoogleCalendarCard, GoogleCalendarCardSkeleton } from "@/components/settings/google-calendar-card";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { requireUser } from "@/lib/auth";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
@@ -40,7 +41,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           />
         </CardContent>
       </Card>
-      {isGoogleCalendarEnabled() && <GoogleCalendarCard userId={profile.id} />}
+      {isGoogleCalendarEnabled() && <Suspense fallback={<GoogleCalendarCardSkeleton />}><GoogleCalendarCard userId={profile.id} /></Suspense>}
     </div>
   </>;
 }

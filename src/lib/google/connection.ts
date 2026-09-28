@@ -80,7 +80,15 @@ export async function withCalendarAccess<T>(userId: string, run: (accessToken: s
       console.error("Stored Google token did not decrypt; check GOOGLE_TOKEN_ENCRYPTION_KEY.");
       return { status: "unavailable" };
     }
-    console.error("Google Calendar request failed:", error instanceof Error ? error.message : "unknown");
+    if (error instanceof GoogleAuthError && error.reason === "expired") {
+      // Drop the cached access token so the next request refreshes; only an
+      // invalid_grant from that refresh means the user has to reconnect.
+      await supabase.from("google_calendar_connections").update({ access_token_ciphertext: null, access_token_expires_at: null }).eq("user_id", userId);
+      return { status: "unavailable" };
+    }
+    // The name only: a message can quote a response body, and a Calendar
+    // response body is event data, which is never logged.
+    console.error("Google Calendar request failed:", error instanceof Error ? error.name : "unknown");
     return { status: "unavailable" };
   }
 }

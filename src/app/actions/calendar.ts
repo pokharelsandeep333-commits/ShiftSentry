@@ -13,6 +13,11 @@ export async function saveCalendarSelection(_previous: SavedFormState, formData:
   const profile = await requireUser();
   const requested = formData.getAll("calendarId").filter((value): value is string => typeof value === "string");
   const access = await withCalendarAccess(profile.id, (token) => listCalendars(token));
+  if (access.status === "needs_reconnect") {
+    // Access was revoked or expired: the card has to swap the picker for Reconnect.
+    revalidatePath("/settings");
+    return { message: "Google Calendar needs reconnecting. Use Reconnect above.", savedAt: null };
+  }
   if (access.status !== "ok") return { message: "Couldn't reach Google Calendar. Try again in a moment.", savedAt: null };
   const known = new Set(access.value.map((calendar) => calendar.id));
   const primaryId = access.value.find((calendar) => calendar.primary)?.id;

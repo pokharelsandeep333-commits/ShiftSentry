@@ -1,4 +1,4 @@
-import { normalizeGoogleEvent, type CalendarEvent, type GoogleEventResource } from "@/lib/calendar-clash";
+import { mergeCalendarResults, normalizeGoogleEvent, type CalendarEvent, type GoogleEventResource } from "@/lib/calendar-clash";
 import type { GoogleCalendarConfig } from "./config";
 import { readIdTokenEmail } from "./oauth";
 
@@ -12,7 +12,8 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
 export class GoogleAuthError extends Error {
-  constructor(public reason: "invalid_grant" | "other") {
+  /** invalid_grant: the refresh token is dead, reconnect. expired: one access token was refused; refresh and carry on. */
+  constructor(public reason: "invalid_grant" | "expired" | "other") {
     super(`Google token request failed (${reason}).`);
     this.name = "GoogleAuthError";
   }
@@ -57,7 +58,9 @@ async function calendarGet<T>(accessToken: string, path: string, params: Record<
   const url = new URL(`${CALENDAR_API}${path}`);
   url.search = new URLSearchParams(params).toString();
   const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
-  if (response.status === 401) throw new GoogleAuthError("invalid_grant");
+  // A refused access token is not a revoked grant: clock skew or an early
+  // expiry does this too. The refresh that follows decides whether to reconnect.
+  if (response.status === 401) throw new GoogleAuthError("expired");
   if (!response.ok) throw new Error(`Calendar API ${path.split("/")[1]} returned ${response.status}`);
   return (await response.json()) as T;
 }
@@ -70,7 +73,7 @@ export async function listCalendars(accessToken: string): Promise<GoogleCalendar
 }
 
 export async function listEvents(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string): Promise<CalendarEvent[]> {
-  const pages = await Promise.all(calendarIds.map(async (calendarId) => {
+  const pages = await Promise.allSettled(calendarIds.map(async (calendarId) => {
     const body = await calendarGet<{ items?: GoogleEventResource[] }>(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
       timeMin: range.timeMin,
       timeMax: range.timeMax,
@@ -81,5 +84,5 @@ export async function listEvents(accessToken: string, calendarIds: string[], ran
     });
     return (body.items ?? []).map((item) => normalizeGoogleEvent(item, calendarId, timeZone)).filter((event): event is CalendarEvent => event !== null);
   }));
-  return pages.flat().sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  return mergeCalendarResults(pages, (reason) => reason instanceof GoogleAuthError);
 }
