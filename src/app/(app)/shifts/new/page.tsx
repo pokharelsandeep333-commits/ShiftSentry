@@ -4,6 +4,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftForm, type ShiftFormJob } from "@/components/shifts/shift-form";
 import { requireUser } from "@/lib/auth";
+import { isGoogleCalendarEnabled } from "@/lib/google/config";
+import { getConnectionSummary } from "@/lib/google/connection";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { parseShiftDateTimeInput } from "@/lib/shift-date-time";
 
@@ -30,6 +32,7 @@ function prefillFromQuery(params: SearchParams, jobs: ShiftFormJob[]) {
 
 export default async function NewShiftPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const profile = await requireUser();
+  const calendarCheck = isGoogleCalendarEnabled() && (await getConnectionSummary(profile.id)) !== null;
   const supabase = await createServerSupabaseClient();
   const [{ data: jobs }, params] = await Promise.all([
     supabase.from("jobs").select("id,name,color,hourly_rate_cents,tax_rate_basis_points,job_deductions(name,rate_basis_points)").eq("user_id", profile.id).is("archived_at", null).order("name"),
@@ -42,7 +45,7 @@ export default async function NewShiftPage({ searchParams }: { searchParams: Pro
     <PageHeader eyebrow="Shift log" title="Add a shift" description="Scheduled future shifts count toward projected weekly hours." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />
     <Card className="max-w-4xl">
       <CardHeader><CardTitle>Shift details</CardTitle></CardHeader>
-      <CardContent>{selectableJobs.length ? <ShiftForm mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="space-y-4 rounded-2xl border border-dashed p-5"><p className="text-sm leading-6 text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs" className={buttonVariants()}>Create a job</Link></div>}</CardContent>
+      <CardContent>{selectableJobs.length ? <ShiftForm calendarCheck={calendarCheck} mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="space-y-4 rounded-2xl border border-dashed p-5"><p className="text-sm leading-6 text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs" className={buttonVariants()}>Create a job</Link></div>}</CardContent>
     </Card>
   </>;
 }
