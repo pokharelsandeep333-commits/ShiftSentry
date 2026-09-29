@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/database.types";
 import { contentSecurityPolicy, createNonce } from "@/lib/content-security-policy";
+import { safeInternalRedirect } from "@/lib/request-origin";
 
 export async function proxy(request: NextRequest) {
   // Set on the request so Next.js can find the nonce while it renders, and on
@@ -31,6 +32,16 @@ async function route(request: NextRequest) {
     url.search = "";
     url.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(url);
+  }
+  // Someone already signed in has no use for the sign-in page, so /login sends
+  // them where they were headed (`next`, same-origin paths only) or to the
+  // dashboard. Session cookies `getUser` refreshed ride along, as on the
+  // rewrite below.
+  if (user && request.nextUrl.pathname === "/login") {
+    const url = new URL(safeInternalRedirect(request.nextUrl.searchParams.get("next")), request.nextUrl.origin);
+    const redirect = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return redirect;
   }
   // The site's root is its public home page for anyone signed out: Google's
   // OAuth review rejects a home page that is only a login wall. A rewrite, not

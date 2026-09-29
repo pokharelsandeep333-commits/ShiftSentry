@@ -8,11 +8,19 @@ import { NEXT_COOKIE, safeInternalRedirect } from "@/lib/request-origin";
 import { GoogleMark, GitHubMark } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
-export function LoginForm() {
+export type SignInMode = "signin" | "signup";
+
+/**
+ * The sign-in and create-account form. `SignInPanel` owns the mode, so the
+ * heading above the form can follow it; the words that change are keyed on it
+ * so they slide in (`.mode-swap`), and the password rules open and close
+ * (`.mode-reveal`) instead of jumping the card's height. Both in globals.css.
+ */
+export function LoginForm({ mode, onModeChange }: { mode: SignInMode; onModeChange: (mode: SignInMode) => void }) {
   const router = useRouter();
   const search = useSearchParams();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState(search.get("error") ? "We could not complete that sign-in. Please try again." : "");
@@ -44,7 +52,15 @@ export function LoginForm() {
         : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${location.origin}/auth/callback` } });
 
       if (result.error) setMessage(result.error.message);
-      else if (mode === "signup" && !result.data.session) setMessage("Check your email to confirm your account, then sign in.");
+      else if (mode === "signup" && !result.data.session) {
+        // The account exists but needs its email confirmed, so the next thing
+        // this person does here is sign in: the box turns to Sign in with the
+        // email kept and the reminder showing (the toggle's own clearing of
+        // the message does not run on this path).
+        setPassword("");
+        setMessage("Check your email to confirm your account, then sign in.");
+        onModeChange("signin");
+      }
       else router.replace(next);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to sign in.");
@@ -70,14 +86,22 @@ export function LoginForm() {
 
   return <form onSubmit={submit} className="space-y-4">
     <div><label className="mb-2 block text-sm font-semibold" htmlFor="email">Email</label><Input id="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></div>
-    <div><label className="mb-2 block text-sm font-semibold" htmlFor="password">Password</label><Input id="password" type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} pattern={mode === "signup" ? "(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}" : undefined} title={mode === "signup" ? "At least 8 characters, including an uppercase letter, a lowercase letter and a number." : undefined} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === "signin" ? "Your password" : "At least 8 characters"} aria-describedby={mode === "signup" ? "password-requirements" : undefined} />{mode === "signup" && <p id="password-requirements" className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">At least 8 characters, including an uppercase letter, a lowercase letter and a number.</p>}</div>
+    <div>
+      <label className="mb-2 block text-sm font-semibold" htmlFor="password">Password</label>
+      <Input id="password" type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} pattern={mode === "signup" ? "(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}" : undefined} title={mode === "signup" ? "At least 8 characters, including an uppercase letter, a lowercase letter and a number." : undefined} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === "signin" ? "Your password" : "At least 8 characters"} aria-describedby={mode === "signup" ? "password-requirements" : undefined} />
+      {/* Always rendered so it can open and close; out of reach while closed. */}
+      <div className={cn("mode-reveal", mode === "signup" && "is-open")} inert={mode !== "signup"} aria-hidden={mode !== "signup"}>
+        <div><p id="password-requirements" className="pt-2 text-xs leading-5 text-[var(--muted-foreground)]">At least 8 characters, including an uppercase letter, a lowercase letter and a number.</p></div>
+      </div>
+    </div>
     {message && <p className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--primary-soft)] p-3 text-sm leading-6 text-[var(--muted-foreground)]">{message}</p>}
-    <Button className="w-full" disabled={busy}>{busy && <LoaderCircle className="size-4 animate-spin" />}{mode === "signin" ? "Sign in" : "Create account"}</Button>
+    <Button className="w-full" disabled={busy}>{busy && <LoaderCircle className="size-4 animate-spin" />}<span key={mode} className="mode-swap inline-block">{mode === "signin" ? "Sign in" : "Create account"}</span></Button>
     <div className="relative py-2 text-center text-xs text-[var(--muted-foreground)] before:absolute before:left-0 before:right-0 before:top-1/2 before:border-t"><span className="relative bg-[var(--card)] px-3">or</span></div>
     {/* Google's Sign in with Google branding guidelines require one of "Sign in /
         Sign up / Continue with Google" on the button -- "Google" alone is
         prohibited, and OAuth brand verification checks it. */}
     <div className="grid gap-3"><Button type="button" variant="outline" className="h-11" onClick={() => oauth("google")} disabled={busy}><GoogleMark />Continue with Google</Button><Button type="button" variant="outline" className="h-11" onClick={() => oauth("github")} disabled={busy}><GitHubMark />Continue with GitHub</Button></div>
-    <p className="pt-2 text-center text-sm text-[var(--muted-foreground)]">{mode === "signin" ? "New to ShiftSentry?" : "Already have an account?"} <button type="button" className="font-semibold text-[var(--primary)] transition-opacity hover:opacity-75" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(""); }}>{mode === "signin" ? "Create one" : "Sign in"}</button></p>
+    {/* Only the words are keyed: the button itself stays mounted, so it keeps focus. */}
+    <p className="pt-2 text-center text-sm text-[var(--muted-foreground)]"><span key={mode} className="mode-swap inline-block">{mode === "signin" ? "New to ShiftSentry?" : "Already have an account?"}</span> <button type="button" className="font-semibold text-[var(--primary)] transition-opacity hover:opacity-75" onClick={() => { onModeChange(mode === "signin" ? "signup" : "signin"); setMessage(""); }}><span key={mode} className="mode-swap inline-block">{mode === "signin" ? "Create one" : "Sign in"}</span></button></p>
   </form>;
 }

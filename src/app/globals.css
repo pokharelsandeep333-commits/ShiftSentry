@@ -80,13 +80,25 @@ body {
     radial-gradient(circle at 5% -10%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 29rem),
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 26rem),
     var(--background);
+  /* <html> is h-full, so the canvas this background propagates to tiles at one
+     viewport height; without no-repeat the top glow reappears as a hard-edged
+     band every 100vh down any long page. */
+  background-repeat: no-repeat;
   color: var(--foreground);
   font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   letter-spacing: -0.01em;
 }
 
-* { border-color: var(--border); }
+/*
+ * The default border colour, in Tailwind's base layer on purpose. Unlayered, it
+ * outranked every layered utility, so `border-[var(--danger)]` and friends all
+ * rendered as plain --border grey. In the base layer it is only the fallback
+ * for a border that names no colour, and any `border-*` colour utility wins.
+ */
+@layer base {
+  *, ::before, ::after { border-color: var(--border); }
+}
 
 ::selection {
   background: color-mix(in srgb, var(--primary) 35%, transparent);
@@ -173,36 +185,6 @@ body {
   color: var(--foreground);
 }
 
-.login-orb {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(1px);
-  pointer-events: none;
-  animation: ambient-drift 10s ease-in-out infinite alternate;
-}
-
-.login-orb--one {
-  width: 22rem;
-  height: 22rem;
-  top: 8%;
-  right: -8rem;
-  background: rgb(255 255 255 / 0.13);
-}
-
-.login-orb--two {
-  width: 15rem;
-  height: 15rem;
-  bottom: 7%;
-  left: 7%;
-  animation-delay: -4s;
-  background: color-mix(in srgb, #c5bfff 44%, transparent);
-}
-
-@keyframes ambient-drift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(-1.25rem, 1rem, 0) scale(1.08); }
-}
-
 /* Landing page example week: each segment grows from its own left edge once,
    staggered, so the bar reads as the week filling. Reduced motion lands on the
    final state through the global rule below. */
@@ -215,6 +197,469 @@ body {
   from { transform: scaleX(0); opacity: 0.35; }
   to { transform: scaleX(1); opacity: 1; }
 }
+
+/*
+ * Landing page (/welcome). A pale, pearly lavender ground with the sections
+ * stacked on frosted white glass panels, all built from the app's own tokens
+ * so it still reads as the same product:
+ *
+ * - The ground (`.welcome-page`) is --background with a little --primary mixed
+ *   in, under a few large, soft washes of --card (white) and --primary.
+ * - Panels (`.welcome-panel`) and what sits in them (`.welcome-tile`,
+ *   `.welcome-frame`, the `.welcome-ghost` pills) are translucent --card with a
+ *   bright 1px edge and a very soft lavender-grey shadow. They deliberately
+ *   have no backdrop-filter, for the reason `card.tsx` gives: behind them is
+ *   only the smooth gradient ground, which a blur cannot change, and every
+ *   blur is a compositing layer of its own.
+ * - Tinted surfaces are the dashboard's weekly-cap card: a 135deg wash of
+ *   --primary into --card, a primary-mixed border, the premium-card shadow
+ *   (`.welcome-tint`; `--mint` is the same wash in the success green, for money).
+ * - A real blur only where something passes behind: the fixed nav once the
+ *   page has scrolled (`.welcome-nav`) and the chips over the hero art
+ *   (`.glass-chip`).
+ *
+ * Text is --foreground over --muted-foreground, and the accents are the primary
+ * violet and the success green. No navy or near-black surfaces. Dark mode is
+ * the app's .dark tokens: the glass becomes translucent --card, its bright
+ * edge a faint --foreground line, and the shadows go neutral.
+ *
+ * These rules are unlayered, so they win over Tailwind utilities. That is why
+ * the pills draw their own focus ring here: a `ring-*` utility is a box-shadow,
+ * and the pill's own box-shadow would override it.
+ *
+ * Everything that moves sits behind `prefers-reduced-motion: no-preference`;
+ * a reduced-motion visitor gets the final frame. The deliberate exceptions
+ * are the nav's scrolled-state transition (see `.welcome-nav`) and the move to
+ * and from /login, which still crossfades, without travel (see the page
+ * transitions below).
+ * Scroll reveals (`.rv`) and
+ * the stats count-up are scroll-driven (`animation-timeline: view()`), gated on
+ * support as well: without it the content simply shows, which is the state
+ * every animation ends in.
+ */
+.theme-dark-only { display: none; }
+.dark .theme-dark-only { display: block; }
+.dark .theme-light-only { display: none; }
+
+.welcome-page {
+  --w-ground: color-mix(in srgb, var(--primary) 6%, var(--background));
+  --w-glow: color-mix(in srgb, var(--primary) 13%, transparent);
+  --w-glow-soft: color-mix(in srgb, var(--primary) 8%, transparent);
+  --w-sheen: color-mix(in srgb, var(--card) 80%, transparent);
+  --w-glass: color-mix(in srgb, var(--card) 58%, transparent);
+  --w-glass-tile: color-mix(in srgb, var(--card) 82%, transparent);
+  --w-glass-edge: color-mix(in srgb, var(--card) 94%, transparent);
+  /* Lavender-grey: the violet pulled toward the ink. */
+  --w-shade: color-mix(in srgb, var(--primary) 35%, var(--foreground));
+  --w-soft: 0 1px 2px color-mix(in srgb, var(--w-shade) 5%, transparent), 0 26px 60px -40px color-mix(in srgb, var(--w-shade) 32%, transparent);
+  --w-soft-sm: 0 1px 2px color-mix(in srgb, var(--w-shade) 7%, transparent), 0 12px 28px -20px color-mix(in srgb, var(--w-shade) 28%, transparent);
+  /* The premium-card shadow and a primary-mixed border, for the tinted cards. */
+  --w-lift: 0 22px 55px -34px rgb(var(--shadow-color) / 0.68), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --w-edge: color-mix(in srgb, var(--primary) 28%, var(--border));
+  /* The washes are gradient layers rather than blurred elements, which would
+     cost a compositing layer each. */
+  background:
+    radial-gradient(54rem 36rem at 6% -6rem, var(--w-sheen), transparent 70%),
+    radial-gradient(46rem 34rem at 96% 3rem, var(--w-glow), transparent 70%),
+    radial-gradient(60rem 42rem at -8% 42%, var(--w-glow-soft), transparent 70%),
+    radial-gradient(52rem 40rem at 106% 60%, var(--w-sheen), transparent 70%),
+    radial-gradient(64rem 42rem at 26% 100%, var(--w-glow), transparent 70%),
+    var(--w-ground);
+}
+.dark .welcome-page {
+  --w-ground: var(--background);
+  --w-glow: color-mix(in srgb, var(--primary) 9%, transparent);
+  --w-glow-soft: color-mix(in srgb, var(--primary) 5%, transparent);
+  --w-sheen: color-mix(in srgb, var(--card) 70%, transparent);
+  --w-glass: color-mix(in srgb, var(--card) 72%, transparent);
+  --w-glass-tile: color-mix(in srgb, var(--muted) 62%, transparent);
+  --w-glass-edge: color-mix(in srgb, var(--foreground) 9%, transparent);
+  --w-shade: rgb(var(--shadow-color));
+}
+
+/* One content width for hero, panels and nav. 72rem suits laptops; on wide
+   desktops it grows so the page does not sit in a narrow column with half the
+   screen empty. */
+.welcome-page { --w-container: 72rem; }
+@media (min-width: 1440px) { .welcome-page { --w-container: 78rem; } }
+@media (min-width: 1760px) { .welcome-page { --w-container: 86rem; } }
+.welcome-container { max-width: var(--w-container); }
+
+.welcome-hero {
+  background: radial-gradient(40rem 30rem at 76% 46%, var(--w-glow), transparent 70%);
+}
+.hero-disc {
+  border: 1px solid var(--w-glass-edge);
+  background: radial-gradient(circle at 34% 28%, var(--card) 0%, color-mix(in srgb, var(--primary) 8%, var(--card)) 50%, color-mix(in srgb, var(--primary) 18%, var(--card)) 100%);
+  box-shadow: 0 40px 80px -52px color-mix(in srgb, var(--primary) 50%, transparent), inset 0 1px 0 var(--w-glass-edge);
+}
+
+/* A section panel: frosted white glass without the blur (see the note at the
+   top of this block). The gradient brightens the top-left like light on
+   glass, and the inset line is the bright edge catching it. */
+.welcome-panel {
+  border: 1px solid var(--w-glass-edge);
+  background: linear-gradient(165deg, var(--w-glass-tile), var(--w-glass) 42%);
+  box-shadow: var(--w-soft), inset 0 1px 0 var(--w-glass-edge);
+}
+
+/* What sits inside a panel: tiles, the screenshot frame, secondary pills. */
+.welcome-tile,
+.welcome-frame,
+.welcome-ghost {
+  border: 1px solid var(--w-glass-edge);
+  background: var(--w-glass-tile);
+  box-shadow: var(--w-soft-sm);
+}
+.welcome-ghost { color: var(--foreground); }
+/* On a white tile a white edge disappears, so a pill there takes a hairline. */
+.welcome-tile .welcome-ghost { border-color: color-mix(in srgb, var(--primary) 14%, var(--border)); }
+.welcome-ghost:hover {
+  border-color: color-mix(in srgb, var(--primary) 36%, var(--border));
+  background: color-mix(in srgb, var(--primary) 7%, var(--card));
+}
+
+/* The dashboard's weekly-cap card as a reusable surface, glows included. */
+.welcome-tint {
+  border: 1px solid var(--w-edge);
+  background:
+    radial-gradient(22rem 16rem at 100% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 15%, var(--card)), var(--card) 58%);
+  box-shadow: var(--w-lift);
+}
+.welcome-tint--mint {
+  border-color: color-mix(in srgb, var(--success) 30%, var(--border));
+  background:
+    radial-gradient(22rem 16rem at 100% 0%, color-mix(in srgb, var(--success) 12%, transparent), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--success) 14%, var(--card)), var(--card) 60%);
+}
+
+/* The chips over the hero art: frosted glass with a real blur, since the art
+   sits behind them. */
+.glass-chip {
+  position: absolute;
+  z-index: 2;
+  border: 1px solid var(--w-glass-edge);
+  border-radius: 1rem;
+  padding: 0.7rem 0.85rem;
+  background: color-mix(in srgb, var(--card) 72%, transparent);
+  box-shadow: var(--w-soft-sm);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+}
+
+/* The fixed nav (welcome-nav.tsx), after joinhandshake.com's in structure. At
+   the top of the page the bar is a transparent row as wide as the content;
+   once the page scrolls (`data-scrolled`, set by an IntersectionObserver) it
+   narrows to a card and folds the wordmark away, leaving the mark. Only the
+   scrolled bar blurs, because only then does content pass behind it; its wash
+   is a touch translucent (0.94) so the blur has something to do. */
+.welcome-nav-bar {
+  position: relative;
+  isolation: isolate;
+  max-width: var(--w-container);
+  border: 1px solid transparent;
+  background-color: transparent;
+  transition-property: max-width, background-color, border-color, box-shadow;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* The scrolled bar wears the dashboard's weekly-cap card: a violet wash from
+   the left that clears to --card by the middle, and a soft violet glow at the
+   right. Gradients cannot transition, so the wash sits on a pseudo-element
+   that fades in, under the bar's contents. */
+.welcome-nav-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  opacity: 0;
+  background:
+    radial-gradient(18rem 7rem at 100% 0%, color-mix(in srgb, var(--primary) 13%, transparent), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 15%, var(--card)), var(--card) 58%);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.welcome-nav[data-scrolled="true"] .welcome-nav-bar {
+  max-width: calc(var(--w-container) - 8rem);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+  box-shadow: var(--w-lift);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.welcome-nav[data-scrolled="true"] .welcome-nav-bar::before { opacity: 0.94; }
+.welcome-nav-word {
+  display: inline-block;
+  max-width: 8rem;
+  margin-left: 0.625rem;
+  overflow: hidden;
+  white-space: nowrap;
+  transition-property: max-width, margin-left, opacity;
+  transition-duration: 300ms, 300ms, 200ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+.welcome-nav[data-scrolled="true"] .welcome-nav-word {
+  max-width: 0;
+  margin-left: 0;
+  opacity: 0;
+}
+
+/* The one exception to reduced motion on this page, by Sandeep's explicit
+   call: the nav's change of state still transitions. It is a small change of
+   width and colour, not travel across the screen. It beats the global reduce
+   rule on specificity (both are !important), and it names only the bar and
+   the wordmark; everything else on the page still honours the setting. */
+@media (prefers-reduced-motion: reduce) {
+  .welcome-nav .welcome-nav-bar,
+  .welcome-nav .welcome-nav-bar::before { transition-duration: 300ms !important; }
+  .welcome-nav .welcome-nav-word { transition-duration: 300ms, 300ms, 200ms !important; }
+}
+
+/* The app's primary button, as a pill with an arrow disc. */
+.welcome-pill {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--primary) 30%, transparent), 0 10px 24px -12px var(--primary-glow);
+}
+.pill-disc {
+  background: color-mix(in srgb, var(--primary-foreground) 20%, transparent);
+  color: var(--primary-foreground);
+}
+.pill-disc svg { transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1); }
+.welcome-pill:hover .pill-disc svg { transform: translate(2px, -2px); }
+
+.welcome-pill:focus-visible,
+.welcome-ghost:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+/* The phone screenshot: a device bezel in --card over the desktop frame. */
+.welcome-phone {
+  border: 5px solid var(--card);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--border), var(--w-soft);
+}
+
+/* The hero headline rises out of its own line box. The bottom padding keeps
+   descenders out of the clip. */
+.hero-line {
+  overflow: hidden;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+.hero-line > span { display: inline-block; }
+
+/* Counters. An integer custom property can be animated, and `counter()` prints
+   it, so a number counts between states without script. */
+@property --wk-total {
+  syntax: "<integer>";
+  inherits: false;
+  initial-value: 0;
+}
+.wk-total {
+  counter-reset: wk-total var(--wk-total);
+  transition: --wk-total 700ms cubic-bezier(0.16, 1, 0.3, 1), color 300ms ease;
+}
+.wk-total::after { content: counter(wk-total) "h"; }
+
+@property --stat {
+  syntax: "<integer>";
+  inherits: false;
+  initial-value: 0;
+}
+.stat-count { counter-reset: stat var(--stat); }
+.stat-count::before { content: counter(stat); }
+
+.wk-refused {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 26%, transparent) 0 6px, color-mix(in srgb, var(--danger) 10%, transparent) 6px 12px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-line > span { animation: hero-rise 850ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .hero-line:nth-child(2) > span { animation-delay: 90ms; }
+  .hero-line:nth-child(3) > span { animation-delay: 180ms; }
+  .hero-fade { animation: hero-fade 800ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both; }
+  .hero-fade + .hero-fade { animation-delay: 400ms; }
+
+  /* The render settles in, then breathes; the chips pop on after it and drift
+     on their own clocks so they never move in step. */
+  .hero-art { animation: art-in 1200ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both; }
+  .hero-art-float { animation: art-float 9s ease-in-out 1.4s infinite alternate; }
+  .hero-chip {
+    animation:
+      chip-in 700ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--chip-delay, 600ms) both,
+      chip-float var(--chip-drift, 7s) ease-in-out calc(var(--chip-delay, 600ms) + 700ms) infinite alternate;
+  }
+
+  .wk-total { animation: wk-count 1200ms cubic-bezier(0.16, 1, 0.3, 1) 250ms backwards; }
+  /* No backwards fill: during the delay the segment's own fill-in keeps control
+     of `transform`, and the shake only borrows it for 420ms. */
+  .gauge-seg.wk-refused { animation: gauge-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both, wk-shake 420ms ease-out 260ms; }
+  .wk-tick { animation: rv-pop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+  @supports (animation-timeline: view()) {
+    .rv {
+      animation: rv-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 24%;
+    }
+    .rv-slide { animation-name: rv-slide; animation-range: entry 20% cover 40%; }
+    .rv-drop { animation-name: rv-drop; animation-range: entry 30% cover 45%; }
+    .rv-pop { animation-name: rv-pop; animation-range: entry 35% cover 45%; }
+    .rv-grow { animation-name: rv-grow; animation-range: entry 20% cover 40%; transform-origin: left center; }
+    .stat-count {
+      animation: stat-count linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 40%;
+    }
+  }
+}
+
+@keyframes hero-rise {
+  from { transform: translateY(108%); }
+  to { transform: translateY(0); }
+}
+@keyframes hero-fade {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes art-in {
+  from { opacity: 0; transform: translateY(32px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes art-float {
+  to { transform: translateY(-12px); }
+}
+@keyframes chip-in {
+  from { opacity: 0; scale: 0.85; }
+  to { opacity: 1; scale: 1; }
+}
+@keyframes chip-float {
+  to { translate: 0 -8px; }
+}
+@keyframes wk-count {
+  from { --wk-total: 0; }
+}
+@keyframes stat-count {
+  from { --stat: 0; }
+}
+@keyframes wk-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+@keyframes rv-rise {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rv-slide {
+  from { opacity: 0; transform: translateX(45%); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rv-drop {
+  from { opacity: 0; transform: translateY(-70%); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rv-pop {
+  from { opacity: 0; scale: 0.4; }
+  to { opacity: 1; scale: 1; }
+}
+@keyframes rv-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* The move between the front page and /login, run by React's <ViewTransition>
+   on the browser's View Transitions API (login/page.tsx describes the setup).
+   The sign-in box is permanently named; `SignInLink` gives the clicked button
+   the same name, so the browser morphs the button into the box while the
+   landing fades out (`page-leave`). Going back home (`to-home`), the sign-in
+   page fades out (`login-leave`) over the landing, and the box sinks away.
+   Clicks pass through while it runs. */
+.sign-in-box { view-transition-name: sign-in-box; }
+::view-transition { pointer-events: none; }
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(.page-leave) { animation: vt-fade-out 260ms cubic-bezier(0.4, 0, 1, 1) both; }
+  ::view-transition-old(.login-leave) { animation: vt-fade-out 240ms cubic-bezier(0.4, 0, 1, 1) both; }
+
+  /* The button opening into the box. The group travels and grows from the
+     button's box to the box's, clipped to a rounded rectangle; inside it both
+     snapshots stay at their own size, pinned top-centre, so nothing stretches:
+     the button fades out quickly and the box is revealed as the window opens.
+     The clip would cut off the box's own shadow, so the group wears it. */
+  html:active-view-transition-type(to-login)::view-transition-group(sign-in-box) {
+    z-index: 2;
+    overflow: clip;
+    border-radius: 1.75rem;
+    box-shadow: 0 22px 55px -34px rgb(var(--shadow-color) / 0.68);
+    animation-duration: 640ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  ::view-transition-old(sign-in-box),
+  ::view-transition-new(sign-in-box) {
+    block-size: 100%;
+    object-fit: none;
+    object-position: 50% 0;
+  }
+  ::view-transition-old(sign-in-box) { animation: vt-fade-out 180ms linear both; }
+  ::view-transition-new(sign-in-box) { animation: vt-fade-in 300ms ease-out 60ms both; }
+
+  /* No button to open from (the box alone arriving), or the box leaving. */
+  ::view-transition-new(sign-in-box):only-child { animation: vt-fade-in 360ms ease-out both; }
+  ::view-transition-old(sign-in-box):only-child { animation: vt-box-out 220ms cubic-bezier(0.4, 0, 1, 1) both; }
+}
+
+/* Reduced motion, by Sandeep's call: a crossfade and nothing that travels.
+   `SignInLink` names no button then, so the box simply fades in; groups jump
+   straight to where they end, and every old and new layer only fades. Written
+   out because the global reduce rule below matches elements, not these
+   pseudo-elements. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) { animation-duration: 0s; }
+  ::view-transition-old(*) { animation: vt-fade-out 220ms ease-out both; }
+  ::view-transition-new(*) { animation: vt-fade-in 320ms ease-out both; }
+}
+
+@keyframes vt-fade-in { from { opacity: 0; } }
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-box-out { to { opacity: 0; transform: translateY(10px) scale(0.97); } }
+
+/* Switching the sign-in form between Sign in and Create account
+   (sign-in-panel.tsx, login-form.tsx). The words that change are keyed on the
+   mode, so each new one mounts and slides in: from the right into Create
+   account, from the left back to Sign in. `data-switched` keeps it off the
+   first paint. The password rules open and close on grid rows, so the card
+   grows and shrinks instead of jumping. */
+.mode-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease;
+}
+.mode-reveal.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.mode-reveal > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-switched] .mode-swap { animation: mode-swap 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  [data-switched][data-mode="signin"] .mode-swap { --swap-from: -14px; }
+}
+/* With reduced motion the swap still fades, without the slide. It out-ranks
+   the global reduce rule (both !important) on specificity. */
+@media (prefers-reduced-motion: reduce) {
+  [data-switched] .mode-swap { animation: mode-fade 240ms ease-out both !important; }
+}
+@keyframes mode-swap { from { opacity: 0; translate: var(--swap-from, 14px) 0; } }
+@keyframes mode-fade { from { opacity: 0; } }
 
 @keyframes select-in {
   from { opacity: 0; transform: translateY(-0.35rem) scale(0.97); }

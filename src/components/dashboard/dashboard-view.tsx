@@ -175,8 +175,8 @@ export function DashboardView({ data, calendarSlot }: { data: DashboardData; cal
               nothing -- the only thing behind them is the card gradient and two
               already-blurred glows, so it was blurring a blur. */}
           <div className="grid grid-cols-2 gap-3 lg:min-w-64">
-            <div className="rounded-2xl border border-white/10 bg-[var(--card)]/55 p-4"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Remaining</p><p className="mt-2 font-display text-2xl font-semibold">{remaining === null ? "—" : formatMinutes(remaining)}</p></div>
-            <div className="rounded-2xl border border-white/10 bg-[var(--card)]/55 p-4"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Upcoming</p><p className="mt-2 font-display text-2xl font-semibold">{data.upcomingShifts.length}</p></div>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)]/55 p-4"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Remaining</p><p className="mt-2 font-display text-2xl font-semibold">{remaining === null ? "—" : formatMinutes(remaining)}</p></div>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)]/55 p-4"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Upcoming</p><p className="mt-2 font-display text-2xl font-semibold">{data.upcomingShifts.length}</p></div>
           </div>
         </CardContent>
       </Card>
