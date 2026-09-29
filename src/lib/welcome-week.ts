@@ -1,4 +1,5 @@
 import { calculateEarnings, type Earnings } from "./earnings";
+import { allocateShiftMinutes } from "./time";
 
 /**
  * The example week on the public landing page. Illustrative data, labelled as
@@ -70,6 +71,42 @@ export function earnedSoFar(week: ExampleWeek): Earnings {
     };
   }, { grossCents: 0, taxCents: 0, deductionCents: 0, netCents: 0 });
 }
+
+/**
+ * `shifts_no_overlap` compares `tstzrange(starts_at, ends_at, '[)')`: half-open,
+ * so a shift ending at 4pm and one starting at 4pm touch without overlapping.
+ * Times here are minutes since midnight, which is all the landing page needs.
+ */
+export type ExampleSpan = { startMinute: number; endMinute: number };
+
+export function spansOverlap(a: ExampleSpan, b: ExampleSpan) {
+  return a.startMinute < b.endMinute && b.startMinute < a.endMinute;
+}
+
+/** The overlap card: a desk shift, a back-to-back café shift, and one that collides with the desk. */
+export const EXAMPLE_DAY = {
+  desk: { startMinute: 12 * 60, endMinute: 16 * 60 },
+  cafe: { startMinute: 16 * 60, endMinute: 20 * 60 },
+  clash: { startMinute: 15 * 60, endMinute: 18 * 60 },
+} satisfies Record<string, ExampleSpan>;
+
+/**
+ * The overnight card: Friday 10pm to Saturday 4am, split at local midnight by
+ * the same `allocateShiftMinutes` every total uses. UTC keeps it deterministic;
+ * the real app splits in the viewer's own zone.
+ */
+export const EXAMPLE_OVERNIGHT = allocateShiftMinutes(new Date("2026-10-02T22:00:00Z"), new Date("2026-10-03T04:00:00Z"), "UTC").map((allocation) => ({
+  ...allocation,
+  day: new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(new Date(`${allocation.date}T12:00:00Z`)),
+}));
+
+/** The pay card: one 4h desk shift priced by `calculateEarnings`, as the trigger snapshots it. */
+export const EXAMPLE_RECEIPT = {
+  minutes: 240,
+  hourlyRateCents: EXAMPLE_WEEK.jobs[0].hourlyRateCents,
+  taxRateBasisPoints: EXAMPLE_WEEK.jobs[0].taxRateBasisPoints,
+  ...calculateEarnings(240, { hourlyRateCents: EXAMPLE_WEEK.jobs[0].hourlyRateCents, taxRateBasisPoints: EXAMPLE_WEEK.jobs[0].taxRateBasisPoints, deductions: [] }),
+};
 
 function sum(shifts: ExampleShift[]) {
   return shifts.reduce((total, shift) => total + shift.minutes, 0);

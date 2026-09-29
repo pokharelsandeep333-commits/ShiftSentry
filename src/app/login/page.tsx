@@ -1,38 +1,70 @@
+import { Suspense, ViewTransition } from "react";
 import Link from "next/link";
-import { ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Brand } from "@/components/brand";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoginForm } from "./login-form";
+import { HeroChips } from "@/components/welcome/hero-chips";
+import { SignInPanel } from "./sign-in-panel";
 
+/**
+ * Sign in: one box in the middle of the landing page's lavender ground, on the
+ * landing's glass disc, with its example-week chips floating around it on
+ * large screens. No second sales pitch -- the front page already makes it --
+ * and a way back home at the top.
+ *
+ * Everything that reaches /login keeps working: `?next=` (invite links,
+ * protected routes) and `?error=` (the OAuth callback) are read by
+ * `LoginForm`; `?mode=signup` opens the box on Create account, and is what
+ * every "Get started" on the landing sends. A signed-in visitor never sees
+ * this page: `src/proxy.ts` sends them on.
+ *
+ * Arriving from the front page, the button that was clicked opens into the box:
+ * the box is permanently named `sign-in-box` (globals.css), and `SignInLink`
+ * gives the clicked button the same name, so the browser's View Transitions
+ * API morphs one into the other while the landing fades out. Leaving by the
+ * links back home (the `to-home` transition type), the page fades out over the
+ * landing. React runs a boundary's enter and exit only when the
+ * `<ViewTransition>` sits above every DOM node of the page, which is why the
+ * one boundary here wraps the whole page rather than its parts. Untyped
+ * navigations (browser Back, the redirect after signing in) do not animate.
+ */
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Sign in | ShiftSentry",
+  description: "Sign in to ShiftSentry to plan shifts under your weekly hour limit.",
+};
+
+const toHome = ["to-home"];
+
 export default function LoginPage() {
-  return <main className="min-h-screen bg-[var(--background)] lg:grid lg:grid-cols-[1.08fr_0.92fr]">
-    <section className="relative hidden overflow-hidden bg-[var(--primary)] p-12 text-[var(--primary-foreground)] lg:flex lg:flex-col">
-      <div className="login-orb login-orb--one" />
-      <div className="login-orb login-orb--two" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.09),transparent_45%,rgba(20,13,91,0.16))]" />
-      <div className="relative z-10"><Brand size="large" tone="inverse" /></div>
-      <div className="relative z-10 my-auto max-w-xl">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-bold uppercase tracking-[0.15em] text-white/80 backdrop-blur"><Sparkles className="size-3.5" />Hours, without surprises</div>
-        <h1 className="font-display text-5xl font-semibold leading-[1.06] tracking-tight xl:text-6xl">Plan every shift with your weekly limits in view.</h1>
-        <p className="mt-7 max-w-lg text-lg leading-8 text-white/78">Track multiple jobs, schedule ahead, and get warnings before your planned hours become a problem.</p>
-      </div>
-      <p className="relative z-10 flex items-center gap-2 text-sm text-white/75"><span className="grid size-8 place-items-center rounded-xl bg-white/10"><ShieldCheck className="size-4" /></span>Your work schedule stays private.</p>
-    </section>
-    <section className="relative grid place-items-center overflow-hidden p-4 sm:p-8">
-      <div className="pointer-events-none absolute left-1/2 top-8 size-72 -translate-x-1/2 rounded-full bg-[var(--primary)]/10 blur-3xl lg:hidden" />
-      <Card className="relative w-full max-w-md border-[color-mix(in_srgb,var(--primary)_22%,var(--border))] bg-[var(--card)]/88 shadow-2xl shadow-black/10">
-        <CardHeader>
-          <div className="mb-4 lg:hidden"><Brand /></div>
-          <CardTitle className="text-xl">Welcome to ShiftSentry</CardTitle>
-          <CardDescription className="mt-1.5 leading-6">Sign in to manage your hours and upcoming shifts.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-          <p className="mt-5 border-t pt-4 text-center text-xs text-[var(--muted-foreground)]"><Link href="/privacy" className="font-semibold transition-opacity hover:opacity-75">Privacy Policy</Link></p>
-        </CardContent>
-      </Card>
-    </section>
-  </main>;
+  return <ViewTransition exit={{ "to-home": "login-leave", default: "none" }} default="none">
+    <div className="welcome-page relative flex min-h-dvh flex-col overflow-x-clip">
+      <header className="relative z-10 mx-auto flex w-full max-w-[96rem] items-center justify-between gap-4 px-4 pt-4 sm:px-8 sm:pt-6 lg:px-12">
+        <Link href="/" transitionTypes={toHome} aria-label="ShiftSentry home" className="rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
+          <Brand size="compact" markClassName="size-9 rounded-xl" className="gap-2.5 text-[1.0625rem]" />
+        </Link>
+        <Link href="/" transitionTypes={toHome} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]"><ArrowLeft className="size-4" />Back to home</Link>
+      </header>
+
+      <main className="relative flex flex-1 items-center justify-center px-4 py-6 sm:py-8">
+        {/* The landing's glass disc behind the box, and its example-week chips
+            around it where there is room. Decoration only. */}
+        <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 hidden aspect-square w-[42rem] -translate-x-1/2 -translate-y-1/2 sm:block">
+          <div className="hero-disc absolute inset-0 rounded-full" />
+        </div>
+        <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 hidden h-[36rem] w-[60rem] -translate-x-1/2 -translate-y-1/2 lg:block">
+          <HeroChips />
+        </div>
+
+        <div className="sign-in-box welcome-tint relative w-full max-w-[27rem] rounded-[1.75rem] p-6 sm:p-8">
+          <Suspense><SignInPanel /></Suspense>
+        </div>
+      </main>
+
+      <footer className="relative flex flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 pb-5 text-xs text-[var(--muted-foreground)]">
+        <Link href="/privacy" className="font-semibold transition-colors hover:text-[var(--foreground)]">Privacy Policy</Link>
+        <span>© 2026 ShiftSentry</span>
+      </footer>
+    </div>
+  </ViewTransition>;
 }

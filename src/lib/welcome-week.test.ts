@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EXAMPLE_WEEK, earnedSoFar, tryShift, weekTotals } from "./welcome-week";
+import { EXAMPLE_DAY, EXAMPLE_OVERNIGHT, EXAMPLE_RECEIPT, EXAMPLE_WEEK, earnedSoFar, spansOverlap, tryShift, weekTotals } from "./welcome-week";
 
 test("the example week opens at 16 of 20 hours, which is the 80% alert line", () => {
   const totals = weekTotals(EXAMPLE_WEEK);
@@ -36,4 +36,19 @@ test("a per-job cap refuses a shift even when the global limit has room", () => 
 
 test("earnings count only worked shifts, rounded per job like the real calculation", () => {
   assert.deepEqual(earnedSoFar(EXAMPLE_WEEK), { grossCents: 15_500, taxCents: 1_860, deductionCents: 0, netCents: 13_640 });
+});
+
+test("back-to-back shifts touch without overlapping; a shift inside another's span clashes", () => {
+  assert.equal(spansOverlap(EXAMPLE_DAY.desk, EXAMPLE_DAY.cafe), false);
+  assert.equal(spansOverlap(EXAMPLE_DAY.clash, EXAMPLE_DAY.desk), true);
+});
+
+test("the overnight example splits at midnight into Friday 2h and Saturday 4h", () => {
+  assert.deepEqual(EXAMPLE_OVERNIGHT.map(({ day, minutes }) => ({ day, minutes })), [{ day: "Fri", minutes: 120 }, { day: "Sat", minutes: 240 }]);
+});
+
+test("the receipt prices 4h at the desk rate through calculateEarnings", () => {
+  assert.equal(EXAMPLE_RECEIPT.grossCents, 5_000);
+  assert.equal(EXAMPLE_RECEIPT.taxCents, 600);
+  assert.equal(EXAMPLE_RECEIPT.netCents, 4_400);
 });

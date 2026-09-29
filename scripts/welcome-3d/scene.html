@@ -1,0 +1,320 @@
+<!doctype html>
+<!--
+  The landing page's 3D art. scripts/render-welcome-3d.mjs renders it once,
+  offline, to transparent webp in public/welcome/. three.js never ships to the
+  site: it is loaded from a pinned CDN build only inside the headless render,
+  so the CSP and the bundle are unaffected.
+
+  The art is abstract, in the language of a pearly lavender page:
+  - hero: a flowing loop of iridescent lavender glass (a flattened ribbon
+    swept along a closed curve with a half twist), a large clear glass sphere,
+    and small accents in the app's colours: a lilac glass pill, a violet bead,
+    a mint pill and one amber bead.
+  - cta: a smaller cluster in the same language for the closing card.
+
+  Colours are the app's own: primary #6d5ce7, job lilac #9486ff and mint
+  #32d583, amber #f5a524 used once. No black, navy or dark surfaces anywhere,
+  by Sandeep's call; reflections come from a pearl lavender room.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ShiftSentry welcome 3D</title>
+  <style>html, body { margin: 0; background: transparent; } canvas { display: block; }</style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+<script type="module">
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const params = new URLSearchParams(location.search);
+const which = params.get("scene") ?? "hero";
+const W = Number(params.get("w") ?? 1400);
+const H = Number(params.get("h") ?? 1400);
+
+// Brand colours, sRGB. The job colours and amber come from globals.css / welcome-week.ts.
+const LILAC = "#9486ff";
+const PRIMARY = "#6d5ce7";
+const MINT = "#32d583";
+const AMBER = "#f5a524";
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: false });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+
+// Reflections: three.js's RoomEnvironment with its walls tinted pearl lavender,
+// plus a few soft coloured panels, so the glass mirrors lavender, blush and a
+// hint of mint rather than a grey studio.
+function environment() {
+  const room = new RoomEnvironment();
+  room.traverse((object) => {
+    if (object.isMesh && object.material.side === THREE.BackSide) object.material.color.set("#efeaff");
+  });
+  const panel = (hex, strength, position, scale) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(strength) }));
+    mesh.position.set(...position);
+    mesh.scale.set(...scale);
+    room.add(mesh);
+  };
+  panel("#b4a3ff", 5, [-5, 5, -13], [9, 6, 0.1]);
+  panel("#ffc4e4", 4, [14.8, 6, 5], [0.1, 5, 7]);
+  panel("#bff3dc", 3, [-16, 4, 3], [0.1, 3, 5]);
+  panel("#d9d0ff", 6, [2, 3, 14.5], [8, 3, 0.1]);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  return pmrem.fromScene(room, 0.03).texture;
+}
+scene.environment = environment();
+
+// Thin-film thickness varies in soft bands along the ribbon, so the
+// iridescence drifts through lavender, blush and green-gold instead of
+// sitting at one hue. Period 0.5 across v keeps the half-twist seam invisible.
+function bandTexture() {
+  const width = 512;
+  const height = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  const image = context.createImageData(width, height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const u = x / width;
+      const v = y / height;
+      const value = 0.5 + 0.5 * Math.sin(Math.PI * 2 * 3 * u + 1.4 * Math.sin(Math.PI * 4 * v));
+      const i = (y * width + x) * 4;
+      image.data[i] = image.data[i + 1] = image.data[i + 2] = Math.round(value * 255);
+      image.data[i + 3] = 255;
+    }
+  }
+  context.putImageData(image, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.NoColorSpace;
+  return texture;
+}
+const bands = bandTexture();
+
+// Iridescent lavender glass for the sculpture.
+const iridescentGlass = ({ tint = "#f4f0ff", attenuation = "#a898ff", distance = 2.2, roughness = 0.07, thickness = 1.4, transmission = 1 } = {}) => new THREE.MeshPhysicalMaterial({
+  color: tint, metalness: 0, roughness, transmission, thickness, ior: 1.45,
+  attenuationColor: new THREE.Color(attenuation), attenuationDistance: distance,
+  iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessRange: [100, 450], iridescenceThicknessMap: bands,
+  sheen: 0.6, sheenColor: new THREE.Color("#cdbfff"), sheenRoughness: 0.45,
+  specularIntensity: 1, envMapIntensity: 1.5, side: THREE.DoubleSide,
+});
+// Clear glass for the sphere: nearly colourless, with a thin iridescent film.
+const clearGlass = () => new THREE.MeshPhysicalMaterial({
+  color: "#ffffff", metalness: 0, roughness: 0.03, transmission: 1, thickness: 2.2, ior: 1.45,
+  attenuationColor: new THREE.Color("#ddd5ff"), attenuationDistance: 5,
+  iridescence: 0.8, iridescenceIOR: 1.3, iridescenceThicknessRange: [180, 420],
+  specularIntensity: 1, envMapIntensity: 1.6, side: THREE.DoubleSide,
+});
+// Frosted coloured glass for the small pills: partly transmissive so the
+// colour survives the alpha recovery on any page background.
+const frosted = (hex, transmission = 0.55) => new THREE.MeshPhysicalMaterial({
+  color: hex, metalness: 0, roughness: 0.2, transmission, thickness: 0.6, ior: 1.45,
+  attenuationColor: new THREE.Color(hex), attenuationDistance: 0.8,
+  iridescence: 0.5, iridescenceIOR: 1.3, iridescenceThicknessRange: [100, 400],
+  clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.2,
+});
+// Glossy solid colour for the beads.
+const gloss = (hex, roughness = 0.22) => new THREE.MeshPhysicalMaterial({
+  color: hex, metalness: 0, roughness, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.1,
+});
+
+// A closed saddle loop: a ring that rises and dips twice as it goes round.
+class SaddleLoop extends THREE.Curve {
+  constructor(radiusX = 2.2, radiusZ = 1.6, rise = 0.6) {
+    super();
+    this.radiusX = radiusX;
+    this.radiusZ = radiusZ;
+    this.rise = rise;
+    this.arcLengthDivisions = 1200;
+  }
+  getPoint(t, target = new THREE.Vector3()) {
+    const a = t * Math.PI * 2;
+    return target.set(
+      Math.cos(a) * this.radiusX + Math.cos(2 * a) * 0.28,
+      Math.sin(2 * a) * this.rise,
+      Math.sin(a) * this.radiusZ - Math.sin(2 * a) * 0.22,
+    );
+  }
+}
+
+// Sweeps an ellipse along a closed curve, turning it as it goes. The
+// parametrisation and winding follow TubeGeometry (-cos along the normal,
+// sin along the binormal) so front faces point outward; normals are the
+// ellipse's analytic normals, so there is no shading seam where the loop closes.
+function ribbonGeometry(curve, { segments = 900, radial = 96, halfWidth, halfThickness, twist }) {
+  const frames = curve.computeFrenetFrames(segments, true);
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const indices = [];
+  const point = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    curve.getPointAt(t % 1, point);
+    const N = frames.normals[i];
+    const B = frames.binormals[i];
+    const a = halfWidth(t);
+    const b = halfThickness(t);
+    const turn = twist(t);
+    const cos = Math.cos(turn);
+    const sin = Math.sin(turn);
+    for (let j = 0; j <= radial; j++) {
+      const v = (j / radial) * Math.PI * 2;
+      const ex = -a * Math.cos(v);
+      const ey = b * Math.sin(v);
+      const x = ex * cos - ey * sin;
+      const y = ex * sin + ey * cos;
+      const nx0 = -b * Math.cos(v);
+      const ny0 = a * Math.sin(v);
+      const nx = nx0 * cos - ny0 * sin;
+      const ny = nx0 * sin + ny0 * cos;
+      positions.push(point.x + N.x * x + B.x * y, point.y + N.y * x + B.y * y, point.z + N.z * x + B.z * y);
+      normal.set(N.x * nx + B.x * ny, N.y * nx + B.y * ny, N.z * nx + B.z * ny).normalize();
+      normals.push(normal.x, normal.y, normal.z);
+      uvs.push(t, j / radial);
+    }
+  }
+  for (let i = 0; i < segments; i++) {
+    for (let j = 0; j < radial; j++) {
+      const a = i * (radial + 1) + j;
+      const b = (i + 1) * (radial + 1) + j;
+      indices.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setIndex(indices);
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  return geometry;
+}
+
+function sculpture({ radiusX = 2.2, radiusZ = 1.6, rise = 0.6, width = 0.72, thickness = 0.22 } = {}) {
+  const tau = Math.PI * 2;
+  return ribbonGeometry(new SaddleLoop(radiusX, radiusZ, rise), {
+    halfWidth: (t) => width * (1 + 0.3 * Math.sin(tau * 2 * t + 0.6)),
+    halfThickness: (t) => thickness * (1 + 0.18 * Math.sin(tau * 2 * t + 2.1)),
+    twist: (t) => 0.4 + Math.PI * t + 0.5 * Math.sin(tau * t),
+  });
+}
+
+function add(geometry, material, { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, s = 1 } = {}, parent = scene) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.set(rx, ry, rz);
+  mesh.scale.setScalar(s);
+  parent.add(mesh);
+  return mesh;
+}
+
+function lights() {
+  const key = new THREE.DirectionalLight("#ffffff", 2.2);
+  key.position.set(4, 10, 7);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight("#f3efff", 0.7);
+  fill.position.set(-6, 2, 8);
+  scene.add(fill);
+  scene.add(new THREE.HemisphereLight("#f6f3ff", "#cfc6f7", 0.55));
+  // The lavender rim from behind picks out the far edges of the glass.
+  const rim = new THREE.PointLight("#ab9bff", 90, 40);
+  rim.position.set(-5, 5, -7);
+  scene.add(rim);
+  const rim2 = new THREE.PointLight("#f2c7ff", 40, 40);
+  rim2.position.set(6, -1, -6);
+  scene.add(rim2);
+}
+
+// A very soft lavender-grey pool under the art: a radial gradient on a flat
+// plane, so it fades to nothing with no edge.
+function softShadow({ x = 0, y = 0, z = 0, width, depth, opacity = 0.12 }) {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d");
+  const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.4, "rgba(255,255,255,0.55)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+  const material = new THREE.MeshBasicMaterial({
+    color: "#4a3f96", map: new THREE.CanvasTexture(canvas), transparent: true, opacity, depthWrite: false, toneMapped: false,
+  });
+  add(new THREE.PlaneGeometry(width, depth), material, { x, y, z, rx: -Math.PI / 2 });
+}
+
+function hero() {
+  const group = new THREE.Group();
+  add(sculpture(), iridescentGlass(), {}, group);
+  group.rotation.set(0.5, 0.35, -0.2);
+  group.position.set(-0.15, -0.35, 0);
+  scene.add(group);
+
+  add(new THREE.SphereGeometry(1.0, 128, 96), clearGlass(), { x: 1.75, y: 1.65, z: -1.4 });
+
+  // Accents sit clear of the page's three chips (top left, top right, bottom right).
+  add(new THREE.CapsuleGeometry(0.2, 0.85, 16, 48), frosted(LILAC), { x: -0.9, y: 2.75, z: -0.8, rz: -1.05, rx: 0.3 });
+  add(new THREE.SphereGeometry(0.32, 64, 48), gloss(PRIMARY), { x: 0.35, y: -0.2, z: 0.2 });
+  add(new THREE.CapsuleGeometry(0.16, 0.6, 16, 48), frosted(MINT, 0.35), { x: -2.8, y: -0.4, z: 0.8, rz: 0.9, ry: 0.4 });
+  add(new THREE.SphereGeometry(0.14, 48, 32), gloss(AMBER, 0.18), { x: 2.75, y: -0.35, z: 0.9 });
+
+  softShadow({ y: -2.6, width: 7.5, depth: 3.2, opacity: 0.12 });
+
+  const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
+  camera.position.set(0, 3.4, 14);
+  camera.lookAt(0, 0, 0);
+  return camera;
+}
+
+function cta() {
+  const group = new THREE.Group();
+  add(sculpture({ radiusX: 1.6, radiusZ: 1.15, rise: 0.45, width: 0.5, thickness: 0.17 }), iridescentGlass(), {}, group);
+  group.rotation.set(0.5, 0.5, -0.15);
+  group.position.set(-0.5, -0.1, 0);
+  scene.add(group);
+
+  add(new THREE.SphereGeometry(0.72, 128, 96), clearGlass(), { x: 1.75, y: 0.55, z: -0.4 });
+  add(new THREE.CapsuleGeometry(0.17, 0.7, 16, 48), frosted(LILAC), { x: 1.35, y: -1.05, z: 1.0, rz: 1.1, ry: 0.3 });
+  add(new THREE.SphereGeometry(0.24, 64, 48), gloss(PRIMARY), { x: -2.3, y: 0.95, z: 0.3 });
+
+  softShadow({ y: -1.9, width: 6.5, depth: 2.6, opacity: 0.11 });
+
+  const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
+  camera.position.set(0, 2.6, 11);
+  camera.lookAt(0, 0, 0);
+  return camera;
+}
+
+lights();
+const camera = which === "cta" ? cta() : hero();
+
+// Rendered twice, over white and over black; the render script recovers true
+// alpha from the difference, which keeps transmission and soft shadows honest.
+window.__capture = (background) => {
+  scene.background = new THREE.Color(background);
+  renderer.render(scene, camera);
+  return renderer.domElement.toDataURL("image/png");
+};
+window.__ready = true;
+</script>
+</body>
+</html>
