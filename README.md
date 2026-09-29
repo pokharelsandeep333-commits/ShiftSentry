@@ -26,6 +26,12 @@
 
 <div align="center">
 
+**Landing page**
+
+<img src="docs/screenshots/landing.png" alt="ShiftSentry landing page with the headline 'Every job, every shift, under your limit' beside lavender 3D glass art and example-week chips" width="92%" />
+
+<br /><br />
+
 **Desktop view**
 
 <img src="docs/screenshots/dashboard-desktop.png" alt="ShiftSentry dashboard showing the weekly cap, earnings, and monthly job allocation" width="92%" />
@@ -40,12 +46,12 @@
 
 **Sign in**
 
-<img src="docs/screenshots/login.png" alt="ShiftSentry sign-in page with email, Google, and GitHub options" width="92%" />
+<img src="docs/screenshots/login.png" alt="ShiftSentry sign-in box with email, Google, and GitHub options, centred on the landing page's lavender background" width="92%" />
 
 </div>
 
 > [!NOTE]
-> Captured from the app's built-in preview mode, which renders sample data when no Supabase credentials are present — no real user data is shown.
+> The dashboard images come from the app's built-in preview mode, which renders sample data when no Supabase credentials are present. The landing page and sign-in are public pages. No real user data is shown anywhere.
 
 <br />
 
@@ -66,8 +72,11 @@ Hours are counted in **your** time zone and **your** week, not the server's. An 
 | ⚠️ **Stay under limits** | Get clear warnings at 80%, 90%, and 100% of global or per-job weekly caps. |
 | 💰 **Understand earnings** | Gross pay, tax, deductions, and net—filtered by this week, this month, the last 3 or 6 months, year to date, all time, or a custom span of months. |
 | 🧾 **Keep history honest** | A shift remembers the rate it was worked at, so a later raise never silently reprices work you already did. |
-| 🔒 **Use secure sign-in** | Sign in with email, Google, or GitHub through Supabase Auth. |
-| 📱 **Work comfortably anywhere** | Responsive dashboard, mobile navigation, keyboard-accessible controls, and light or dark themes. |
+| 🗓️ **See it on a calendar** | Week and month views of your shifts. Overnight shifts appear on both days and clashes are marked. |
+| 🔗 **Connect Google Calendar** | Optional and read-only: show your Google events beside your shifts and get a warning when a new shift clashes with one. A job can also opt in to adding shifts automatically from matching Google events. Nothing is ever written to Google. |
+| 🔒 **Use secure sign-in** | Sign in with email, Google, or GitHub through Supabase Auth. Signed out, the site's home page is a public landing page with an interactive example week. |
+| 📱 **Work comfortably anywhere** | Responsive dashboard, mobile navigation, keyboard-accessible controls, light or dark themes, and an installable app with an offline fallback page. |
+| 🎭 **Take a break** | Imposter, a small party word game for friends, with QR-code and link invites. |
 
 <br />
 
@@ -76,11 +85,13 @@ Hours are counted in **your** time zone and **your** week, not the server's. An 
 | Area | Technologies Used |
 | :--- | :--- |
 | **App Framework** | Next.js 16 App Router, React 19, TypeScript |
-| **Styling & Interaction** | Tailwind CSS v4, Radix Dropdown Menu, an in-house ARIA listbox, Inter, Outfit |
+| **Styling & Interaction** | Tailwind CSS v4, Radix Dropdown Menu, an in-house ARIA listbox, Inter, Outfit, CSS-only motion and native View Transitions |
+| **Landing Art** | A Three.js scene rendered offline to WebP by `scripts/render-welcome-3d.mjs`; Three.js is not part of the app bundle |
 | **Data & Auth** | Supabase Auth, PostgreSQL, Row Level Security, `@supabase/ssr`, `@supabase/server` |
 | **Server Admin** | Prisma 7 with PostgreSQL |
 | **Charts & Dates** | Recharts, `date-fns`, `date-fns-tz` |
-| **Validation & Tests** | Zod, Node.js test runner via `tsx` |
+| **Integrations** | Google Calendar API (read-only scopes), tokens encrypted with AES-256-GCM |
+| **Validation & Tests** | Zod, Node.js test runner via `tsx`, SQL suites against a throwaway Postgres in Docker |
 | **Delivery** | Docker, GitHub Actions, Nginx on EC2 |
 
 <br />
@@ -98,6 +109,7 @@ flowchart LR
   Admin --> SecretClient[Supabase secret-key client]
   Prisma --> Database
   SecretClient --> Database
+  Actions -. optional, read-only .-> Google[Google Calendar API]
 ```
 
 > **Note:** Browser-facing features use Supabase's publishable key and Row Level Security. Prisma and the secret-key client are server-only administrative tools; neither belongs in a browser bundle.
@@ -108,7 +120,9 @@ flowchart LR
 
 * **Rules enforced twice.** Weekly caps, earnings snapshots, the tax-plus-deductions ceiling, and a no-overlapping-shifts constraint are enforced in TypeScript *and* independently by Postgres triggers—so a direct authenticated write that skips the app is rejected too.
 * **Row Level Security everywhere.** Every user-facing read and write goes through a cookie-bound publishable-key client; the secret key never reaches the browser.
-* **Strict CSP.** No external script, style, image, or font hosts—fonts are bundled, not fetched.
+* **Strict CSP.** A per-request nonce with `'strict-dynamic'` and no `'unsafe-inline'` for scripts. No external script, style, image, or font hosts—fonts are bundled, not fetched.
+* **Disabled means disabled.** Disabling an account is enforced by database policies, so a session token issued before the ban cannot keep writing.
+* **Google access is read-only.** Calendar tokens are stored encrypted and every Google call is made server-to-server. Event titles and details are never stored. The only thing kept is the start and end times of events a job has opted in to sync, which become shifts.
 * **Guarded pipeline.** Gitleaks secret scanning, CodeQL, a production dependency audit, and a Docker build check all gate `main` before a release is built.
 
 <br />
@@ -117,11 +131,14 @@ flowchart LR
 
 ```
 src/
-├── app/                    App Router pages, actions, callback, and health route
-├── components/             Shared dashboard, navigation, and UI primitives
-├── lib/                    Auth, Supabase, validation, calculations, and types
+├── app/                    App Router pages, actions, callbacks, integrations, and health route
+├── components/             Dashboard, calendar, game, landing, navigation, and UI primitives
+├── lib/                    Auth, Supabase, Google, validation, calculations, and types
 prisma/                     Prisma schema
+public/welcome/             Pre-rendered landing art and dashboard captures
+scripts/                    SQL test runner, audit gate, and the landing-art renderer
 supabase/migrations/        Immutable timestamped production SQL migrations
+supabase/tests/             SQL suites for the triggers, policies, and grants
 docs/screenshots/           Images used by this README
 .github/workflows/          CI, scheduled audit, and scheduled CodeQL workflows
 ```
@@ -134,7 +151,7 @@ docs/screenshots/           Images used by this README
 
 - **Node.js 24** or a compatible runtime supported by Next.js 16
 - A **Supabase project** with email, Google, and GitHub sign-in enabled
-- **Docker** (only if testing the production image locally)
+- **Docker** (only for the SQL tests or for testing the production image locally)
 
 ### 1. Install & Configure
 
@@ -167,12 +184,16 @@ http://localhost:3000/auth/callback
 
 Enable Email, Google, and GitHub under **Authentication → Sign In / Providers**. Each OAuth provider points back to Supabase's provider callback, `https://<project-ref>.supabase.co/auth/v1/callback`; Supabase then redirects to this app's allowed callback.
 
+The optional Google Calendar connection is a separate Google OAuth client, not the Supabase Google provider. Register `http://localhost:3000/integrations/google/callback` as its authorized redirect URI, and generate `GOOGLE_TOKEN_ENCRYPTION_KEY` as 32 random bytes in base64 (the command is in `.env.example`).
+
 ### 4. Verify & Run
 
 ```
 npm run db:generate
 npm run test:earnings
 npm run test:auth
+npm run test:game
+npm run test:sql
 npx tsc --noEmit
 npm run lint
 npm run audit:production
@@ -187,7 +208,7 @@ These are the same checks the pipeline runs on every pull request:
 <a href="https://github.com/pokharelsandeep333-commits/ShiftSentry/actions/workflows/ci.yml"><img alt="CI status" src="https://img.shields.io/github/actions/workflow/status/pokharelsandeep333-commits/ShiftSentry/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" /></a>
 
 > [!TIP]
-> Without Supabase configuration the root route intentionally renders a read-only dashboard preview with sample data, so the app boots and is browsable before you have any credentials.
+> Without Supabase configuration the root route intentionally renders a read-only dashboard preview with sample data, so the app boots and is browsable before you have any credentials. With Supabase configured, a signed-out visit to `/` shows the public landing page instead, at the same address.
 
 <br />
 
