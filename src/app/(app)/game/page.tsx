@@ -34,7 +34,7 @@ export default async function GamePage({ searchParams }: { searchParams: Promise
   // names the seat you will actually get.
   const playingAs = profile.display_name?.trim() || profile.email.split("@")[0];
   const savedMessage = SAVED_MESSAGES[first(saved)];
-  // `/game?code=ABC234` lands with the box filled and submitting itself.
+  // `/game?code=ABC234` lands with the box filled; joining still takes a tap.
   const initialCode = first(code) || null;
 
   return <>
