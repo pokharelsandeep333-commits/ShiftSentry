@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { saveJobGoogleSettings } from "@/app/actions/calendar";
+import { runSync } from "@/components/google-sync-trigger";
 import { Button } from "@/components/ui/button";
 import { PremiumSelect } from "@/components/ui/premium-select";
 import { emptySavedFormState } from "@/lib/form-state";
@@ -18,11 +19,18 @@ type Props = {
 /** Which Google events are this job's, and whether they become shifts on their own. */
 export function JobGoogleForm({ jobId, jobName, keyword, calendarId, sync, calendars }: Props) {
   const [state, formAction, pending] = useActionState(saveJobGoogleSettings, emptySavedFormState);
+  // Saved with sync on: pull this job's events in now rather than on the next
+  // page visit, which could fall inside the five-minute throttle. Read at
+  // submit, because React resets the form's fields once the action returns.
+  const syncOnSave = useRef(false);
+  useEffect(() => {
+    if (state.savedAt && !state.message && syncOnSave.current) runSync(true).catch(() => {});
+  }, [state]);
   const options = [{ value: "", label: "Any selected calendar" }, ...calendars.map((calendar) => ({ value: calendar.primary ? "primary" : calendar.id, label: calendar.primary ? `${calendar.summary} (primary)` : calendar.summary }))];
   // Google may be unreachable: keep the saved choice selectable rather than silently dropping it.
   if (calendarId && !options.some((option) => option.value === calendarId)) options.push({ value: calendarId, label: calendarId === "primary" ? "Primary calendar" : "Saved calendar" });
 
-  return <form action={formAction} className="grid gap-3 rounded-2xl border p-4">
+  return <form action={formAction} onSubmit={(event) => { const box = event.currentTarget.elements.namedItem("sync"); syncOnSave.current = box instanceof HTMLInputElement && box.checked; }} className="grid gap-3 rounded-2xl border p-4">
     <input type="hidden" name="jobId" value={jobId} />
     <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Google Calendar</p>
     <div className="grid gap-3 sm:grid-cols-2">

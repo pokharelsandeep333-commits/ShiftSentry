@@ -119,7 +119,6 @@ model GoogleCalendarConnection {
   scopes                 String[]
   selectedCalendarIds    String[]  @default(["primary"]) @map("selected_calendar_ids")
   status                 String    @default("active")
-  shiftsSyncedAt         DateTime? @map("shifts_synced_at") @db.Timestamptz(6)
   syncIssues             Json      @default("[]") @map("sync_issues")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)

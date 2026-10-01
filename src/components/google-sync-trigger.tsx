@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-async function runSync(force: boolean) {
+/** POSTs one sync run. `force` asks for the 30-second budget of an explicit request. */
+export async function runSync(force: boolean) {
   const response = await fetch(`/integrations/google/sync${force ? "?force=1" : ""}`, { method: "POST", cache: "no-store" });
   return (await response.json().catch(() => ({ status: "unavailable", changed: 0 }))) as { status: string; changed: number };
 }

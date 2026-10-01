@@ -73,8 +73,6 @@ export async function saveJobGoogleSettings(_previous: SavedFormState, formData:
   }
   const { error } = await supabase.from("jobs").update({ google_keyword: keyword, google_calendar_id: calendarId, google_sync: sync, ...(turningOff ? { google_sync_ignored: [] } : {}) }).eq("id", jobId).eq("user_id", profile.id);
   if (error) return { message: "Couldn't save the Google Calendar settings. Try again.", savedAt: null };
-  // Let the next page visit sync straight away rather than waiting out the throttle.
-  if (sync) await supabase.from("google_calendar_connections").update({ shifts_synced_at: null }).eq("user_id", profile.id);
   revalidatePath("/"); revalidatePath("/jobs"); revalidatePath("/calendar"); revalidatePath("/shifts");
   return { message: "", savedAt: Date.now() };
 }

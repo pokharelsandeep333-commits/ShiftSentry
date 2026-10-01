@@ -498,7 +498,6 @@ export type Database = {
           google_email: string;
           refresh_token_ciphertext: string;
           scopes: string[];
-          shifts_synced_at: string | null;
           sync_issues: Json;
           selected_calendar_ids: string[];
           status: string;
@@ -512,7 +511,6 @@ export type Database = {
           google_email: string;
           refresh_token_ciphertext: string;
           scopes: string[];
-          shifts_synced_at?: string | null;
           sync_issues?: Json;
           selected_calendar_ids?: string[];
           status?: string;
@@ -526,7 +524,6 @@ export type Database = {
           google_email?: string;
           refresh_token_ciphertext?: string;
           scopes?: string[];
-          shifts_synced_at?: string | null;
           sync_issues?: Json;
           selected_calendar_ids?: string[];
           status?: string;
@@ -536,6 +533,29 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "google_calendar_connections_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      google_sync_claims: {
+        Row: {
+          claimed_at: string;
+          user_id: string;
+        };
+        Insert: {
+          claimed_at: string;
+          user_id: string;
+        };
+        Update: {
+          claimed_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "google_sync_claims_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: true;
             referencedRelation: "profiles";
@@ -759,6 +779,12 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      claim_google_shift_sync: {
+        Args: {
+          p_force?: boolean;
+        };
+        Returns: boolean;
+      };
       create_game_room: {
         Args: {
           p_display_name?: string | null;
