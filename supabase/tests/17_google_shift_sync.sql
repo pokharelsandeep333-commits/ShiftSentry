@@ -85,7 +85,7 @@ begin
   -- ---- the issue list is an array, and short ---------------------------------
   insert into public.google_calendar_connections (user_id, google_email, refresh_token_ciphertext, scopes)
     values (alice, 'alice@gmail.com', 'v1:opaque', array['openid']);
-  update public.google_calendar_connections set sync_issues = '[{"reason":"over your weekly limit"}]', shifts_synced_at = now() where user_id = alice;
+  update public.google_calendar_connections set sync_issues = '[{"reason":"over your weekly limit"}]' where user_id = alice;
   refused := false;
   begin
     update public.google_calendar_connections set sync_issues = '{"reason":"not an array"}' where user_id = alice;

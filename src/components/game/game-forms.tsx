@@ -32,10 +32,11 @@ export function CreateRoomForm({ playingAs }: { playingAs: string }) {
 
 /**
  * The join box takes a code, a link, or a code with the separators people add
- * -- and submits itself the moment six valid characters are in it, because
- * reaching for a Join button after typing a code is the step everybody forgets
- * on a phone. A code that arrived as `?code=` in the URL is submitted on mount
- * for the same reason.
+ * -- and submits itself the moment six valid characters are typed or pasted in,
+ * because reaching for a Join button after typing a code is the step everybody
+ * forgets on a phone. A code that arrived as `?code=` in the URL only fills the
+ * box: joining puts your name in a stranger's roster, so a link anyone can send
+ * must not do it without a tap on Join.
  */
 export function JoinRoomForm({ initialCode }: { initialCode: string | null }) {
   const [state, formAction, pending] = useActionState(joinGameRoom, emptyFormState);
@@ -43,11 +44,12 @@ export function JoinRoomForm({ initialCode }: { initialCode: string | null }) {
   const form = useRef<HTMLFormElement>(null);
 
   // Submit when the value becomes a complete code. Driven by the value rather
-  // than by the keystroke so a paste, an autofill and a prefilled `?code=` all
-  // take the same path. Once the action has rejected something, stop
-  // auto-submitting until the value changes again -- otherwise a bad code
-  // would re-fire on every render with the same error.
-  const lastTried = useRef<string | null>(null);
+  // than by the keystroke so a paste and an autofill take the same path. Once
+  // the action has rejected something, stop auto-submitting until the value
+  // changes again -- otherwise a bad code would re-fire on every render with
+  // the same error. Seeded with the URL's code, so that one counts as already
+  // tried and waits for the Join button.
+  const lastTried = useRef<string | null>(normalizeGameCode(initialCode ?? ""));
   useEffect(() => {
     const complete = normalizeGameCode(code);
     if (!complete || pending || lastTried.current === complete) return;

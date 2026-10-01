@@ -15,13 +15,12 @@ import { withCalendarAccess, type CalendarAccess } from "./connection";
  * schedule does not collide with the shifts it replaces. A write the database
  * refuses becomes an issue for the Calendar page.
  *
- * The run is claimed with one conditional update of `shifts_synced_at`, so two
- * tabs (or two "Sync now" clicks) cannot both run it.
+ * The run is claimed through `claim_google_shift_sync`, which admits one run
+ * per five minutes (thirty seconds for "Sync now") from a table the user cannot
+ * write, so two tabs cannot both run it and nobody can reset the clock.
  */
 const WINDOW_BACK_MS = 14 * 24 * 60 * 60_000;
 const WINDOW_AHEAD_MS = 56 * 24 * 60 * 60_000;
-const THROTTLE_MS = 5 * 60_000;
-const FORCE_THROTTLE_MS = 30_000;
 const UNLINK = { google_calendar_id: null, google_event_id: null, google_adopted: false };
 
 export type SyncResult = { status: "ok" | "skipped" | Exclude<CalendarAccess<unknown>["status"], "ok">; changed: number };
@@ -39,15 +38,14 @@ function reasonFor(message: string) {
 export async function syncGoogleShifts(profile: { id: string; time_zone: string }, { force = false } = {}): Promise<SyncResult> {
   if (!isGoogleCalendarEnabled()) return { status: "disabled", changed: 0 };
   const supabase = await createServerSupabaseClient();
-  const { data: connection } = await supabase.from("google_calendar_connections").select("status").eq("user_id", profile.id).maybeSingle();
+  const { data: connection } = await supabase.from("google_calendar_connections").select("status,selected_calendar_ids").eq("user_id", profile.id).maybeSingle();
   if (!connection) return { status: "not_connected", changed: 0 };
   if (connection.status === "needs_reconnect") return { status: "needs_reconnect", changed: 0 };
 
+  const { data: claimed } = await supabase.rpc("claim_google_shift_sync", { p_force: force });
+  if (!claimed) return { status: "skipped", changed: 0 };
   const now = new Date();
-  const cutoff = new Date(now.getTime() - (force ? FORCE_THROTTLE_MS : THROTTLE_MS)).toISOString();
-  const { data: claimed } = await supabase.from("google_calendar_connections").update({ shifts_synced_at: now.toISOString() }).eq("user_id", profile.id).or(`shifts_synced_at.is.null,shifts_synced_at.lt.${cutoff}`).select("selected_calendar_ids");
-  if (!claimed?.length) return { status: "skipped", changed: 0 };
-  const selected = claimed[0].selected_calendar_ids;
+  const selected = connection.selected_calendar_ids;
 
   const { data: jobRows } = await supabase.from("jobs").select("id,name,google_keyword,google_calendar_id,google_sync,google_sync_ignored").eq("user_id", profile.id).is("archived_at", null);
   const jobs: SyncJob[] = (jobRows ?? []).map((job) => ({ id: job.id, name: job.name, keyword: job.google_keyword, calendarId: job.google_calendar_id, sync: job.google_sync, ignored: job.google_sync_ignored }));
