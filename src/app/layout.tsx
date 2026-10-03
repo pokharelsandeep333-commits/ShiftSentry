@@ -8,8 +8,8 @@ import { ServiceWorkerRegistrar } from "@/components/service-worker";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sentry.sandeeppokharel.com.np"),
-  title: "ShiftSentry | Plan work with confidence",
-  description: "Track shifts, forecast weekly hours, and stay ahead of every limit.",
+  title: "ShiftSentry | Work hours tracker",
+  description: "A work hours tracker for every job: log shifts, forecast weekly hours, and stay under your limit.",
   applicationName: "ShiftSentry",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "ShiftSentry", statusBarStyle: "black-translucent" },
@@ -18,14 +18,14 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     siteName: "ShiftSentry",
-    title: "ShiftSentry | Plan work with confidence",
-    description: "Track shifts, forecast weekly hours, and stay ahead of every limit.",
+    title: "ShiftSentry | Work hours tracker",
+    description: "A work hours tracker for every job: log shifts, forecast weekly hours, and stay under your limit.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "ShiftSentry — Plan work with confidence" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ShiftSentry | Plan work with confidence",
-    description: "Track shifts, forecast weekly hours, and stay ahead of every limit.",
+    title: "ShiftSentry | Work hours tracker",
+    description: "A work hours tracker for every job: log shifts, forecast weekly hours, and stay under your limit.",
     images: ["/twitter-image"],
   },
 };

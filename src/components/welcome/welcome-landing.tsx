@@ -82,7 +82,7 @@ export function WelcomeLanding() {
                 <span className="hero-line block"><span>every shift,</span></span>
                 <span className="hero-line block text-[var(--primary)]"><span>under your limit.</span></span>
               </h1>
-              <p className="hero-fade mt-6 max-w-[27rem] text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base 2xl:max-w-[30rem] 2xl:text-[1.0625rem] 2xl:leading-8">Plan shifts across every job. ShiftSentry warns you at 80% and refuses any shift that would push you over.</p>
+              <p className="hero-fade mt-6 max-w-[27rem] text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base 2xl:max-w-[30rem] 2xl:text-[1.0625rem] 2xl:leading-8">A work hours tracker for people with more than one job. ShiftSentry warns you at 80% and refuses any shift that would push you over.</p>
               <div className="hero-fade mt-8 flex flex-wrap items-center gap-2.5">
                 <Pill prefetch>Get started</Pill>
                 <a href="#week" className="welcome-ghost inline-flex h-12 items-center whitespace-nowrap rounded-full px-5 text-sm font-semibold transition-[background-color,border-color,transform] duration-300 ease-out hover:-translate-y-0.5">Try the example week</a>
@@ -175,6 +175,7 @@ export function WelcomeLanding() {
             </FooterColumn>
             <FooterColumn title="Legal">
               <li><Link href="/privacy" className={footerLink}>Privacy Policy</Link></li>
+              <li><Link href="/terms" className={footerLink}>Terms of Service</Link></li>
             </FooterColumn>
           </div>
           <p className="border-t py-5 text-[13px] text-[var(--muted-foreground)]">© 2026 ShiftSentry</p>
