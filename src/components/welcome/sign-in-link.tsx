@@ -19,14 +19,13 @@ let named: HTMLElement | null = null;
  *
  * It also tags the navigation `to-login`, which is what fades the landing out
  * (src/app/welcome/page.tsx). A click that will not navigate here (modifier
- * keys, a new tab) names nothing. With reduced motion on, nothing is named
- * either: the box then just fades in, and the button fades with the page.
+ * keys, a new tab) names nothing. The morph runs whatever the visitor's
+ * reduced-motion setting.
  */
 export function SignInLink({ onClick, ...props }: Omit<ComponentProps<typeof Link>, "transitionTypes">) {
   function nameForMorph(event: MouseEvent<HTMLAnchorElement>) {
     onClick?.(event);
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (named) named.style.viewTransitionName = "";
     named = event.currentTarget;
     named.style.viewTransitionName = "sign-in-box";

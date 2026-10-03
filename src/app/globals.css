@@ -153,7 +153,7 @@ body {
   :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:focus-visible .app-nav-label { opacity: 1; }
 }
 
-@media (min-width: 64rem) and (prefers-reduced-motion: no-preference) {
+@media (min-width: 64rem) {
   :root[data-sidebar="collapsed"] .app-sidebar .app-nav-label { transition: opacity 150ms ease-out; }
 }
 
@@ -266,15 +266,10 @@ body {
  * the pills draw their own focus ring here: a `ring-*` utility is a box-shadow,
  * and the pill's own box-shadow would override it.
  *
- * Everything that moves sits behind `prefers-reduced-motion: no-preference`;
- * a reduced-motion visitor gets the final frame. The deliberate exceptions
- * are the nav's scrolled-state transition (see `.welcome-nav`) and the move to
- * and from /login, which still crossfades, without travel (see the page
- * transitions below).
- * Scroll reveals (`.rv`) and
- * the stats count-up are scroll-driven (`animation-timeline: view()`), gated on
- * support as well: without it the content simply shows, which is the state
- * every animation ends in.
+ * Motion always plays, whatever the visitor's `prefers-reduced-motion`
+ * setting (Sandeep's call). Scroll reveals (`.rv`) and the stats count-up are
+ * scroll-driven (`animation-timeline: view()`), gated on support: without it
+ * the content simply shows, which is the state every animation ends in.
  */
 .theme-dark-only { display: none; }
 .dark .theme-dark-only { display: block; }
@@ -443,17 +438,6 @@ body {
   opacity: 0;
 }
 
-/* The one exception to reduced motion on this page, by Sandeep's explicit
-   call: the nav's change of state still transitions. It is a small change of
-   width and colour, not travel across the screen. It beats the global reduce
-   rule on specificity (both are !important), and it names only the bar and
-   the wordmark; everything else on the page still honours the setting. */
-@media (prefers-reduced-motion: reduce) {
-  .welcome-nav .welcome-nav-bar,
-  .welcome-nav .welcome-nav-bar::before { transition-duration: 300ms !important; }
-  .welcome-nav .welcome-nav-word { transition-duration: 300ms, 300ms, 200ms !important; }
-}
-
 /* The app's primary button, as a pill with an arrow disc. */
 .welcome-pill {
   background: var(--primary);
@@ -514,44 +498,42 @@ body {
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 26%, transparent) 0 6px, color-mix(in srgb, var(--danger) 10%, transparent) 6px 12px);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .hero-line > span { animation: hero-rise 850ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .hero-line:nth-child(2) > span { animation-delay: 90ms; }
-  .hero-line:nth-child(3) > span { animation-delay: 180ms; }
-  .hero-fade { animation: hero-fade 800ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both; }
-  .hero-fade + .hero-fade { animation-delay: 400ms; }
+.hero-line > span { animation: hero-rise 850ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.hero-line:nth-child(2) > span { animation-delay: 90ms; }
+.hero-line:nth-child(3) > span { animation-delay: 180ms; }
+.hero-fade { animation: hero-fade 800ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both; }
+.hero-fade + .hero-fade { animation-delay: 400ms; }
 
-  /* The render settles in, then breathes; the chips pop on after it and drift
-     on their own clocks so they never move in step. */
-  .hero-art { animation: art-in 1200ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both; }
-  .hero-art-float { animation: art-float 9s ease-in-out 1.4s infinite alternate; }
-  .hero-chip {
-    animation:
-      chip-in 700ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--chip-delay, 600ms) both,
-      chip-float var(--chip-drift, 7s) ease-in-out calc(var(--chip-delay, 600ms) + 700ms) infinite alternate;
+/* The render settles in, then breathes; the chips pop on after it and drift
+   on their own clocks so they never move in step. */
+.hero-art { animation: art-in 1200ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both; }
+.hero-art-float { animation: art-float 9s ease-in-out 1.4s infinite alternate; }
+.hero-chip {
+  animation:
+    chip-in 700ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--chip-delay, 600ms) both,
+    chip-float var(--chip-drift, 7s) ease-in-out calc(var(--chip-delay, 600ms) + 700ms) infinite alternate;
+}
+
+.wk-total { animation: wk-count 1200ms cubic-bezier(0.16, 1, 0.3, 1) 250ms backwards; }
+/* No backwards fill: during the delay the segment's own fill-in keeps control
+   of `transform`, and the shake only borrows it for 420ms. */
+.gauge-seg.wk-refused { animation: gauge-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both, wk-shake 420ms ease-out 260ms; }
+.wk-tick { animation: rv-pop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@supports (animation-timeline: view()) {
+  .rv {
+    animation: rv-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 24%;
   }
-
-  .wk-total { animation: wk-count 1200ms cubic-bezier(0.16, 1, 0.3, 1) 250ms backwards; }
-  /* No backwards fill: during the delay the segment's own fill-in keeps control
-     of `transform`, and the shake only borrows it for 420ms. */
-  .gauge-seg.wk-refused { animation: gauge-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both, wk-shake 420ms ease-out 260ms; }
-  .wk-tick { animation: rv-pop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-
-  @supports (animation-timeline: view()) {
-    .rv {
-      animation: rv-rise linear both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 24%;
-    }
-    .rv-slide { animation-name: rv-slide; animation-range: entry 20% cover 40%; }
-    .rv-drop { animation-name: rv-drop; animation-range: entry 30% cover 45%; }
-    .rv-pop { animation-name: rv-pop; animation-range: entry 35% cover 45%; }
-    .rv-grow { animation-name: rv-grow; animation-range: entry 20% cover 40%; transform-origin: left center; }
-    .stat-count {
-      animation: stat-count linear both;
-      animation-timeline: view();
-      animation-range: entry 10% cover 40%;
-    }
+  .rv-slide { animation-name: rv-slide; animation-range: entry 20% cover 40%; }
+  .rv-drop { animation-name: rv-drop; animation-range: entry 30% cover 45%; }
+  .rv-pop { animation-name: rv-pop; animation-range: entry 35% cover 45%; }
+  .rv-grow { animation-name: rv-grow; animation-range: entry 20% cover 40%; transform-origin: left center; }
+  .stat-count {
+    animation: stat-count linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 40%;
   }
 }
 
@@ -621,47 +603,34 @@ body {
 .sign-in-box { view-transition-name: sign-in-box; }
 ::view-transition { pointer-events: none; }
 
-@media (prefers-reduced-motion: no-preference) {
-  ::view-transition-old(.page-leave) { animation: vt-fade-out 260ms cubic-bezier(0.4, 0, 1, 1) both; }
-  ::view-transition-old(.login-leave) { animation: vt-fade-out 240ms cubic-bezier(0.4, 0, 1, 1) both; }
+::view-transition-old(.page-leave) { animation: vt-fade-out 260ms cubic-bezier(0.4, 0, 1, 1) both; }
+::view-transition-old(.login-leave) { animation: vt-fade-out 240ms cubic-bezier(0.4, 0, 1, 1) both; }
 
-  /* The button opening into the box. The group travels and grows from the
-     button's box to the box's, clipped to a rounded rectangle; inside it both
-     snapshots stay at their own size, pinned top-centre, so nothing stretches:
-     the button fades out quickly and the box is revealed as the window opens.
-     The clip would cut off the box's own shadow, so the group wears it. */
-  html:active-view-transition-type(to-login)::view-transition-group(sign-in-box) {
-    z-index: 2;
-    overflow: clip;
-    border-radius: 1.75rem;
-    box-shadow: 0 22px 55px -34px rgb(var(--shadow-color) / 0.68);
-    animation-duration: 640ms;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  ::view-transition-old(sign-in-box),
-  ::view-transition-new(sign-in-box) {
-    block-size: 100%;
-    object-fit: none;
-    object-position: 50% 0;
-  }
-  ::view-transition-old(sign-in-box) { animation: vt-fade-out 180ms linear both; }
-  ::view-transition-new(sign-in-box) { animation: vt-fade-in 300ms ease-out 60ms both; }
-
-  /* No button to open from (the box alone arriving), or the box leaving. */
-  ::view-transition-new(sign-in-box):only-child { animation: vt-fade-in 360ms ease-out both; }
-  ::view-transition-old(sign-in-box):only-child { animation: vt-box-out 220ms cubic-bezier(0.4, 0, 1, 1) both; }
+/* The button opening into the box. The group travels and grows from the
+   button's box to the box's, clipped to a rounded rectangle; inside it both
+   snapshots stay at their own size, pinned top-centre, so nothing stretches:
+   the button fades out quickly and the box is revealed as the window opens.
+   The clip would cut off the box's own shadow, so the group wears it. */
+html:active-view-transition-type(to-login)::view-transition-group(sign-in-box) {
+  z-index: 2;
+  overflow: clip;
+  border-radius: 1.75rem;
+  box-shadow: 0 22px 55px -34px rgb(var(--shadow-color) / 0.68);
+  animation-duration: 640ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
-
-/* Reduced motion, by Sandeep's call: a crossfade and nothing that travels.
-   `SignInLink` names no button then, so the box simply fades in; groups jump
-   straight to where they end, and every old and new layer only fades. Written
-   out because the global reduce rule below matches elements, not these
-   pseudo-elements. */
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*) { animation-duration: 0s; }
-  ::view-transition-old(*) { animation: vt-fade-out 220ms ease-out both; }
-  ::view-transition-new(*) { animation: vt-fade-in 320ms ease-out both; }
+::view-transition-old(sign-in-box),
+::view-transition-new(sign-in-box) {
+  block-size: 100%;
+  object-fit: none;
+  object-position: 50% 0;
 }
+::view-transition-old(sign-in-box) { animation: vt-fade-out 180ms linear both; }
+::view-transition-new(sign-in-box) { animation: vt-fade-in 300ms ease-out 60ms both; }
+
+/* No button to open from (the box alone arriving), or the box leaving. */
+::view-transition-new(sign-in-box):only-child { animation: vt-fade-in 360ms ease-out both; }
+::view-transition-old(sign-in-box):only-child { animation: vt-box-out 220ms cubic-bezier(0.4, 0, 1, 1) both; }
 
 @keyframes vt-fade-in { from { opacity: 0; } }
 @keyframes vt-fade-out { to { opacity: 0; } }
@@ -688,17 +657,9 @@ body {
   overflow: hidden;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  [data-switched] .mode-swap { animation: mode-swap 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  [data-switched][data-mode="signin"] .mode-swap { --swap-from: -14px; }
-}
-/* With reduced motion the swap still fades, without the slide. It out-ranks
-   the global reduce rule (both !important) on specificity. */
-@media (prefers-reduced-motion: reduce) {
-  [data-switched] .mode-swap { animation: mode-fade 240ms ease-out both !important; }
-}
+[data-switched] .mode-swap { animation: mode-swap 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+[data-switched][data-mode="signin"] .mode-swap { --swap-from: -14px; }
 @keyframes mode-swap { from { opacity: 0; translate: var(--swap-from, 14px) 0; } }
-@keyframes mode-fade { from { opacity: 0; } }
 
 @keyframes select-in {
   from { opacity: 0; transform: translateY(-0.35rem) scale(0.97); }
@@ -715,8 +676,7 @@ body {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Loading-boundary placeholders. The `prefers-reduced-motion` block below
-   flattens the pulse to a static block, which is the intent. */
+/* Loading-boundary placeholders. */
 @keyframes skeleton-pulse {
   from { opacity: 0.5; }
   to { opacity: 1; }
@@ -731,15 +691,6 @@ body {
 @keyframes toast-out {
   from { opacity: 1; transform: translateY(0) scale(1); }
   to { opacity: 0; transform: translateY(0.35rem) scale(0.98); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
 }
 
 select {
