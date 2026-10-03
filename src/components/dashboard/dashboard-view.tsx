@@ -479,7 +479,7 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
                 return breakdown ? <MonthBreakdown {...breakdown} isEarnings={isEarnings} className="max-w-[calc(100cqw-4.5rem)]" /> : null;
               }}
             />}
-            {allocation.series.map((series) => <Bar key={series.key} dataKey={series.key} name={series.name} stackId="allocation" fill={series.color} maxBarSize={44} animationDuration={700} shape={<StackedBarShape seriesKey={series.key} seriesKeys={seriesKeys} pinnedMonthKey={coarsePointer ? pinnedMonthKey : null} />} />)}
+            {allocation.series.map((series) => <Bar key={series.key} dataKey={series.key} name={series.name} stackId="allocation" fill={series.color} maxBarSize={44} isAnimationActive animationDuration={700} shape={<StackedBarShape seriesKey={series.key} seriesKeys={seriesKeys} pinnedMonthKey={coarsePointer ? pinnedMonthKey : null} />} />)}
           </BarChart>
         </ResponsiveContainer>
       </div>

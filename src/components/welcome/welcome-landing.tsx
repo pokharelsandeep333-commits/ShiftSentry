@@ -38,8 +38,8 @@ import { cn } from "@/lib/utils";
  * All are pre-compressed at display size, so `next/image` serves them
  * unoptimized and nothing depends on the image optimizer in the container.
  *
- * Motion is CSS only (the welcome block in globals.css), behind
- * `prefers-reduced-motion: no-preference`. The links to /login are
+ * Motion is CSS only (the welcome block in globals.css) and plays whatever
+ * the visitor's reduced-motion setting. The links to /login are
  * `SignInLink`s: the one clicked opens into the sign-in box (see
  * `src/app/login/page.tsx`).
  */
