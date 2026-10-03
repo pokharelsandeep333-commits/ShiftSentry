@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EXAMPLE_DAY, EXAMPLE_OVERNIGHT, EXAMPLE_RECEIPT, EXAMPLE_WEEK, earnedSoFar, spansOverlap, tryShift, weekTotals } from "./welcome-week";
+import { EXAMPLE_DAY, EXAMPLE_OVERNIGHT, EXAMPLE_RECEIPT, EXAMPLE_WEEK, earnedSoFar, roomLeft, spansOverlap, tryShift, weekTotals } from "./welcome-week";
 
 test("the example week opens at 16 of 20 hours, which is the 80% alert line", () => {
   const totals = weekTotals(EXAMPLE_WEEK);
@@ -32,6 +32,11 @@ test("a per-job cap refuses a shift even when the global limit has room", () => 
   assert.equal(result.status, "refused");
   assert.equal(result.reason, "job");
   assert.equal(result.overByMinutes, 60);
+});
+
+test("the room left is the global limit's for a job without a cap, and the job's own when it is tighter", () => {
+  assert.equal(roomLeft(EXAMPLE_WEEK, "cafe"), 240);
+  assert.equal(roomLeft(EXAMPLE_WEEK, "campus"), 60);
 });
 
 test("earnings count only worked shifts, rounded per job like the real calculation", () => {

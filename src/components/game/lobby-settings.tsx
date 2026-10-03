@@ -31,7 +31,7 @@ function FormError({ message }: { message: string }) {
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return <section className="grid gap-2.5 border-t pt-4 first:border-t-0 first:pt-0">
     <div>
-      <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">{title}</h4>
+      <h4 className="text-sm font-semibold">{title}</h4>
       {hint && <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{hint}</p>}
     </div>
     {children}
@@ -272,7 +272,7 @@ export function LobbySettingsForm({ roomId, settings, categories }: LobbySetting
         name="hideRoles"
         label="Hide roles"
         hint={canHideRoles(draft.imposterHint)
-          ? "Nobody is told what they are. Everyone just has a word — you work out that yours is the odd one."
+          ? "Nobody is told what they are. Everyone just has a word, and you work out whether yours is the odd one."
           : "Needs the decoy word: with nothing in hand, an empty card tells the imposter what they are."}
         checked={draft.hideRoles}
         disabled={!canHideRoles(draft.imposterHint)}

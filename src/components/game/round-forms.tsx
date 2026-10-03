@@ -50,7 +50,7 @@ export function ClueForm({ roundId }: { roundId: string }) {
         maxLength={40}
         autoComplete="off"
         autoFocus
-        placeholder="One word that fits — but not too well"
+        placeholder="One word that fits, but not too well"
         className="field-control"
       />
     </label>

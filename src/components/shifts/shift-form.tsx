@@ -169,7 +169,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
     {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id ?? ""} />}
     <div className="field-label"><span id="job-label">Job</span><PremiumSelect name="jobId" defaultValue={jobId} options={jobs.map((job) => ({ value: job.id, label: job.archived ? `${job.name} (archived)` : job.name }))} labelledBy="job-label" onValueChange={(value) => { markEdited(); setJobId(value); }} required /></div>
     <ShiftScheduleFields startsAt={startsAt} endsAt={endsAt} timeZone={timeZone} onChange={updateSchedule} startError={startError} endError={endError} />
-    {preview && <dl className="grid grid-cols-2 gap-4 rounded-2xl border bg-[var(--surface-subtle)] p-4 sm:grid-cols-4">
+    {preview && <dl className="grid grid-cols-2 gap-4 rounded-2xl bg-[var(--surface-subtle)] p-4 sm:grid-cols-4">
       <PreviewFigure label="Duration" value={formatMinutes(preview.minutes)} />
       <PreviewFigure label="Gross" value={formatCents(preview.pay.grossCents)} />
       <PreviewFigure label="Tax + deductions" value={`−${formatCents(preview.pay.taxCents + preview.pay.deductionCents)}`} />

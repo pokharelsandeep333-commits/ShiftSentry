@@ -44,7 +44,7 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
       ? "This shift has started, so changes in Google Calendar no longer move it. To correct it, stop following Google and edit it here."
       : "This shift follows its event in Google Calendar: change the time there and it updates here on the next sync. Or stop following Google and edit it here.";
     return <>
-      <PageHeader eyebrow="Shift log" title="Shift from Google Calendar" description={description} actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Back</Link>} />
+      <PageHeader title="Shift from Google Calendar" description={description} actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Back</Link>} />
       <Card className="max-w-2xl">
         <CardHeader><CardTitle>{job?.name ?? "Shift"}</CardTitle></CardHeader>
         <CardContent className="grid gap-5">
@@ -65,7 +65,7 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
   }
 
   return <>
-    <PageHeader eyebrow="Shift log" title="Edit shift" description="Update the job, schedule, or notes for this shift." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />
+    <PageHeader title="Edit shift" description="Update the job, schedule, or notes for this shift." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />
     <Card className="max-w-4xl">
       <CardHeader><CardTitle>Shift details</CardTitle></CardHeader>
       <CardContent><ShiftForm calendarCheck={calendarCheck} mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} /></CardContent>

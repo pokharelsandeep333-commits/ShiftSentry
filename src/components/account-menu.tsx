@@ -34,7 +34,7 @@ export function AccountMenu({ email = "" }: { email?: string }) {
     <DropdownMenu.Portal>
       <DropdownMenu.Content align="end" sideOffset={10} className="z-50 w-64 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)]/96 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-2xl outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
         <DropdownMenu.Label className="px-3 py-2.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">{email ? "Signed in as" : "Account"}</p>
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">{email ? "Signed in as" : "Account"}</p>
           <p className="mt-1 truncate text-sm font-semibold text-[var(--foreground)]">{accountLabel}</p>
         </DropdownMenu.Label>
         <DropdownMenu.Separator className="my-1 h-px bg-[var(--border)]" />

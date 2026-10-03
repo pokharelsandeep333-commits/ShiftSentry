@@ -24,6 +24,10 @@
   --primary-soft: color-mix(in srgb, var(--primary) 13%, transparent);
   --primary-glow: color-mix(in srgb, var(--primary) 24%, transparent);
   --shadow-color: 229 231 235;
+  /* Secondary text pulled toward the ink, for tinted surfaces where plain
+     --muted-foreground drops under 4.5:1. Declared here only: it resolves
+     against whichever --muted-foreground this element has, light or .dark. */
+  --muted-strong: color-mix(in srgb, var(--muted-foreground) 70%, var(--foreground));
 }
 
 @theme inline {
@@ -157,8 +161,14 @@ body {
   :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:focus-visible .app-nav-label { opacity: 1; }
 }
 
+/* The tooltip fades in only while its link is hovered or focused. On every
+   label, the fade also ran at the moment of collapsing: each label had already
+   become a dark tooltip beside the rail but was still fully opaque, so all of
+   them flashed out to the right before fading. Leaving a link hides its
+   tooltip at once. */
 @media (min-width: 64rem) {
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-label { transition: opacity 150ms ease-out; }
+  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:hover .app-nav-label,
+  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:focus-visible .app-nav-label { transition: opacity 150ms ease-out; }
 }
 
 .premium-card {
@@ -271,7 +281,7 @@ body {
  * and the pill's own box-shadow would override it.
  *
  * Motion always plays, whatever the visitor's `prefers-reduced-motion`
- * setting (Sandeep's call). Scroll reveals (`.rv`) and the stats count-up are
+ * setting (Sandeep's call). Scroll reveals (`.rv`) are
  * scroll-driven (`animation-timeline: view()`), gated on support: without it
  * the content simply shows, which is the state every animation ends in.
  */
@@ -364,6 +374,9 @@ body {
     radial-gradient(22rem 16rem at 100% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 70%),
     linear-gradient(135deg, color-mix(in srgb, var(--primary) 15%, var(--card)), var(--card) 58%);
   box-shadow: var(--w-lift);
+  /* Every muted line inside a tint (the bento cards, the closing panel) reads
+     at 4.5:1 or better against the wash. */
+  --muted-foreground: var(--muted-strong);
 }
 .welcome-tint--mint {
   border-color: color-mix(in srgb, var(--success) 30%, var(--border));
@@ -455,10 +468,13 @@ body {
 .pill-disc svg { transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1); }
 .welcome-pill:hover .pill-disc svg { transform: translate(2px, -2px); }
 
+/* A solid 2px outline rather than a soft glow: the glow measured about 1.2:1
+   against the lavender ground, too faint to find while tabbing. An outline
+   also leaves the pills' own box-shadows alone. */
 .welcome-pill:focus-visible,
 .welcome-ghost:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 4px var(--primary-glow);
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* The phone screenshot: a device bezel in --card over the desktop frame. */
@@ -490,14 +506,6 @@ body {
 }
 .wk-total::after { content: counter(wk-total) "h"; }
 
-@property --stat {
-  syntax: "<integer>";
-  inherits: false;
-  initial-value: 0;
-}
-.stat-count { counter-reset: stat var(--stat); }
-.stat-count::before { content: counter(stat); }
-
 .wk-refused {
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 26%, transparent) 0 6px, color-mix(in srgb, var(--danger) 10%, transparent) 6px 12px);
 }
@@ -508,21 +516,26 @@ body {
 .hero-fade { animation: hero-fade 800ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both; }
 .hero-fade + .hero-fade { animation-delay: 400ms; }
 
-/* The render settles in, then breathes; the chips pop on after it and drift
-   on their own clocks so they never move in step. */
+/* The render settles in, then breathes; the chips come on after it and drift
+   on their own clocks so they never move in step. Both entrances wait, paused,
+   until the image has loaded (`data-loaded`, set by hero-art.tsx), so the
+   chips never label an empty disc. A paused animation's delay does not run
+   either, so each chip still arrives its own delay after the image. */
 .hero-art { animation: art-in 1200ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both; }
 .hero-art-float { animation: art-float 9s ease-in-out 1.4s infinite alternate; }
 .hero-chip {
   animation:
-    chip-in 700ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--chip-delay, 600ms) both,
+    chip-in 700ms cubic-bezier(0.16, 1, 0.3, 1) var(--chip-delay, 600ms) both,
     chip-float var(--chip-drift, 7s) ease-in-out calc(var(--chip-delay, 600ms) + 700ms) infinite alternate;
 }
+.hero-art:not([data-loaded]),
+.hero-art:not([data-loaded]) .hero-chip { animation-play-state: paused; }
 
 .wk-total { animation: wk-count 1200ms cubic-bezier(0.16, 1, 0.3, 1) 250ms backwards; }
 /* No backwards fill: during the delay the segment's own fill-in keeps control
    of `transform`, and the shake only borrows it for 420ms. */
 .gauge-seg.wk-refused { animation: gauge-fill 900ms cubic-bezier(0.16, 1, 0.3, 1) both, wk-shake 420ms ease-out 260ms; }
-.wk-tick { animation: rv-pop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.wk-tick { animation: rv-pop 500ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @supports (animation-timeline: view()) {
   .rv {
@@ -534,11 +547,6 @@ body {
   .rv-drop { animation-name: rv-drop; animation-range: entry 30% cover 45%; }
   .rv-pop { animation-name: rv-pop; animation-range: entry 35% cover 45%; }
   .rv-grow { animation-name: rv-grow; animation-range: entry 20% cover 40%; transform-origin: left center; }
-  .stat-count {
-    animation: stat-count linear both;
-    animation-timeline: view();
-    animation-range: entry 10% cover 40%;
-  }
 }
 
 @keyframes hero-rise {
@@ -565,9 +573,6 @@ body {
 }
 @keyframes wk-count {
   from { --wk-total: 0; }
-}
-@keyframes stat-count {
-  from { --stat: 0; }
 }
 @keyframes wk-shake {
   0%, 100% { transform: translateX(0); }

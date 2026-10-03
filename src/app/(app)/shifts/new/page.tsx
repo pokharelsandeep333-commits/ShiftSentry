@@ -43,7 +43,7 @@ export default async function NewShiftPage({ searchParams }: { searchParams: Pro
   const initialShift = prefillFromQuery(params, selectableJobs);
 
   return <>
-    <PageHeader eyebrow="Shift log" title="Add a shift" description="Scheduled future shifts count toward projected weekly hours." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />
+    <PageHeader title="Add a shift" description="Scheduled future shifts count toward projected weekly hours." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />
     <Card className="max-w-4xl">
       <CardHeader><CardTitle>Shift details</CardTitle></CardHeader>
       <CardContent>{selectableJobs.length ? <ShiftForm calendarCheck={calendarCheck} mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="space-y-4 rounded-2xl border border-dashed p-5"><p className="text-sm leading-6 text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs" className={buttonVariants()}>Create a job</Link></div>}</CardContent>

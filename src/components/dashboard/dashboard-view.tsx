@@ -4,7 +4,7 @@ import { useId, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, ArrowRight, BriefcaseBusiness, CalendarClock, CheckCircle2, Clock3, Settings, Sparkles, WalletCards, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +15,10 @@ import { formatCents } from "@/lib/earnings";
 import { EARNINGS_RANGE_PRESETS, monthKeyLabel, monthRangeForPreset, monthSpanLabel, selectMonths, type EarningsRangePreset } from "@/lib/earnings-range";
 import { greetingForDate } from "@/lib/greeting";
 import { createLocalPreference } from "@/lib/local-preference";
+import { niceAxisTicks } from "@/lib/chart-ticks";
 import { combineMonthTotals } from "@/lib/period-totals";
-import { cn, formatHours, formatMinutes, splitMinutes } from "@/lib/utils";
+import { weekEndFor, weekStartFor } from "@/lib/time";
+import { cn, formatMinutes, splitMinutes } from "@/lib/utils";
 import type { DashboardData, DashboardTotals, MonthlyJobAllocation, ThresholdAlert } from "@/lib/types";
 
 function capPercent(used: number, limit: number | null) {
@@ -125,8 +127,8 @@ function CapAlerts({ alerts }: { alerts: ThresholdAlert[] }) {
       // same amber as one merely approaching.
       const tone = alert.severity === "danger" ? "var(--danger)" : "var(--warning)";
       return <Reveal key={`${alert.title}-${alert.level}`} delay={0.08 + index * 0.04}>
-        <div className="mb-4 flex items-start gap-3 rounded-2xl border p-4 shadow-sm" style={{ borderColor: `color-mix(in srgb, ${tone} 35%, var(--border))`, background: `color-mix(in srgb, ${tone} 9%, transparent)` }}>
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl" style={{ background: `color-mix(in srgb, ${tone} 18%, transparent)` }}><AlertTriangle className="size-5" style={{ color: tone }} /></span>
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border p-4" style={{ borderColor: `color-mix(in srgb, ${tone} 35%, var(--border))`, background: `color-mix(in srgb, ${tone} 9%, transparent)` }}>
+          <AlertTriangle className="mt-0.5 size-5 shrink-0" style={{ color: tone }} />
           <div><p className="font-semibold">{alert.title}</p><p className="mt-0.5 text-sm leading-6 text-[var(--muted-foreground)]">{alert.detail}</p></div>
         </div>
       </Reveal>;
@@ -151,33 +153,29 @@ export function DashboardView({ data, calendarSlot }: { data: DashboardData; cal
   // dashboard here is a wall of zeros -- an empty hero, four $0.00 metrics, two
   // blank charts and three separate empty states -- which says what is missing
   // without saying what to do about it.
-  if (!data.isDemo && data.jobs.length === 0) return <><DashboardGreeting data={data} /><FirstRun /></>;
+  if (!data.isDemo && data.jobs.length === 0) return <><DashboardHeading data={data} /><FirstRun /></>;
 
   return <>
-    <DashboardGreeting data={data} />
+    <DashboardHeading data={data} />
 
     <Reveal delay={0.05}>
-      <Card className="relative mb-6 overflow-hidden border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--primary)_15%,var(--card)),var(--card)_58%)]">
-        <div className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-[var(--primary)]/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 left-1/3 size-52 rounded-full bg-[var(--primary)]/10 blur-3xl" />
-        <CardContent className="relative grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <Card className="mb-6 border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--primary)_15%,var(--card)),var(--card)_58%)]">
+        <CardContent className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <div><p className="text-sm font-semibold">Global weekly cap</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">Logged plus scheduled hours, all in one view.</p></div>
+              <div><p className="text-sm font-semibold">Global weekly cap</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">Logged plus scheduled hours.</p></div>
               <Badge variant={capVariant} className="rounded-xl px-3 py-1.5">{data.globalLimitMinutes ? `${globalPercent}% planned` : "No cap"}</Badge>
             </div>
             <div className="mb-4 flex items-baseline gap-2"><span className="font-display text-5xl font-semibold sm:text-6xl">{projectedParts.hours}<span className="ml-1 text-2xl text-[var(--muted-foreground)] sm:text-3xl">h{projectedParts.minutes ? ` ${projectedParts.minutes}m` : ""}</span></span><span className="text-sm text-[var(--muted-foreground)]">of {data.globalLimitMinutes ? formatMinutes(data.globalLimitMinutes) : "unlimited"}</span></div>
             <Progress value={globalPercent} indicatorClassName={capColor} />
             <div className="mt-3 flex justify-between text-xs font-medium text-[var(--muted-foreground)]"><span>{formatMinutes(data.loggedMinutes)} logged</span><span>{formatMinutes(data.scheduledMinutes)} scheduled</span></div>
           </div>
-          {/* No `backdrop-blur` on these two, for the reason card.tsx gives: it
-              is among the most expensive things to composite, and here it bought
-              nothing -- the only thing behind them is the card gradient and two
-              already-blurred glows, so it was blurring a blur. */}
-          <div className="grid grid-cols-2 gap-3 lg:min-w-64">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)]/55 p-4"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Remaining</p><p className="mt-2 font-display text-2xl font-semibold">{remaining === null ? "—" : formatMinutes(remaining)}</p></div>
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)]/55 p-4"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Upcoming</p><p className="mt-2 font-display text-2xl font-semibold">{data.upcomingShifts.length}</p></div>
-          </div>
+          {/* Two figures beside the hero, set apart by a rule rather than boxed:
+              tiles inside this card were a card inside a card. */}
+          <dl className="grid grid-cols-2 gap-6 border-t pt-5 lg:min-w-56 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <div><dt className="text-sm font-medium text-[var(--muted-foreground)]">Remaining</dt><dd className="mt-1.5 font-display text-2xl font-semibold tabular-nums">{remaining === null ? "—" : formatMinutes(remaining)}</dd></div>
+            <div><dt className="text-sm font-medium text-[var(--muted-foreground)]">Upcoming</dt><dd className="mt-1.5 font-display text-2xl font-semibold tabular-nums">{data.upcomingShifts.length}</dd></div>
+          </dl>
         </CardContent>
       </Card>
     </Reveal>
@@ -191,13 +189,13 @@ export function DashboardView({ data, calendarSlot }: { data: DashboardData; cal
 
     <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
       <Reveal><MonthlyAllocationChart allocation={data.monthlyJobAllocation} metric="hours" /></Reveal>
-      <Reveal delay={0.06}><Card className="h-full hover:-translate-y-0.5"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <EmptyState message="Add a job to start tracking its limit." href="/jobs" cta="Create your first job" />}</CardContent></Card></Reveal>
+      <Reveal delay={0.06}><Card className="h-full"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <EmptyState message="Add a job to start tracking its limit." href="/jobs" cta="Create your first job" />}</CardContent></Card></Reveal>
     </section>
 
     <section className={cn("mt-6 grid grid-cols-1 gap-6", (showProjections || calendarSlot) && "xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]")}>
-      <Reveal><Card className="h-full hover:-translate-y-0.5"><CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>Coming up</CardTitle><CardDescription>Your next scheduled shifts</CardDescription></div><Link href="/shifts" className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-semibold text-[var(--primary)] sm:min-h-0 transition-colors hover:bg-[var(--primary-soft)]">See all</Link></div></CardHeader><CardContent className="space-y-1">{data.upcomingShifts.length ? data.upcomingShifts.map((shift) => <Link key={shift.id} href={`/shifts/${shift.id}/edit`} className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-[var(--surface-subtle)]"><span className="grid size-10 place-items-center rounded-xl" style={{ background: `${shift.jobColor}22`, color: shift.jobColor }}><Clock3 className="size-4" /></span><div className="min-w-0 flex-1"><p className="font-semibold">{shift.jobName}</p><p className="truncate text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.startsAt, data.viewer.timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.endsAt, data.viewer.timeZone, "h:mm a")}</p></div><ArrowRight className="size-4 text-[var(--muted-foreground)]" /></Link>) : <EmptyState message="Nothing scheduled this week." href="/shifts/new" cta="Schedule your first shift" />}</CardContent></Card></Reveal>
+      <Reveal><Card className="h-full"><CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>Coming up</CardTitle><CardDescription>Your next scheduled shifts</CardDescription></div><Link href="/shifts" className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-semibold text-[var(--primary)] sm:min-h-0 transition-colors hover:bg-[var(--primary-soft)]">See all</Link></div></CardHeader><CardContent className="space-y-1">{data.upcomingShifts.length ? data.upcomingShifts.map((shift) => <Link key={shift.id} href={`/shifts/${shift.id}/edit`} className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-[var(--surface-subtle)]"><span aria-hidden="true" className="ml-1 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: shift.jobColor }} /><div className="min-w-0 flex-1"><p className="font-semibold">{shift.jobName}</p><p className="truncate text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.startsAt, data.viewer.timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.endsAt, data.viewer.timeZone, "h:mm a")}</p></div><ArrowRight className="size-4 text-[var(--muted-foreground)]" /></Link>) : <EmptyState message="Nothing scheduled this week." href="/shifts/new" cta="Schedule your first shift" />}</CardContent></Card></Reveal>
       {calendarSlot && <Reveal delay={0.06}>{calendarSlot}</Reveal>}
-      {showProjections && <Reveal delay={0.06}><Card className="h-full hover:-translate-y-0.5"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>How projections work</CardTitle><CardDescription>Stay ahead instead of reacting late.</CardDescription></div><button type="button" onClick={dismissProjections} aria-label="Hide this explainer" className="-mr-1 -mt-1 grid size-11 shrink-0 place-items-center rounded-xl sm:size-8 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"><X className="size-4" /></button></div></CardHeader><CardContent className="space-y-2 text-sm"><ProjectionStep icon={CheckCircle2} color="var(--success)">Past and current shifts count as logged time.</ProjectionStep><ProjectionStep icon={CalendarClock} color="var(--primary)">Future shifts are included in your projected total.</ProjectionStep><ProjectionStep icon={AlertTriangle} color="var(--warning)">We alert you at 80%, 90%, and 100%.</ProjectionStep></CardContent></Card></Reveal>}
+      {showProjections && <Reveal delay={0.06}><Card className="h-full"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>How projections work</CardTitle></div><button type="button" onClick={dismissProjections} aria-label="Hide this explainer" className="-mr-1 -mt-1 grid size-11 shrink-0 place-items-center rounded-xl sm:size-8 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"><X className="size-4" /></button></div></CardHeader><CardContent className="space-y-2 text-sm"><ProjectionStep icon={CheckCircle2} color="var(--success)">Past and current shifts count as logged time.</ProjectionStep><ProjectionStep icon={CalendarClock} color="var(--primary)">Future shifts are included in your projected total.</ProjectionStep><ProjectionStep icon={AlertTriangle} color="var(--warning)">We alert you at 80%, 90%, and 100%.</ProjectionStep></CardContent></Card></Reveal>}
     </section>
   </>;
 }
@@ -294,11 +292,11 @@ function EarningsCard({ totals }: { totals: DashboardTotals }) {
     setRange({ preset: next, custom: next === "custom" ? custom ?? monthRangeForPreset("last3", months) : custom });
   }
 
-  return <Card className="h-full hover:-translate-y-0.5">
+  return <Card className="h-full">
     <CardHeader>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle className="flex items-center gap-2.5"><span className="grid size-8 place-items-center rounded-xl bg-[color-mix(in_srgb,var(--success)_13%,transparent)]"><WalletCards className="size-4 text-[var(--success)]" /></span>Earnings</CardTitle>
+          <CardTitle>Earnings</CardTitle>
           <CardDescription className="mt-2">{description}</CardDescription>
         </div>
         <div className="w-full sm:w-56 sm:shrink-0">
@@ -310,11 +308,11 @@ function EarningsCard({ totals }: { totals: DashboardTotals }) {
     <CardContent>
       {preset === "custom" && custom && <div className="mb-5 grid gap-3 sm:grid-cols-2">
         <div>
-          <p id={`${pickerId}-from`} className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">From</p>
+          <p id={`${pickerId}-from`} className="mb-1.5 text-sm font-medium text-[var(--muted-foreground)]">From</p>
           <PremiumSelect name="earnings-range-from" labelledBy={`${pickerId}-from`} defaultValue={custom.from} options={monthOptions} onValueChange={(value) => setRange({ preset, custom: { from: value, to: custom.to } })} />
         </div>
         <div>
-          <p id={`${pickerId}-to`} className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">To</p>
+          <p id={`${pickerId}-to`} className="mb-1.5 text-sm font-medium text-[var(--muted-foreground)]">To</p>
           <PremiumSelect name="earnings-range-to" labelledBy={`${pickerId}-to`} defaultValue={custom.to} options={monthOptions} onValueChange={(value) => setRange({ preset, custom: { from: custom.from, to: value } })} />
         </div>
       </div>}
@@ -344,7 +342,7 @@ function EmptyState({ message, href, cta }: { message: string; href: string; cta
 }
 
 function Headline({ label, value, success = false }: { label: string; value: string; success?: boolean }) {
-  return <div className={cn("rounded-2xl border p-3.5 sm:p-4", success ? "border-[color-mix(in_srgb,var(--success)_20%,var(--border))] bg-[color-mix(in_srgb,var(--success)_10%,transparent)]" : "bg-[var(--surface-subtle)]")}>
+  return <div className={cn("rounded-2xl p-3.5 sm:p-4", success ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)]" : "bg-[var(--surface-subtle)]")}>
     <p className="text-xs font-medium text-[var(--muted-foreground)]">{label}</p>
     <p className={cn("mt-1.5 font-display text-2xl font-semibold tabular-nums sm:text-[1.75rem]", success && "text-[var(--success)]")}>{value}</p>
   </div>;
@@ -353,7 +351,7 @@ function Headline({ label, value, success = false }: { label: string; value: str
 // The value never wraps: an all-time figure broke across lines at 390px and left
 // the minus sign stranded above the amount, which reads as a positive number.
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border bg-[var(--surface-subtle)] p-3.5"><p className="text-xs font-medium text-[var(--muted-foreground)]">{label}</p><p className="mt-1.5 whitespace-nowrap font-display text-base font-semibold tabular-nums sm:text-lg">{value}</p></div>;
+  return <div className="rounded-2xl bg-[var(--surface-subtle)] p-3.5"><p className="text-xs font-medium text-[var(--muted-foreground)]">{label}</p><p className="mt-1.5 whitespace-nowrap font-display text-base font-semibold tabular-nums sm:text-lg">{value}</p></div>;
 }
 
 const BAR_CAP_RADIUS = 8;
@@ -418,7 +416,7 @@ function MonthBreakdown({ label, rows, total, isEarnings, className }: MonthBrea
   // repositions that wrapper on every mousemove, and a filter makes it a layer
   // whose alpha mask is re-rasterised each time it moves.
   return <div className={cn("min-w-44 rounded-2xl border bg-[var(--card)] p-3.5 text-sm shadow-[0_16px_32px_rgba(0,0,0,0.12)]", className)}>
-    <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">{label}</p>
+    <p className="mb-2.5 text-sm font-medium text-[var(--muted-foreground)]">{label}</p>
     {rows.length
       ? <ul className="space-y-1.5">{rows.map((row) => <li key={row.key} className="flex items-center justify-between gap-4">
           <span className="flex min-w-0 items-center gap-2"><i className="size-2.5 shrink-0 rounded-full" style={{ background: row.color }} /><span className="truncate" title={row.name}>{row.name}</span></span>
@@ -437,6 +435,9 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
   const seriesKeys = allocation.series.map((series) => series.key);
   const title = isEarnings ? "Net earnings by job" : "Logged hours by job";
   const latestMonthKey = allocation.months[allocation.months.length - 1]?.key ?? null;
+  // The tallest stack, so the axis can end on a round value above it.
+  const stackMax = Math.max(0, ...allocation.months.map((month) => Object.values(isEarnings ? month.netCents : month.loggedMinutes).reduce((total, value) => total + value, 0)));
+  const ticks = niceAxisTicks(stackMax, isEarnings ? 100 : 60);
   // Until a bar is tapped the readout shows the current month, so the panel is
   // never an empty box waiting to be earned.
   const readout = breakdownFor(allocation, pinnedMonthKey ?? latestMonthKey, isEarnings);
@@ -447,7 +448,7 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
     setPinnedMonthKey((current) => current === monthKey ? null : monthKey);
   }
 
-  return <Card className="h-full hover:-translate-y-0.5">
+  return <Card className="h-full">
     <CardHeader><CardTitle>{title}</CardTitle><CardDescription>Actual monthly allocation for the last six months. {coarsePointer ? "Tap a month for its breakdown." : "Hover a month for its breakdown."}</CardDescription></CardHeader>
     <CardContent>{allocation.series.length ? <>
       {/* Each entry wraps as a unit rather than mid-name, so a legend that needs
@@ -460,11 +461,10 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
           <BarChart data={chartData} margin={{ left: 0, right: 8, top: 4 }} onClick={coarsePointer ? (state: { activeTooltipIndex?: unknown }) => pinMonthAt(state?.activeTooltipIndex) : undefined}>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
-            {/* Wide enough for a four-figure tick. At the previous width "$200"
-                cleared the left edge by eight pixels, so a month over $999 --
-                or the hours axis reading "26.7h" -- was one character from
-                being cut off in the narrow right-hand column. */}
-            <YAxis width={64} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} tickFormatter={(value) => isEarnings ? `$${Math.round(Number(value) / 100)}` : `${formatHours(Number(value))}h`} />
+            {/* Round ticks from `niceAxisTicks` (whole hours, whole dollars), with
+                the domain ending on the last one. Wide enough for a four-figure
+                tick like "$1,500" in the narrow right-hand column. */}
+            <YAxis width={64} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} interval={0} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} tickFormatter={(value) => isEarnings ? `$${Math.round(Number(value) / 100).toLocaleString("en-US")}` : `${Math.round(Number(value) / 60)}h`} />
             {!coarsePointer && <Tooltip
               cursor={{ fill: "color-mix(in srgb, var(--surface-subtle) 65%, transparent)", radius: 12 }}
               wrapperStyle={{ outline: "none" }}
@@ -513,44 +513,54 @@ function JobLimit({ job }: { job: DashboardData["jobs"][number] }) {
 }
 
 function ProjectionStep({ icon: Icon, color, children }: { icon: typeof CheckCircle2; color: string; children: string }) {
-  return <p className="flex gap-3 rounded-2xl p-2.5 leading-6 transition-colors hover:bg-[var(--surface-subtle)]"><span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[var(--surface-subtle)]"><Icon className="size-4" style={{ color }} /></span><span>{children}</span></p>;
+  return <p className="flex gap-3 p-1 leading-6"><Icon className="mt-1 size-4 shrink-0" style={{ color }} /><span>{children}</span></p>;
 }
 
-function DashboardGreeting({ data }: { data: DashboardData }) {
+/**
+ * A greeting by first name in the viewer's own zone ("Good afternoon,
+ * Sandeep."), then the week every figure below is measured against, in that
+ * zone and week-start day (the same `weekStartFor` the totals use). The last
+ * day is the instant before `weekEndFor`'s midnight. With no name (the demo),
+ * the greeting stands alone.
+ */
+function DashboardHeading({ data }: { data: DashboardData }) {
+  const { timeZone, weekStartsOn } = data.viewer;
+  const now = new Date();
+  const firstName = data.viewer.name?.trim().split(/\s+/)[0];
+  const greeting = greetingForDate(now, timeZone);
+  const first = weekStartFor(now, timeZone, weekStartsOn);
+  const last = new Date(weekEndFor(now, timeZone, weekStartsOn).getTime() - 1);
+  const startDay = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date(2026, 7, 16 + weekStartsOn));
+
   return <Reveal>
     <div className="mb-7 flex flex-col justify-between gap-4 sm:mb-8 sm:flex-row sm:items-end">
       <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--primary)]">{data.isDemo ? "Workspace preview" : "Weekly overview"}</p>
-        <h1 className="font-display text-3xl font-semibold sm:text-4xl">{greetingForDate(new Date(), data.viewer.timeZone)}, {data.viewer.name ?? "there"}.</h1>
-        <p className="mt-2.5 text-sm leading-6 text-[var(--muted-foreground)]">Your week starts on {new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date(2026, 7, 16 + data.viewer.weekStartsOn))} in {data.viewer.timeZone}.</p>
+        <h1 className="font-display text-3xl font-semibold sm:text-4xl">{firstName ? `${greeting}, ${firstName}.` : `${greeting}.`}</h1>
+        <p className="mt-2.5 text-sm leading-6 text-[var(--muted-foreground)]">{formatInTimeZone(first, timeZone, "MMM d")} – {formatInTimeZone(last, timeZone, "MMM d")} · Week starts {startDay} · {timeZone}</p>
       </div>
-      {data.isDemo && <Badge variant="muted" className="rounded-xl px-3 py-1.5"><Sparkles className="mr-1.5 size-3.5" />Sample data</Badge>}
+      {data.isDemo && <Badge variant="muted" className="rounded-xl px-3 py-1.5">Sample data</Badge>}
     </div>
   </Reveal>;
 }
 
 const FIRST_RUN_STEPS = [
-  { icon: BriefcaseBusiness, href: "/jobs", cta: "Create a job", title: "Add your first job", body: "Its pay rate, tax, and deductions are copied onto every shift you log against it, so a later raise never rewrites what you already earned." },
-  { icon: Settings, href: "/settings", cta: "Set your cap", title: "Set your weekly limit", body: "Confirm your time zone and the day your week starts, then set the weekly hour cap you need to stay under. Everything is measured in that zone." },
-  { icon: CalendarClock, href: "/shifts/new", cta: "Log a shift", title: "Log a shift", body: "Past and future both count. Scheduled shifts feed the projection, so you are warned before you go over rather than after." },
+  { href: "/jobs", cta: "Create a job", title: "Add your first job", body: "Its pay rate, tax, and deductions are copied onto every shift you log against it, so a later raise never rewrites what you already earned." },
+  { href: "/settings", cta: "Set your cap", title: "Set your weekly limit", body: "Confirm your time zone and the day your week starts, then set the weekly hour cap you need to stay under. Everything is measured in that zone." },
+  { href: "/shifts/new", cta: "Log a shift", title: "Log a shift", body: "Past and future both count. Scheduled shifts feed the projection, so you are warned before you go over rather than after." },
 ];
 
 function FirstRun() {
   return <Reveal delay={0.05}>
     <Card className="overflow-hidden border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--primary)_12%,var(--card)),var(--card)_60%)]">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2.5"><span className="grid size-8 place-items-center rounded-xl bg-[var(--primary-soft)]"><Sparkles className="size-4 text-[var(--primary)]" /></span>Three steps to your first forecast</CardTitle>
+        <CardTitle>Three steps to your first forecast</CardTitle>
         <CardDescription className="mt-2">Nothing is tracked yet. This takes about a minute.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ol className="grid gap-3 md:grid-cols-3">
+        <ol className="grid gap-6 md:grid-cols-3 md:gap-0">
           {FIRST_RUN_STEPS.map((step, index) => {
-            const Icon = step.icon;
-            return <li key={step.href} className="flex flex-col rounded-2xl border bg-[var(--card)]/60 p-5">
-              <span className="mb-3 flex items-center gap-2.5">
-                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[var(--primary)] text-sm font-bold text-[var(--primary-foreground)]">{index + 1}</span>
-                <Icon className="size-4 text-[var(--muted-foreground)]" />
-              </span>
+            return <li key={step.href} className="flex flex-col md:border-l md:px-6 md:first:border-l-0 md:first:pl-0 md:last:pr-0">
+              <span className="mb-2 text-sm font-semibold text-[var(--primary)]">Step {index + 1}</span>
               <p className="font-display text-lg font-semibold">{step.title}</p>
               <p className="mt-2 flex-1 text-sm leading-6 text-[var(--muted-foreground)]">{step.body}</p>
               <Link href={step.href} className={cn(buttonVariants({ size: "sm", variant: index === 0 ? "default" : "outline" }), "mt-4")}>{step.cta}<ArrowRight className="size-4" /></Link>

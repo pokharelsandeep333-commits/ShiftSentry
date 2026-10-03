@@ -3,28 +3,40 @@ import type { DashboardData } from "@/lib/types";
 const CAMPUS = { id: "job-campus", name: "Campus desk", color: "#9486ff" };
 const CAFE = { id: "job-cafe", name: "River café", color: "#32d583" };
 
+/**
+ * The current week is the landing page's example week (`EXAMPLE_WEEK` in
+ * `src/lib/welcome-week.ts`), so the dashboard screenshots on the landing tell
+ * the same story as the interactive card above them: a 20h limit, Campus desk
+ * 8h worked plus a planned 3h Friday under its own 12h cap, River café 5h with
+ * no cap, 16h in all. Pay is `calculateEarnings` per job at 12% tax, no
+ * deductions ($155.00 gross, $136.40 net), and the alerts are the ones
+ * `dashboard.ts` raises for these numbers, in its own words. No viewer name:
+ * the dashboard heading names the week, not the person.
+ */
 export const demoDashboard: DashboardData = {
-  viewer: { email: "demo@shiftsaas.app", name: "Alex", timeZone: "America/Chicago", weekStartsOn: 0 },
-  globalLimitMinutes: 2_400,
-  loggedMinutes: 1_590,
-  scheduledMinutes: 330,
+  viewer: { email: "demo@shiftsaas.app", name: null, timeZone: "America/Chicago", weekStartsOn: 0 },
+  globalLimitMinutes: 1_200,
+  loggedMinutes: 780,
+  scheduledMinutes: 180,
   jobs: [
-    { ...CAMPUS, weeklyLimitMinutes: 1_200, usedMinutes: 960, scheduledMinutes: 180 },
-    { ...CAFE, weeklyLimitMinutes: 900, usedMinutes: 630, scheduledMinutes: 150 },
+    { ...CAMPUS, weeklyLimitMinutes: 720, usedMinutes: 480, scheduledMinutes: 180 },
+    { ...CAFE, weeklyLimitMinutes: null, usedMinutes: 300, scheduledMinutes: 0 },
   ],
   upcomingShifts: [
-    { id: "demo-1", jobId: "job-campus", jobName: "Campus desk", jobColor: "#9486ff", startsAt: "2026-08-21T16:00:00.000Z", endsAt: "2026-08-21T20:00:00.000Z", notes: "Evening desk coverage" },
-    { id: "demo-2", jobId: "job-cafe", jobName: "River café", jobColor: "#32d583", startsAt: "2026-08-22T14:00:00.000Z", endsAt: "2026-08-22T16:30:00.000Z", notes: null },
+    { id: "demo-1", jobId: "job-campus", jobName: "Campus desk", jobColor: "#9486ff", startsAt: "2026-08-21T16:00:00.000Z", endsAt: "2026-08-21T19:00:00.000Z", notes: null },
   ],
-  alerts: [{ level: 80, title: "Approaching your weekly cap", detail: "Your planned hours will reach 80% of your 40-hour cap.", severity: "warning" }],
+  alerts: [
+    { level: 80, title: "Approaching your weekly cap", detail: "Your planned hours reach 80% of your global cap.", severity: "warning" },
+    { level: 90, title: "Approaching your Campus desk limit", detail: "Planned hours reach 92% of this job's weekly cap.", severity: "warning" },
+  ],
   // Mar through Aug mirror the monthly allocation below, so the card and the
   // chart agree; Jan and Feb sit behind the chart's window to give "all time"
   // and "year to date" something the six-month presets do not already cover.
   totals: {
     week: {
-      minutes: 1_590,
-      earnings: { grossCents: 24_500, taxCents: 5_145, deductionCents: 1_045, netCents: 18_310 },
-      jobs: [{ ...CAMPUS, netCents: 10_656, minutes: 960 }, { ...CAFE, netCents: 7_654, minutes: 630 }],
+      minutes: 780,
+      earnings: { grossCents: 15_500, taxCents: 1_860, deductionCents: 0, netCents: 13_640 },
+      jobs: [{ ...CAMPUS, netCents: 8_800, minutes: 480 }, { ...CAFE, netCents: 4_840, minutes: 300 }],
     },
     months: [
       { key: "2026-01", label: "Jan 2026", minutes: 1_120, earnings: { grossCents: 18_065, taxCents: 3_794, deductionCents: 771, netCents: 13_500 }, jobs: [{ ...CAMPUS, netCents: 7_920, minutes: 660 }, { ...CAFE, netCents: 5_580, minutes: 460 }] },

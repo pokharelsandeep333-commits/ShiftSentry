@@ -1,4 +1,4 @@
 {
-  "prompt": "Screenshot, not generated. The ShiftSentry demo dashboard (src/lib/dashboard-demo.ts sample data, rendered with no Supabase configured) captured from the dev-demo server in headless Edge at 2x device scale, compressed to webp with sharp. Preview-mode sidebar card hidden before capture.\n",
-  "createdAt": "2026-09-29T16:23:06.822Z"
+  "prompt": "Screenshot, not generated. The ShiftSentry demo dashboard (src/lib/dashboard-demo.ts sample data: the landing example week, 16 of 20 hours, rendered with no Supabase configured) captured from the dev-demo server in headless Edge at 2x device scale, compressed to webp with sharp. Theme set through localStorage; the preview-mode sidebar card and the Next.js dev badge removed before capture.\n",
+  "createdAt": "2026-10-03T20:21:41.000Z"
 }

@@ -161,12 +161,12 @@ export function ShiftScheduleFields({ startsAt, endsAt, timeZone, onChange, star
   }, [endsAt.date, startsAt.date]);
   const offsetLabel = dayOffset === 1 ? "Next day" : dayOffset ? `${dayOffset > 0 ? "+" : "−"}${Math.abs(dayOffset)} days` : "";
 
-  return <div className="grid gap-5 lg:grid-cols-2">
+  return <div className="grid gap-5 lg:grid-cols-2 lg:gap-8">
     <input type="hidden" name="startsAt" value={combineShiftDateAndTime(startsAt.date, startsAt.time)} />
     <input type="hidden" name="endsAt" value={combineShiftDateAndTime(endsAt.date, endsAt.time)} />
 
-    <fieldset className="rounded-2xl border bg-[var(--card)]/45 p-4">
-      <legend className="px-1 font-semibold">Start</legend>
+    <fieldset className="min-w-0">
+      <legend className="text-sm font-semibold">Start</legend>
       <div className="mt-2 flex flex-wrap gap-3">
         <div className={FIELD_COLUMN}>
           <FieldLabel htmlFor="startsAt-date">Date</FieldLabel>
@@ -180,8 +180,8 @@ export function ShiftScheduleFields({ startsAt, endsAt, timeZone, onChange, star
       {startProblem && <p id="startsAt-help" role="alert" className="mt-3 text-sm font-medium text-[var(--danger)]">{startProblem}</p>}
     </fieldset>
 
-    <fieldset className="rounded-2xl border bg-[var(--card)]/45 p-4">
-      <legend className="px-1 font-semibold">End</legend>
+    <fieldset className="min-w-0">
+      <legend className="text-sm font-semibold">End</legend>
       <div className="mt-2 flex flex-wrap gap-3">
         <div className={FIELD_COLUMN}>
           <FieldLabel htmlFor="endsAt-date">Date</FieldLabel>

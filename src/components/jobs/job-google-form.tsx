@@ -30,9 +30,9 @@ export function JobGoogleForm({ jobId, jobName, keyword, calendarId, sync, calen
   // Google may be unreachable: keep the saved choice selectable rather than silently dropping it.
   if (calendarId && !options.some((option) => option.value === calendarId)) options.push({ value: calendarId, label: calendarId === "primary" ? "Primary calendar" : "Saved calendar" });
 
-  return <form action={formAction} onSubmit={(event) => { const box = event.currentTarget.elements.namedItem("sync"); syncOnSave.current = box instanceof HTMLInputElement && box.checked; }} className="grid gap-3 rounded-2xl border p-4">
+  return <form action={formAction} onSubmit={(event) => { const box = event.currentTarget.elements.namedItem("sync"); syncOnSave.current = box instanceof HTMLInputElement && box.checked; }} className="grid gap-3 border-t pt-5">
     <input type="hidden" name="jobId" value={jobId} />
-    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Google Calendar</p>
+    <p className="text-sm font-semibold">Google Calendar</p>
     <div className="grid gap-3 sm:grid-cols-2">
       <label className="field-label text-xs"><span>Title keyword</span><input name="keyword" defaultValue={keyword ?? ""} maxLength={80} placeholder={jobName} className="field-control h-10 text-sm" /></label>
       <div className="field-label text-xs"><span id={`google-calendar-${jobId}`}>Calendar</span><PremiumSelect name="calendarId" defaultValue={calendarId ?? ""} options={options} labelledBy={`google-calendar-${jobId}`} /></div>

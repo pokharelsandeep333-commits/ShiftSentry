@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Clock3, NotebookPen } from "lucide-react";
+import { CalendarClock, NotebookPen } from "lucide-react";
 import { addDays } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { PageHeader } from "@/components/page-header";
@@ -152,12 +152,12 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   let next = (weeksBefore ?? 0) + 1;
   for (const group of [...groups].reverse()) if (group.shifts.length) numbers.set(group.key, next++);
 
-  if (shiftsError) return <><PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." /><LoadError what="shifts" /></>;
+  if (shiftsError) return <><PageHeader title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." /><LoadError what="shifts" /></>;
 
   return <>
     {syncing && <GoogleSyncTrigger />}
     {saved && <SavedToast message={saved} clearParams={["created", "skipped", "saved"]} />}
-    <PageHeader eyebrow="Shift log" title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." actions={<Link href="/shifts/new" className={buttonVariants()}><CalendarClock className="size-4" />Add shift</Link>} />
+    <PageHeader title="All shifts" description="Grouped by your week. Future entries are included in projected cap warnings." actions={<Link href="/shifts/new" className={buttonVariants()}><CalendarClock className="size-4" />Add shift</Link>} />
 
     <div className="space-y-3">{groups.map((group) => <WeekSection key={group.key} group={group} number={numbers.get(group.key) ?? null} current={group.key === currentKey} timeZone={profile.time_zone} weeks={weeks} notes={notes} />)}</div>
 
@@ -207,9 +207,10 @@ function ShiftListRow({ shift, timeZone, weeks }: { shift: ShiftRow; timeZone: s
   const job = Array.isArray(shift.jobs) ? shift.jobs[0] : shift.jobs;
   const future = new Date(shift.starts_at) > new Date();
 
+  // The job's colour as a dot by its name, as on the calendar: the same clock
+  // in a tinted tile on every row said nothing the row did not.
   return <div className="flex flex-wrap items-center gap-4 rounded-2xl p-3.5 transition-colors hover:bg-[var(--surface-subtle)] sm:p-4">
-    <span className="grid size-10 place-items-center rounded-xl" style={{ background: `${job?.color ?? "#98a2b3"}22`, color: job?.color ?? "#98a2b3" }}><Clock3 className="size-4" /></span>
-    <div className="min-w-48 flex-1"><p className="font-semibold">{job?.name ?? "Archived job"}{shift.google_event_id && <span className="ml-2 rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 align-middle text-[11px] font-semibold text-[var(--muted-foreground)]">From Google Calendar</span>}</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.starts_at, timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.ends_at, timeZone, "h:mm a")}</p>{shift.notes && <p className="mt-1.5 line-clamp-1 text-sm text-[var(--muted-foreground)]">{shift.notes}</p>}</div>
+    <div className="min-w-48 flex-1"><p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold"><span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: job?.color ?? "#98a2b3" }} /><span>{job?.name ?? "Archived job"}</span>{shift.google_event_id && <span className="rounded-md bg-[var(--surface-subtle)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]">From Google Calendar</span>}</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.starts_at, timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.ends_at, timeZone, "h:mm a")}</p>{shift.notes && <p className="mt-1.5 line-clamp-1 text-sm text-[var(--muted-foreground)]">{shift.notes}</p>}</div>
     <span className="rounded-xl bg-[var(--surface-subtle)] px-3 py-1.5 text-sm font-semibold">{formatMinutes(shiftMinutes(shift))}</span>
     <Badge variant={future ? "default" : "muted"} className="rounded-xl px-3 py-1.5">{future ? "Scheduled" : "Logged"}</Badge>
     <ShiftRowActions

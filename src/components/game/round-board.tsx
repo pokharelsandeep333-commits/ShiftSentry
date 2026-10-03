@@ -48,10 +48,10 @@ function SecretCard({ round }: { round: RoundView }) {
   if (round.rolesHidden && !round.yourRole) {
     return <Card className="border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[var(--primary-soft)] text-center">
       <CardContent className="pt-5 sm:pt-6">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--primary)]">Your word</p>
+        <p className="text-sm font-semibold text-[var(--primary)]">Your word</p>
         <p className="mt-2 font-display text-3xl font-semibold sm:text-4xl">{round.yourWord}</p>
         <p className="mt-3 text-xs leading-5 text-[var(--muted-foreground)]">
-          Roles are hidden. Someone here has a slightly different word — it might be you.
+          Roles are hidden. Someone here has a slightly different word. It might be you.
         </p>
       </CardContent>
     </Card>;
@@ -67,7 +67,7 @@ function SecretCard({ round }: { round: RoundView }) {
   )}>
     <CardContent className="pt-5 sm:pt-6">
       <p className={cn(
-        "text-xs font-bold uppercase tracking-[0.16em]",
+        "text-sm font-semibold",
         isImposter ? "text-[var(--danger)]" : "text-[var(--primary)]",
       )}>
         {isImposter ? "You are the imposter" : "Your word"}
@@ -80,7 +80,7 @@ function SecretCard({ round }: { round: RoundView }) {
             No word
           </p>}
 
-      {isImposter && round.yourWord && round.imposterHint === "DECOY" && <p className="mt-2 text-xs text-[var(--muted-foreground)]">This is a decoy — close to the real word, but not it.</p>}
+      {isImposter && round.yourWord && round.imposterHint === "DECOY" && <p className="mt-2 text-xs text-[var(--muted-foreground)]">This is a decoy: close to the real word, but not it.</p>}
       {isImposter && round.yourCategoryHint && <p className="mt-2 text-sm text-[var(--muted-foreground)]">
         {round.imposterHint === "RELATED" ? "Something in the same area:" : "Category:"}{" "}
         <span className="font-semibold text-[var(--foreground)]">{round.yourCategoryHint}</span>
@@ -99,7 +99,7 @@ function ClueList({ round }: { round: RoundView }) {
     <CardHeader><CardTitle>Clues</CardTitle></CardHeader>
     <CardContent className="grid gap-4">
       {passes.map((pass) => <div key={pass} className="grid gap-2">
-        {round.cluePasses > 1 && <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Pass {pass}</p>}
+        {round.cluePasses > 1 && <p className="text-sm font-medium text-[var(--muted-foreground)]">Pass {pass}</p>}
         {round.clues.filter((clue) => clue.passNo === pass).map((clue) => <div key={`${clue.userId}-${clue.passNo}`} className="flex items-baseline gap-3 rounded-xl bg-[var(--surface-subtle)] px-3.5 py-2.5">
           {/* Left wrapping rather than truncating on purpose: measured, this row
               already fits 288px, and adding `truncate` would set nowrap and push
@@ -139,7 +139,7 @@ function Reveal({ round }: { round: RoundView }) {
       </div>
 
       <div className="grid gap-2 border-t pt-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">
+        <p className="text-sm font-medium text-[var(--muted-foreground)]">
           {imposters.length === 1 ? "The imposter" : "The imposters"}
         </p>
         {imposters.map((seat) => <p key={seat.userId} className="text-sm font-semibold">{seat.displayName}{seat.isYou && " (you)"}</p>)}
@@ -149,19 +149,19 @@ function Reveal({ round }: { round: RoundView }) {
           : <p className="mt-1 text-sm text-[var(--muted-foreground)]">The vote tied again, so nobody went out.</p>}
 
         {round.tiebreakCount > 0 && <p className="text-sm text-[var(--muted-foreground)]">
-          Went to {round.tiebreakCount === 1 ? "a tiebreak" : `${round.tiebreakCount} tiebreaks`} — {round.tiebreakCount === 1 ? "one extra clue" : `${round.tiebreakCount} extra clues`} each.
+          Went to {round.tiebreakCount === 1 ? "a tiebreak" : `${round.tiebreakCount} tiebreaks`}, so {round.tiebreakCount === 1 ? "one extra clue" : `${round.tiebreakCount} extra clues`} each.
         </p>}
 
         {round.finalGuess && <p className="text-sm text-[var(--muted-foreground)]">
           Final guess: <span className="font-semibold text-[var(--foreground)]">{round.finalGuess}</span>
-          {round.outcome === "IMPOSTER_WIN" ? " — right" : " — wrong"}
+          {round.outcome === "IMPOSTER_WIN" ? " (right)" : " (wrong)"}
         </p>}
       </div>
 
       <div className="grid gap-1.5 border-t pt-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted-foreground)]">Votes</p>
+        <p className="text-sm font-medium text-[var(--muted-foreground)]">Votes</p>
         {round.seats.filter((seat) => (tally.get(seat.userId) ?? 0) > 0).map((seat) => <p key={seat.userId} className="text-sm text-[var(--muted-foreground)]">
-          <span className="font-medium text-[var(--foreground)]">{seat.displayName}</span> — {tally.get(seat.userId)} vote{tally.get(seat.userId) === 1 ? "" : "s"}
+          <span className="font-medium text-[var(--foreground)]">{seat.displayName}</span>: {tally.get(seat.userId)} vote{tally.get(seat.userId) === 1 ? "" : "s"}
           {" "}({round.votes.filter((vote) => vote.targetId === seat.userId).map((vote) => round.seats.find((other) => other.userId === vote.voterId)?.displayName ?? "?").join(", ")})
         </p>)}
       </div>
@@ -200,7 +200,7 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
         </CardHeader>
         <CardContent className="grid gap-3">
           {round.isTiebreak && <p className="rounded-xl bg-[var(--primary-soft)] px-3 py-2.5 text-sm leading-5 text-[var(--primary)]">
-            The vote tied, so nobody went out. One more clue each — and it has to be something nobody has said yet.
+            The vote tied, so nobody went out. One more clue each, and it has to be something nobody has said yet.
           </p>}
           {round.isYourTurn
             ? <ClueForm roundId={round.id} />
@@ -221,7 +221,7 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
           <CardTitle className="flex items-center gap-2"><MessagesSquare className="size-4 text-[var(--primary)]" />Talk it over</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3">
-          <p className="text-sm leading-6 text-[var(--muted-foreground)]">All the clues are in. Say what you think before anyone commits — voting is locked until the host opens it.</p>
+          <p className="text-sm leading-6 text-[var(--muted-foreground)]">All the clues are in. Say what you think before anyone commits. Voting is locked until the host opens it.</p>
           {isHost
             ? <OpenVoteButton roundId={round.id} />
             : <p className="text-center text-xs text-[var(--muted-foreground)]">The host opens the vote when everyone&rsquo;s had their say.</p>}
@@ -244,7 +244,7 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
       {round.status === "GUESSING" && <Card className="border-[color-mix(in_srgb,var(--danger)_45%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_8%,transparent)]">
         <CardContent className="grid gap-4 pt-5 sm:pt-6">
           <div className="text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--danger)] px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-white">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--danger)] px-3 py-1 text-xs font-bold text-white">
               <Siren className="size-3.5" />
               Caught
             </span>
@@ -252,7 +252,7 @@ export function RoundBoard({ round, isHost }: { round: RoundView; isHost: boolea
               {caught?.isYou ? "You were the imposter" : `${caught?.displayName ?? "The imposter"} was the imposter`}
             </p>
             <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
-              Voted out — but it isn&rsquo;t over. One guess at the word, and the round flips.
+              Voted out, but it isn&rsquo;t over. One guess at the word, and the round flips.
             </p>
           </div>
 
