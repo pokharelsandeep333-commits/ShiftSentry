@@ -99,6 +99,31 @@ begin
   end;
   if not refused then raise exception 'sync_issues accepted 21 entries'; end if;
 
+  -- ---- turning sync off unlinks adopted shifts too ---------------------------
+  -- A hand-typed shift that sync adopted carries google_adopted. Detaching the
+  -- job's shifts while leaving that flag set is refused for the whole update,
+  -- which is what made "turn off sync" fail; the app clears all three columns
+  -- together (src/lib/google/unlink.ts).
+  insert into public.shifts (user_id, job_id, starts_at, ends_at, google_calendar_id, google_event_id, google_adopted)
+    values (alice, job, '2030-01-10 14:00+00', '2030-01-10 18:00+00', 'primary', 'evt-adopted', true);
+  refused := false;
+  begin
+    update public.shifts set google_calendar_id = null, google_event_id = null
+      where job_id = job and google_event_id is not null;
+  exception when check_violation then refused := true;
+  end;
+  if not refused then raise exception 'an adopted shift was left adopted with no link'; end if;
+  update public.shifts set google_calendar_id = null, google_event_id = null, google_adopted = false
+    where job_id = job and google_event_id is not null;
+  select count(*) into seen from public.shifts where job_id = job and (google_event_id is not null or google_adopted);
+  if seen <> 0 then raise exception 'turning sync off left % shifts linked', seen; end if;
+  select count(*) into seen from public.shifts where job_id = job;
+  if seen <> 3 then raise exception 'turning sync off should keep all 3 shifts, found %', seen; end if;
+
+  -- Linked again, so the privacy check below has something to hide.
+  update public.shifts set google_calendar_id = 'primary', google_event_id = 'evt-1'
+    where job_id = job and starts_at = '2030-01-07 14:00+00';
+
   -- ---- linked shifts stay private --------------------------------------------
   perform set_config('request.jwt.claim.sub', bob::text, true);
   select count(*) into seen from public.shifts where google_event_id is not null;

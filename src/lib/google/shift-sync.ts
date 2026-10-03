@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getEvent, listEventsForSync } from "./client";
 import { isGoogleCalendarEnabled } from "./config";
 import { withCalendarAccess, type CalendarAccess } from "./connection";
+import { UNLINKED_SHIFT } from "./unlink";
 
 /**
  * One sync run for one user: load the jobs that sync and their shifts in the
@@ -21,7 +22,6 @@ import { withCalendarAccess, type CalendarAccess } from "./connection";
  */
 const WINDOW_BACK_MS = 14 * 24 * 60 * 60_000;
 const WINDOW_AHEAD_MS = 56 * 24 * 60 * 60_000;
-const UNLINK = { google_calendar_id: null, google_event_id: null, google_adopted: false };
 
 export type SyncResult = { status: "ok" | "skipped" | Exclude<CalendarAccess<unknown>["status"], "ok">; changed: number };
 
@@ -97,7 +97,7 @@ async function applyPlan(supabase: Awaited<ReturnType<typeof createServerSupabas
       const { data } = await supabase.from("shifts").delete().eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).eq("google_adopted", false).gt("starts_at", nowIso).select("id");
       changed += data?.length ?? 0;
     } else if (resolution.action === "detach") {
-      const { data } = await supabase.from("shifts").update(UNLINK).eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).select("id");
+      const { data } = await supabase.from("shifts").update(UNLINKED_SHIFT).eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).select("id");
       changed += data?.length ?? 0;
     } else if (resolution.action === "update") {
       const { data, error } = await supabase.from("shifts").update({ job_id: resolution.jobId, starts_at: resolution.startsAt, ends_at: resolution.endsAt }).eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).gt("starts_at", nowIso).select("id");

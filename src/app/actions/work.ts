@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { UNLINKED_SHIFT } from "@/lib/google/unlink";
 import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalDeductionRate, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
 import { deductionSchema, jobSchema, profileSettingsSchema, resourceIdSchema, shiftSchema } from "@/lib/validation";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
@@ -346,7 +347,7 @@ export async function stopFollowingGoogle(formData: FormData) {
   const id = resourceId(formData);
   const supabase = await createServerSupabaseClient();
   if (!(await forgetGoogleEvent(supabase, profile.id, id))) fail("Unable to update the shift. Please try again.");
-  const { error } = await supabase.from("shifts").update({ google_calendar_id: null, google_event_id: null, google_adopted: false }).eq("id", id).eq("user_id", profile.id);
+  const { error } = await supabase.from("shifts").update(UNLINKED_SHIFT).eq("id", id).eq("user_id", profile.id);
   if (error) fail("Unable to update the shift. Please try again.");
   revalidatePath("/shifts"); revalidatePath("/calendar");
   redirect(`/shifts/${id}/edit`);
