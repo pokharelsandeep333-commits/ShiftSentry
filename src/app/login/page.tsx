@@ -66,6 +66,7 @@ export default function LoginPage() {
 
       <footer className="relative flex flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 pb-5 short:pb-3 text-xs text-[var(--muted-foreground)]">
         <Link href="/privacy" className="font-semibold transition-colors hover:text-[var(--foreground)]">Privacy Policy</Link>
+        <Link href="/terms" className="font-semibold transition-colors hover:text-[var(--foreground)]">Terms of Service</Link>
         <span>© 2026 ShiftSentry</span>
       </footer>
     </div>

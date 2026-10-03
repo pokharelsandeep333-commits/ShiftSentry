@@ -13,8 +13,8 @@ import { WelcomeLanding } from "@/components/welcome/welcome-landing";
  * fades away, and plays its own intro.
  */
 export const metadata = {
-  title: "ShiftSentry | Plan shifts under your weekly hour limit",
-  description: "ShiftSentry tracks shifts across your jobs, warns you before you pass your weekly hour limit, and shows what you earned after tax.",
+  title: "ShiftSentry | Work hours tracker for every job you have",
+  description: "ShiftSentry is a work hours tracker for people with more than one job: log shifts, get warned before you pass your weekly hour limit, and see what you earned after tax.",
 };
 
 export default function WelcomePage() {

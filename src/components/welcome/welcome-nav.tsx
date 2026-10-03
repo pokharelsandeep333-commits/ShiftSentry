@@ -41,7 +41,7 @@ export function WelcomeNav() {
   return <>
     <span ref={sentinel} aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-10" />
     <header data-scrolled={scrolled ? "true" : undefined} className="welcome-nav fixed inset-x-0 top-4 z-40 px-3 sm:top-6 sm:px-6">
-      <div className="welcome-nav-bar mx-auto flex h-14 items-center justify-between gap-2 rounded-full px-2.5 md:grid md:grid-cols-[1fr_auto_1fr]">
+      <div className="welcome-nav-bar mx-auto flex h-14 items-center justify-between gap-2 rounded-2xl px-2.5 md:grid md:grid-cols-[1fr_auto_1fr]">
         <Link href="/" aria-label="ShiftSentry home" className="flex items-center justify-self-start rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
           <BrandMark size="default" className="size-9 rounded-xl" />
           <span className="welcome-nav-word font-display text-[1.0625rem] font-semibold text-[var(--foreground)]">ShiftSentry</span>
