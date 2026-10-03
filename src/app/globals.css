@@ -161,8 +161,14 @@ body {
   :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:focus-visible .app-nav-label { opacity: 1; }
 }
 
+/* The tooltip fades in only while its link is hovered or focused. On every
+   label, the fade also ran at the moment of collapsing: each label had already
+   become a dark tooltip beside the rail but was still fully opaque, so all of
+   them flashed out to the right before fading. Leaving a link hides its
+   tooltip at once. */
 @media (min-width: 64rem) {
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-label { transition: opacity 150ms ease-out; }
+  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:hover .app-nav-label,
+  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:focus-visible .app-nav-label { transition: opacity 150ms ease-out; }
 }
 
 .premium-card {
