@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addLocalDays, resolveCalendarRange } from "./calendar-range";
+import { addLocalDays, addMonths, monthGridDays, monthLabel, resolveCalendarRange } from "./calendar-range";
 
 const tz = "America/Chicago";
 const now = new Date("2026-09-30T15:00:00.000Z"); // Wed Sep 30, 10 AM Chicago
@@ -56,4 +56,21 @@ test("an extreme year falls back to today instead of looping or overflowing", ()
       assert.ok(range.days.length === 7 || (range.days.length >= 28 && range.days.length <= 42), `${view} ${date}: ${range.days.length} days`);
     }
   }
+});
+
+test("the mini month is always six whole weeks starting on the week-start day", () => {
+  for (const [month, weekStartsOn] of [["2026-10", 0], ["2026-10", 1], ["2026-02", 0], ["2026-03", 0], ["2026-11", 6]] as const) {
+    const days = monthGridDays(month, weekStartsOn);
+    assert.equal(days.length, 42, month);
+    assert.equal(new Date(`${days[0]}T12:00:00Z`).getUTCDay(), weekStartsOn, `${month} starts on ${weekStartsOn}`);
+    assert.ok(days.includes(`${month}-01`), `${month} has its 1st`);
+    const last = addLocalDays(`${addMonths(`${month}-01`, 1)}`, -1);
+    assert.ok(days.includes(last), `${month} has its last day ${last}`);
+    // Consecutive days, even across the daylight-saving changes in March and November.
+    for (let index = 1; index < days.length; index++) assert.equal(days[index], addLocalDays(days[index - 1], 1));
+  }
+  assert.deepEqual(monthGridDays("2026-10", 0).slice(0, 7), ["2026-09-27", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"]);
+  assert.equal(monthLabel("2026-10"), "October 2026");
+  assert.equal(addMonths("2026-12-01", 1), "2027-01-01");
+  assert.equal(addMonths("2026-01-01", -1), "2025-12-01");
 });

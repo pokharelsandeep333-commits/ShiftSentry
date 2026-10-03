@@ -5,11 +5,13 @@ import { redirect } from "next/navigation";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { UNLINKED_SHIFT } from "@/lib/google/unlink";
 import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalDeductionRate, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
-import { deductionSchema, jobSchema, profileSettingsSchema, resourceIdSchema, shiftSchema } from "@/lib/validation";
+import { deductionSchema, jobSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, weekNoteSchema } from "@/lib/validation";
+import { isWeekStart } from "@/lib/week-notes";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { clampWeeks } from "@/lib/shift-log";
-import type { FormActionState } from "@/lib/form-state";
+import type { FormActionState, SavedFormState } from "@/lib/form-state";
 
 function fail(message: string): never { throw new Error(message); }
 function cents(value: FormDataEntryValue | null) { const result = parseMoneyToCents(String(value ?? "")); return result === null ? fail("Enter a valid hourly rate, such as 18.50.") : result; }
@@ -324,6 +326,32 @@ export async function updateShiftNotes(formData: FormData) {
 }
 
 /**
+ * Saves, replaces or (when emptied) removes the note on one week of the shift
+ * log. It answers with state instead of redirecting, so the week the viewer is
+ * writing in stays open where it was. A week's start depends on the profile,
+ * which the table cannot check, so it is checked here. `legacyId` is a note
+ * saved under an earlier week-start day (week-notes.ts): saving moves it onto
+ * this week's key by writing the new row and deleting the old one.
+ */
+export async function saveWeekNote(_previous: SavedFormState, formData: FormData): Promise<SavedFormState> {
+  const profile = await requireUser();
+  const parsed = weekNoteSchema.safeParse({ weekStart: formData.get("weekStart"), body: formData.get("body"), legacyId: formData.get("legacyId") });
+  if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "Check the note and try again.", savedAt: null };
+  const { weekStart, body, legacyId } = parsed.data;
+  if (!isWeekStart(weekStart, profile.week_starts_on)) return { message: "That week could not be found. Refresh the page and try again.", savedAt: null };
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = body
+    ? await supabase.from("week_notes").upsert({ user_id: profile.id, week_start: weekStart, body }, { onConflict: "user_id,week_start" })
+    : await supabase.from("week_notes").delete().eq("user_id", profile.id).eq("week_start", weekStart);
+  if (error) return { message: "Couldn't save the note. Try again.", savedAt: null };
+  // Best effort: if this fails the old row stays, and the exact key now hides it.
+  if (legacyId) await supabase.from("week_notes").delete().eq("id", legacyId).eq("user_id", profile.id);
+  revalidatePath("/shifts");
+  return { message: "", savedAt: Date.now() };
+}
+
+/**
  * Puts a synced shift's event on its job's ignore list, so sync will not add
  * it again. True when there was nothing to remember or it was remembered.
  */
@@ -346,7 +374,7 @@ export async function stopFollowingGoogle(formData: FormData) {
   const id = resourceId(formData);
   const supabase = await createServerSupabaseClient();
   if (!(await forgetGoogleEvent(supabase, profile.id, id))) fail("Unable to update the shift. Please try again.");
-  const { error } = await supabase.from("shifts").update({ google_calendar_id: null, google_event_id: null, google_adopted: false }).eq("id", id).eq("user_id", profile.id);
+  const { error } = await supabase.from("shifts").update(UNLINKED_SHIFT).eq("id", id).eq("user_id", profile.id);
   if (error) fail("Unable to update the shift. Please try again.");
   revalidatePath("/shifts"); revalidatePath("/calendar");
   redirect(`/shifts/${id}/edit`);

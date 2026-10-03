@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { readGoogleCalendarConfig, type GoogleCalendarConfig } from "./config";
 import { GoogleAuthError, refreshAccessToken, revokeToken, type exchangeCode } from "./client";
 import { TokenDecryptError, decryptToken, encryptToken } from "./token-crypto";
+import { UNLINKED_SHIFT } from "./unlink";
 
 /**
  * The one row per user, read and written through the RLS client as that user.
@@ -103,7 +104,7 @@ export async function deleteConnection(userId: string) {
   // Disconnecting stops every sync and forgets Google's identifiers: synced
   // shifts stay as ordinary shifts the user can edit, and no event or calendar
   // id is left behind (a shared calendar's id is often someone's address).
-  const { error: shiftError } = await supabase.from("shifts").update({ google_calendar_id: null, google_event_id: null, google_adopted: false }).eq("user_id", userId).not("google_event_id", "is", null);
+  const { error: shiftError } = await supabase.from("shifts").update(UNLINKED_SHIFT).eq("user_id", userId).not("google_event_id", "is", null);
   const { error: jobError } = await supabase.from("jobs").update({ google_sync: false, google_sync_ignored: [], google_calendar_id: null }).eq("user_id", userId);
   if (shiftError || jobError) throw new Error("Could not unlink synced shifts.");
   const { data: deleted, error } = await supabase.from("google_calendar_connections").delete().eq("user_id", userId).select("user_id");

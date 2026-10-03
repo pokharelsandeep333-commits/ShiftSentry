@@ -9,6 +9,7 @@ import type { SavedFormState } from "@/lib/form-state";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { jobGoogleSettingsSchema } from "@/lib/validation";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
+import { UNLINKED_SHIFT } from "@/lib/google/unlink";
 
 /** Keeps only ids present in the user's live Google calendar list; "primary" stays valid as Google's alias. */
 export async function saveCalendarSelection(_previous: SavedFormState, formData: FormData): Promise<SavedFormState> {
@@ -68,7 +69,7 @@ export async function saveJobGoogleSettings(_previous: SavedFormState, formData:
   if (!job) return { message: "This job could not be found.", savedAt: null };
   const turningOff = job.google_sync && !sync;
   if (turningOff) {
-    const { error: detachError } = await supabase.from("shifts").update({ google_calendar_id: null, google_event_id: null }).eq("job_id", jobId).eq("user_id", profile.id).not("google_event_id", "is", null);
+    const { error: detachError } = await supabase.from("shifts").update(UNLINKED_SHIFT).eq("job_id", jobId).eq("user_id", profile.id).not("google_event_id", "is", null);
     if (detachError) return { message: "Couldn't turn off sync. Try again.", savedAt: null };
   }
   const { error } = await supabase.from("jobs").update({ google_keyword: keyword, google_calendar_id: calendarId, google_sync: sync, ...(turningOff ? { google_sync_ignored: [] } : {}) }).eq("id", jobId).eq("user_id", profile.id);

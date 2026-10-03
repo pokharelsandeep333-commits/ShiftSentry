@@ -18,7 +18,8 @@ export function addLocalDays(date: string, days: number) {
   return value.toISOString().slice(0, 10);
 }
 
-function addMonths(monthStart: string, months: number) {
+/** The first of the month `months` away from the month `monthStart` falls in. */
+export function addMonths(monthStart: string, months: number) {
   const value = noon(monthStart);
   value.setUTCMonth(value.getUTCMonth() + months, 1);
   return value.toISOString().slice(0, 10);
@@ -27,6 +28,18 @@ function addMonths(monthStart: string, months: number) {
 function startOfWeek(date: string, weekStartsOn: number) {
   return addLocalDays(date, -((noon(date).getUTCDay() - weekStartsOn + 7) % 7));
 }
+
+/**
+ * The mini month's days: always six whole weeks from the week holding the 1st,
+ * so the picker keeps one height while its month changes. `month` is `YYYY-MM`.
+ */
+export function monthGridDays(month: string, weekStartsOn: number) {
+  const first = startOfWeek(`${month}-01`, weekStartsOn);
+  return Array.from({ length: 42 }, (_, index) => addLocalDays(first, index));
+}
+
+export const monthLabel = (month: string) => format(`${month}-01`, "MMMM yyyy");
+export const longDayLabel = (date: string) => format(date, "EEEE, MMMM d");
 
 /**
  * A real calendar date in a sane range, or null. "2026-02-30" parses and rolls
@@ -66,7 +79,7 @@ export function resolveCalendarRange(input: { view?: string; date?: string }, no
     prev = addMonths(monthStart, -1);
     first = startOfWeek(monthStart, weekStartsOn);
     end = addLocalDays(startOfWeek(addLocalDays(next, -1), weekStartsOn), 7);
-    label = format(monthStart, "MMMM yyyy");
+    label = monthLabel(anchor.slice(0, 7));
   }
 
   const days: string[] = [];

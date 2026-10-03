@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WEEK_NOTE_MAX } from "./week-notes";
 import { GAME_SETTINGS_BOUNDS, IMPOSTER_HINTS, WORD_DIFFICULTIES, normalizeGameCode } from "@/lib/game";
 
 export const resourceIdSchema = z.string().uuid("Invalid resource identifier.");
@@ -110,4 +111,18 @@ export const jobGoogleSettingsSchema = z.object({
   keyword: optionalTrimmed(80).refine((value) => value === null || value.length >= 2, "Use a keyword of at least 2 characters."),
   calendarId: optionalTrimmed(255),
   sync: z.preprocess((value) => value === "on", z.boolean()),
+});
+
+
+/**
+ * A shift-log week note. A form posts newlines as CRLF while the textarea counts
+ * them as one character, so they are folded to LF before the length check -- or
+ * a note the counter shows as fitting would be refused. Empty means "remove".
+ * Whether `weekStart` starts a week depends on the profile, so the action checks
+ * that (isWeekStart in week-notes.ts).
+ */
+export const weekNoteSchema = z.object({
+  weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "That week could not be found."),
+  body: z.preprocess((value) => (typeof value === "string" ? value.replace(/\r\n?/g, "\n").trim() : ""), z.string().max(WEEK_NOTE_MAX, `Keep the note to ${WEEK_NOTE_MAX.toLocaleString("en-US")} characters or fewer.`)),
+  legacyId: z.preprocess((value) => (typeof value === "string" && value ? value : null), z.string().uuid().nullable()),
 });
