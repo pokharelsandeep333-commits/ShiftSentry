@@ -1,8 +1,9 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, BellRing, CalendarClock, CalendarRange, CalendarX, Layers, Smartphone, Timer, Wallet } from "lucide-react";
+import { ArrowUpRight, CalendarClock, Layers, Smartphone, Wallet } from "lucide-react";
 import { Brand } from "@/components/brand";
+import { HeroArt } from "@/components/welcome/hero-art";
 import { HeroChips } from "@/components/welcome/hero-chips";
 import { RulesBento } from "@/components/welcome/rule-previews";
 import { SignInLink } from "@/components/welcome/sign-in-link";
@@ -50,13 +51,6 @@ const CAPABILITIES = [
   { icon: Smartphone, title: "On your phone", body: "Installs to your home screen. Sign in with Google, GitHub, or email." },
 ];
 
-const STATS = [
-  { icon: BellRing, value: 80, suffix: "%", label: "First warning, then again at 90%" },
-  { icon: Timer, value: 24, suffix: "h", label: "Longest shift you can log" },
-  { icon: CalendarX, value: 0, suffix: "", label: "Overlapping shifts allowed" },
-  { icon: CalendarRange, value: 7, suffix: "", label: "Days your week can start on" },
-];
-
 /* Section headings stay mid-sized and calm; only the hero is large. */
 const sectionTitle = "font-display text-[1.85rem] font-semibold leading-[1.12] [text-wrap:balance] sm:text-[2.25rem] lg:text-[2.5rem]";
 
@@ -64,7 +58,8 @@ const sectionTitle = "font-display text-[1.85rem] font-semibold leading-[1.12] [
    which grows on wide screens) for panels, hero and nav alike. */
 const panel = "welcome-panel welcome-container mx-auto rounded-[1.5rem]";
 
-const footerLink = "text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]";
+/* `py-1` lifts each link past the 24px minimum touch target without spreading the columns. */
+const footerLink = "inline-block py-1 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]";
 
 export function WelcomeLanding() {
   const calendarEnabled = isGoogleCalendarEnabled();
@@ -82,7 +77,7 @@ export function WelcomeLanding() {
                 <span className="hero-line block"><span>every shift,</span></span>
                 <span className="hero-line block text-[var(--primary)]"><span>under your limit.</span></span>
               </h1>
-              <p className="hero-fade mt-6 max-w-[27rem] text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base 2xl:max-w-[30rem] 2xl:text-[1.0625rem] 2xl:leading-8">A work hours tracker for people with more than one job. ShiftSentry warns you at 80% and refuses any shift that would push you over.</p>
+              <p className="hero-fade mt-6 max-w-[27rem] text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base 2xl:max-w-[30rem] 2xl:text-[1.0625rem] 2xl:leading-8">A work hours tracker for students and anyone with more than one job. ShiftSentry warns you at 80% and refuses any shift that would push you over.</p>
               <div className="hero-fade mt-8 flex flex-wrap items-center gap-2.5">
                 <Pill prefetch>Get started</Pill>
                 <a href="#week" className="welcome-ghost inline-flex h-12 items-center whitespace-nowrap rounded-full px-5 text-sm font-semibold transition-[background-color,border-color,transform] duration-300 ease-out hover:-translate-y-0.5">Try the example week</a>
@@ -91,22 +86,20 @@ export function WelcomeLanding() {
 
             <div className="relative mx-auto w-full max-w-[34rem] lg:col-span-6 lg:max-w-none">
               <div aria-hidden="true" className="hero-disc absolute left-1/2 top-1/2 aspect-square w-[86%] -translate-x-1/2 -translate-y-1/2 rounded-full" />
-              <div className="hero-art relative lg:-mr-[4%] lg:-ml-[2%]">
-                <div className="hero-art-float">
-                  <Image src="/welcome/hero-3d.webp" width={1400} height={1400} alt="An iridescent lavender glass ribbon loops around a violet bead beside a clear glass sphere, with small lilac, mint and amber accents." priority unoptimized sizes="(min-width: 1024px) 50vw, 90vw" className="h-auto w-full" />
-                </div>
+              <HeroArt src="/welcome/hero-3d.webp" alt="An iridescent lavender glass ribbon loops around a violet bead beside a clear glass sphere, with small lilac, mint and amber accents.">
                 <HeroChips />
-              </div>
+              </HeroArt>
             </div>
           </div>
         </section>
 
         <div className="relative z-10 -mt-20 space-y-4 px-3 sm:space-y-5 sm:px-6">
-          <section aria-label="What ShiftSentry does">
+          <section aria-labelledby="capabilities-title">
+            <h2 id="capabilities-title" className="sr-only">What ShiftSentry does</h2>
             <ul className={cn(panel, "grid gap-7 p-5 py-7 sm:grid-cols-2 sm:p-9 lg:grid-cols-4 lg:gap-0 lg:p-10")}>
               {CAPABILITIES.map(({ icon: Icon, title, body }) => <li key={title} className="lg:border-l lg:px-7 lg:first:border-l-0 lg:first:pl-0 lg:last:pr-0">
                 <span className="grid size-10 place-items-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]"><Icon className="size-[1.125rem]" strokeWidth={1.8} /></span>
-                <h2 className="mt-4 font-display text-base font-semibold leading-snug">{title}</h2>
+                <h3 className="mt-4 font-display text-base font-semibold leading-snug">{title}</h3>
                 <p className="mt-1.5 text-sm leading-6 text-[var(--muted-foreground)]">{body}</p>
               </li>)}
             </ul>
@@ -117,18 +110,6 @@ export function WelcomeLanding() {
             <div className="mt-7 sm:mt-10"><RulesBento week={<WeekGauge />} /></div>
           </section>
 
-          <section aria-label="ShiftSentry in numbers">
-            <ul className={cn(panel, "grid gap-7 px-5 py-8 sm:grid-cols-2 sm:px-9 lg:grid-cols-4 lg:gap-0 lg:px-4 lg:py-9")}>
-              {STATS.map(({ icon: Icon, value, suffix, label }) => <li key={label} className="flex items-center gap-4 lg:justify-center lg:border-l lg:first:border-l-0">
-                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]"><Icon className="size-5" strokeWidth={1.7} /></span>
-                <div>
-                  <p className="font-display text-[2rem] font-semibold leading-none tabular-nums" aria-label={`${value}${suffix}`}><span aria-hidden="true" className="stat-count" style={{ "--stat": value } as CSSProperties} />{suffix && <span aria-hidden="true">{suffix}</span>}</p>
-                  <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">{label}</p>
-                </div>
-              </li>)}
-            </ul>
-          </section>
-
           <section aria-labelledby="dashboard-title" className={cn(panel, "grid items-center gap-10 px-5 py-9 sm:p-10 lg:grid-cols-12 lg:gap-10 lg:p-12")}>
             <div className="lg:col-span-4">
               <h2 id="dashboard-title" className={sectionTitle}>Your whole week on one screen.</h2>
@@ -137,7 +118,7 @@ export function WelcomeLanding() {
             </div>
             <figure className="relative pb-10 lg:col-span-8 lg:pb-12">
               <div className="rv rv-rise welcome-frame rounded-[1.25rem] p-1.5 sm:p-2">
-                <Screenshot name="dashboard-desktop" width={1440} height={900} alt="The ShiftSentry dashboard with sample data: 32 of 40 weekly hours used, a warning at 80%, and earnings after tax." className="rounded-[0.9rem]" sizes="(min-width: 1024px) 45rem, 92vw" />
+                <Screenshot name="dashboard-desktop" width={1440} height={900} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned, warnings at 80% of the weekly limit and 92% of one job's cap, and $136.40 earned after tax." className="rounded-[0.9rem]" sizes="(min-width: 1024px) 45rem, 92vw" />
               </div>
               <div className="rv rv-rise welcome-phone absolute -bottom-2 right-[-2%] w-[26%] min-w-28 rounded-[1.5rem]">
                 <Screenshot name="dashboard-mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" sizes="12rem" />
@@ -153,6 +134,7 @@ export function WelcomeLanding() {
               <h2 id="start-title" className={sectionTitle}>Start with this week.</h2>
               <p className="mt-3 max-w-[25rem] text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">Add your jobs and your hour limit. ShiftSentry does the counting.</p>
               <div className="mt-7"><Pill>Get started</Pill></div>
+              <p className="mt-4 text-[13px] text-[var(--muted-foreground)]">Your work schedule stays private.</p>
             </div>
           </section>
         </div>
@@ -163,11 +145,10 @@ export function WelcomeLanding() {
           <div className="grid gap-9 pb-8 pt-10 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
             <div>
               <Brand size="compact" markClassName="size-7 rounded-lg" className="gap-2 text-sm" />
-              <p className="mt-4 max-w-[18rem] text-sm leading-6 text-[var(--muted-foreground)]">Shift planning for anyone with hourly jobs and a weekly hour limit.</p>
+              <p className="mt-4 max-w-[18rem] text-sm leading-6 text-[var(--muted-foreground)]">A work hours tracker for students and anyone with more than one job.</p>
             </div>
             <FooterColumn title="Product">
               <li><a href="#week" className={footerLink}>How it works</a></li>
-              <li><a href="#rules" className={footerLink}>Rules</a></li>
             </FooterColumn>
             <FooterColumn title="Account">
               <li><SignInLink href="/login" className={footerLink}>Sign in</SignInLink></li>

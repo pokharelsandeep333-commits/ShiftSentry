@@ -26,7 +26,7 @@ export function RulesBento({ week }: { week: ReactNode }) {
   return <div className="grid gap-3 sm:gap-4 lg:grid-cols-12">
     <article id="week" className="welcome-tile rv rv-rise scroll-mt-24 rounded-[1.25rem] p-5 sm:p-7 lg:col-span-8">
       <h3 className="font-display text-xl font-semibold">Try it on an example week.</h3>
-      <p className="mt-1.5 max-w-[52ch] text-[15px] leading-6 text-[var(--muted-foreground)]">Two jobs, a 20 hour limit, one open Saturday. The numbers are made up; the rule is the one the app enforces.</p>
+      <p className="mt-1.5 max-w-[52ch] text-[15px] leading-6 text-[var(--muted-foreground)]">Two jobs, a 20 hour limit, one open Saturday. You&apos;re warned at 80% and 90%, and a shift that would pass your limit is refused. The numbers are made up; the rule is the one the app enforces.</p>
       <div className="mt-7">{week}</div>
     </article>
     <BentoCard tone="tint" className="lg:col-span-4" title="No double-booking." body="Two shifts can't overlap, even at different jobs. Back-to-back is fine.">
@@ -35,7 +35,7 @@ export function RulesBento({ week }: { week: ReactNode }) {
     <BentoCard tone="tint" className="lg:col-span-4" title="Your schedule is yours." body={<>Other ShiftSentry users can&apos;t see your jobs or shifts. <Link href="/privacy" className="font-semibold text-[var(--primary)] underline decoration-[color-mix(in_srgb,var(--primary)_40%,transparent)] underline-offset-4 transition-colors hover:decoration-[var(--primary)]">Read the privacy policy</Link>.</>}>
       <PrivacyPreview />
     </BentoCard>
-    <BentoCard tone="glass" className="lg:col-span-5" title="Midnight splits the shift." body="An overnight shift counts toward both days it touches, in your own time zone.">
+    <BentoCard tone="glass" className="lg:col-span-5" title="Midnight splits the shift." body="An overnight shift counts toward both days it touches, in your own time zone. Shifts can run up to 24 hours, and your week can start on any day.">
       <OvernightPreview />
     </BentoCard>
     <BentoCard tone="mint" className="lg:col-span-3" title="Pay is locked when you work it." body="Each shift keeps its rate and tax. A raise next month doesn't rewrite last month.">

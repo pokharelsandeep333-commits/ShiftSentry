@@ -58,6 +58,18 @@ export function tryShift(week: ExampleWeek, attempt: ShiftAttempt): AttemptResul
   return { status: "saved", reason: null, totalMinutes, overByMinutes: 0 };
 }
 
+/**
+ * The longest shift a job could still take this week: whatever is left under
+ * the global limit, or under the job's own limit when that is tighter. What a
+ * refusal suggests instead.
+ */
+export function roomLeft(week: ExampleWeek, jobId: string) {
+  const globalRoom = week.limitMinutes - weekTotals(week).totalMinutes;
+  const job = week.jobs.find((candidate) => candidate.id === jobId);
+  const jobRoom = job?.limitMinutes == null ? Infinity : job.limitMinutes - jobMinutes(week, jobId);
+  return Math.max(0, Math.min(globalRoom, jobRoom));
+}
+
 /** Worked shifts only, one `calculateEarnings` per job, then summed. */
 export function earnedSoFar(week: ExampleWeek): Earnings {
   return week.jobs.reduce<Earnings>((total, job) => {
