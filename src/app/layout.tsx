@@ -55,6 +55,11 @@ export const viewport: Viewport = {
  * route dynamic, `/offline` included; the service worker caches that page with
  * its CSP header, so the nonce in the cached HTML still matches.
  *
+ * It also restores the collapsed desktop sidebar (`data-sidebar` on <html>,
+ * styled in globals.css) for the same reason: applied after hydration, the
+ * sidebar would open for a frame and then snap shut. The key and its JSON
+ * encoding are `createLocalPreference`'s, owned by `SidebarToggle`.
+ *
  * The string is a compile-time constant with no interpolation of anything --
  * this is not a channel for user input, which is what the repo's rule about
  * `dangerouslySetInnerHTML` is guarding against.
@@ -67,6 +72,9 @@ try {
     document.documentElement.style.colorScheme = 'dark';
   } else {
     document.documentElement.style.colorScheme = 'light';
+  }
+  if (localStorage.getItem('shiftsentry:sidebar') === '"collapsed"') {
+    document.documentElement.dataset.sidebar = 'collapsed';
   }
 } catch (e) {}
 `;

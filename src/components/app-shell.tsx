@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ClipboardClock, Drama, Menu, Moon, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ClipboardClock, Drama, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { createLocalPreference } from "@/lib/local-preference";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
@@ -59,18 +60,43 @@ export function ThemeToggle() {
   </Button>;
 }
 
+/**
+ * The desktop sidebar's collapsed state. The look is CSS keyed on
+ * `<html data-sidebar="collapsed">` (globals.css), and the theme bootstrap in
+ * `src/app/layout.tsx` sets that attribute from this same key before the first
+ * paint, so a collapsed sidebar never flashes open on load. That is also why
+ * the attribute is written here on click and never from an effect: the first
+ * client render uses the server snapshot ("expanded"), and an effect syncing
+ * it would open the sidebar for a frame on every load.
+ */
+const SIDEBAR_KEY = "shiftsentry:sidebar";
+const sidebarPreference = createLocalPreference<"expanded" | "collapsed">(SIDEBAR_KEY, "expanded", (value) => (value === "expanded" || value === "collapsed" ? value : null));
+
+function SidebarToggle() {
+  const collapsed = useSyncExternalStore(sidebarPreference.subscribe, sidebarPreference.read, sidebarPreference.serverSnapshot) === "collapsed";
+  function toggle() {
+    const next = collapsed ? "expanded" : "collapsed";
+    if (next === "collapsed") document.documentElement.dataset.sidebar = "collapsed";
+    else delete document.documentElement.dataset.sidebar;
+    sidebarPreference.write(next);
+  }
+  return <Button variant="ghost" size="icon" className="hidden shrink-0 lg:inline-flex" onClick={toggle} title="Toggle sidebar" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="desktop-sidebar">
+    {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
+  </Button>;
+}
+
 function NavigationLink({ item, active, onNavigate }: { item: NavigationItem; active: boolean; onNavigate?: () => void }) {
   const Icon = item.icon;
 
   return <Link href={item.href} onClick={onNavigate} className={cn(
-    "group relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-[background-color,color,transform] duration-300 hover:translate-x-0.5",
+    "app-nav-link group relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-[background-color,color,transform] duration-300 hover:translate-x-0.5",
     active ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
   )}>
     <span className={cn("grid size-8 place-items-center rounded-xl transition-colors", active ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-glow)]" : "bg-[var(--surface-subtle)] text-[var(--muted-foreground)] group-hover:bg-[var(--primary-soft)] group-hover:text-[var(--primary)]")}>
       <Icon className="size-4" />
     </span>
-    {item.label}
-    {active && <span className="absolute right-2 size-1.5 rounded-full bg-[var(--primary)]" />}
+    <span className="app-nav-label">{item.label}</span>
+    {active && <span className="app-nav-dot absolute right-2 size-1.5 rounded-full bg-[var(--primary)]" />}
   </Link>;
 }
 
@@ -183,7 +209,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail 
   const pathname = usePathname();
   const desktopItems = isAdmin ? [...menuNavigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : menuNavigation;
 
-  return <div className="app-canvas min-h-screen lg:grid lg:grid-cols-[292px_minmax(0,1fr)]">
+  return <div className="app-canvas app-frame min-h-screen lg:grid lg:grid-cols-[292px_minmax(0,1fr)]">
     <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-xl focus:bg-[var(--primary)] focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-[var(--primary-foreground)] focus:shadow-2xl focus:shadow-[var(--primary-glow)]">Skip to content</a>
     {/* No `backdrop-blur` on the sidebar or the header bar.
         Both used to carry one on the theory that they overlay scrolling
@@ -196,15 +222,15 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail 
         filter is re-evaluated as it moves, on every scroll frame, on every
         page. The bottom bar keeps its blur, being the one layer here that
         genuinely does overlay scrolling content. */}
-    <aside className="hidden p-4 lg:flex">
+    <aside id="desktop-sidebar" className="app-sidebar hidden p-4 lg:flex">
       <div className="premium-card sticky top-4 flex h-[calc(100vh-2rem)] w-full flex-col rounded-[1.75rem] border bg-[var(--card)]/82 p-3.5">
-        <Link href="/" className="mb-8 rounded-2xl px-2 py-2"><Brand /></Link>
+        <Link href="/" aria-label="Go to ShiftSentry overview" className="app-sidebar-brand mb-8 rounded-2xl px-2 py-2"><Brand /></Link>
         <nav className="space-y-1" aria-label="Main navigation">{desktopItems.map((item) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} />)}</nav>
-        <div className="mt-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 text-xs leading-5 text-[var(--muted-foreground)]"><span className="mb-1 block font-semibold text-[var(--foreground)]">{isDemo ? "Preview mode" : "Private workspace"}</span>{isDemo ? "Connect Supabase to save your workspace data." : "Your work schedule stays private to your account."}</div>
+        <div className="app-sidebar-note mt-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 text-xs leading-5 text-[var(--muted-foreground)]"><span className="mb-1 block font-semibold text-[var(--foreground)]">{isDemo ? "Preview mode" : "Private workspace"}</span>{isDemo ? "Connect Supabase to save your workspace data." : "Your work schedule stays private to your account."}</div>
       </div>
     </aside>
     <div className="min-w-0">
-      <header className="px-3 pt-3 sm:px-5 lg:px-6"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-1 rounded-[1.25rem] border bg-[var(--background)]/90 px-2 shadow-lg shadow-black/[0.03] sm:h-16 sm:px-3"><div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2"><MobileNavigation pathname={pathname} isAdmin={isAdmin} /><Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2" /></Link></div><div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><ThemeToggle /><Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants({ size: "sm" }), "size-11 rounded-xl p-0 sm:h-8 sm:w-auto sm:px-3")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>{!isDemo && <AccountMenu email={userEmail} />}</div></div></header>
+      <header className="px-3 pt-3 sm:px-5 lg:px-6"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-1 rounded-[1.25rem] border bg-[var(--background)]/90 px-2 shadow-lg shadow-black/[0.03] sm:h-16 sm:px-3"><div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2"><SidebarToggle /><MobileNavigation pathname={pathname} isAdmin={isAdmin} /><Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2" /></Link></div><div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><ThemeToggle /><Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants({ size: "sm" }), "size-11 rounded-xl p-0 sm:h-8 sm:w-auto sm:px-3")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>{!isDemo && <AccountMenu email={userEmail} />}</div></div></header>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12">{children}</main>
       <BottomNavigation pathname={pathname} />
     </div>
