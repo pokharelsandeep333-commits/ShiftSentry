@@ -40,7 +40,7 @@ export function SyncNowButton() {
     }
   }
   return <div className="flex items-center gap-2">
-    <Button type="button" variant="outline" onClick={sync} disabled={state === "busy"}><RefreshCw className={state === "busy" ? "size-4 animate-spin" : "size-4"} />{state === "busy" ? "Syncing…" : "Sync now"}</Button>
+    <Button type="button" variant="outline" size="sm" className="rounded-full px-3.5 sm:h-9" onClick={sync} disabled={state === "busy"}><RefreshCw className={state === "busy" ? "size-4 animate-spin" : "size-4"} />{state === "busy" ? "Syncing…" : "Sync now"}</Button>
     <span role="status" className="text-xs text-[var(--muted-foreground)]">{state === "done" ? "Up to date" : state === "recent" ? "Synced moments ago" : state === "failed" ? "Couldn't sync" : ""}</span>
   </div>;
 }
