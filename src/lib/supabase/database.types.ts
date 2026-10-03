@@ -774,6 +774,41 @@ export type Database = {
           },
         ];
       };
+      week_notes: {
+        Row: {
+          body: string;
+          created_at: string;
+          id: string;
+          updated_at: string;
+          user_id: string;
+          week_start: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          id?: string;
+          updated_at?: string;
+          user_id: string;
+          week_start: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          id?: string;
+          updated_at?: string;
+          user_id?: string;
+          week_start?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "week_notes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;

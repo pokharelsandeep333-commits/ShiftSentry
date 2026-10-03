@@ -28,6 +28,7 @@ model Profile {
   shifts                   Shift[]
   auditEvents              AuditEvent[] @relation("AuditActor")
   googleCalendarConnection GoogleCalendarConnection?
+  weekNotes                WeekNote[]
 
   @@map("profiles")
 }
@@ -81,6 +82,19 @@ model Shift {
   @@index([userId, startsAt])
   @@index([jobId, startsAt])
   @@map("shifts")
+}
+
+model WeekNote {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  weekStart DateTime @map("week_start") @db.Date
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile   Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart], map: "week_notes_one_per_week")
+  @@map("week_notes")
 }
 
 model JobDeduction {
