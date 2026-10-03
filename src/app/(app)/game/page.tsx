@@ -17,10 +17,10 @@ const SAVED_MESSAGES: Record<string, string> = {
 };
 
 const HOW_IT_WORKS = [
-  "Everyone in the room gets the same secret word. One player — the imposter — doesn't.",
+  "Everyone in the room gets the same secret word. One player, the imposter, doesn't.",
   "Take turns giving a one-word clue about it. Say too little and you look suspicious; say too much and you hand it to the imposter.",
   "Then everyone votes. The imposter wins by surviving the vote, or by naming the word after being caught.",
-  "If the vote ties, nobody goes out — you all give one more clue and vote again. Twice at most, then the imposter takes it.",
+  "If the vote ties, nobody goes out. You all give one more clue and vote again. Twice at most, then the imposter takes it.",
 ];
 
 function first(value: string | string[] | undefined): string {
@@ -40,7 +40,6 @@ export default async function GamePage({ searchParams }: { searchParams: Promise
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
     <PageHeader
-      eyebrow="Imposter"
       title="Find the imposter"
       description={`A word game for ${MIN_PLAYERS_TO_START} or more people. Create a game, let everyone scan the QR code, and play from wherever you are sitting.`}
     />

@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 const SAVED_MESSAGES: Record<string, string> = {
-  "room-created": "Game created — share the code",
+  "room-created": "Game created. Share the code",
   "room-joined": "You're in",
 };
 
@@ -102,9 +102,8 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
         <GameLive roomId={lobby.id} />
         {waitingOnYou && <TurnAttention prompt={`${waitingOnYou} · Imposter`} />}
         <PageHeader
-          eyebrow={`Game ${lobby.code}`}
           title={`Round ${round.roundNo}`}
-          description={describeGameSettings(lobby.settings)}
+          description={`Game ${lobby.code} · ${describeGameSettings(lobby.settings)}`}
         />
         <RoundBoard round={round} isHost={lobby.isHost} />
       </>;
@@ -127,7 +126,6 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
     <GameLive roomId={lobby.id} />
 
     <PageHeader
-      eyebrow="Imposter lobby"
       title={lobby.isHost ? "Your game" : "Waiting to start"}
       description={describeGameSettings(lobby.settings)}
     />
@@ -235,11 +233,11 @@ export default async function GameLobbyPage({ params, searchParams }: GameLobbyP
             <CardContent className="grid gap-2.5 text-sm leading-6 text-[var(--muted-foreground)]">
               <p>{lobby.settings.imposterCount === 1 ? "One imposter" : `${lobby.settings.imposterCount} imposters`} among {lobby.players.length} {lobby.players.length === 1 ? "player" : "players"}.</p>
               <p>{lobby.settings.hideRoles
-                ? "Roles are hidden — everyone gets a word and nobody is told whose is the odd one."
+                ? "Roles are hidden. Everyone gets a word and nobody is told whose is the odd one."
                 : `The imposter gets: ${IMPOSTER_HINT_LABELS[lobby.settings.imposterHint].label.toLowerCase()}.`}</p>
               <p>{lobby.settings.cluePasses === 1 ? "One clue each" : `${lobby.settings.cluePasses} clues each`}, {lobby.settings.discussionPhase ? "then a discussion, then the vote." : "then straight to the vote."}</p>
               <p>{lobby.settings.banRepeatClues ? "Repeated clues are refused." : "Repeating someone else's clue is allowed."}</p>
-              <p>{lobby.settings.imposterFinalGuess ? "A caught imposter still wins by naming the word." : "Getting caught ends it — no final guess."}</p>
+              <p>{lobby.settings.imposterFinalGuess ? "A caught imposter still wins by naming the word." : "Getting caught ends it. There is no final guess."}</p>
               <p>Words come from {lobby.settings.categoryFilter ?? "every category"}. {WORD_DIFFICULTY_LABELS[lobby.settings.wordDifficulty].description}</p>
             </CardContent>
           </Card>}

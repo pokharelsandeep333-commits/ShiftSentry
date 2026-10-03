@@ -42,12 +42,12 @@ export function InviteCode({ code }: { code: string }) {
       toast(kind === "code" ? "Code copied" : "Invite link copied");
       window.setTimeout(() => setCopied((current) => (current === kind ? null : current)), 2_000);
     } catch {
-      toast(`Copy failed — the code is ${code}`);
+      toast(`Copy failed. The code is ${code}`);
     }
   }
 
   return <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[var(--primary-soft)] p-5 text-center">
-    <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--primary)]">Invite code</p>
+    <p className="text-sm font-semibold text-[var(--primary)]">Invite code</p>
     <p className="mt-2 font-display text-4xl font-semibold tracking-[0.28em] sm:text-5xl" aria-label={`Invite code ${code.split("").join(" ")}`}>{code}</p>
 
     {showQr && <InviteQr href={invite()} />}

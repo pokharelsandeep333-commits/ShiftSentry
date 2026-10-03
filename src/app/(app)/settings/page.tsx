@@ -27,7 +27,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
     {googleProblem && <SavedToast message={googleProblem} clearParams={["google"]} />}
-    <PageHeader eyebrow="Preferences" title="Settings" description="Your time zone and week-start day determine how every cap is calculated." />
+    <PageHeader title="Settings" description="Your time zone and week-start day determine how every cap is calculated." />
     <div className="grid gap-6">
       <Card className="max-w-2xl">
         <CardHeader><CardTitle>Work schedule</CardTitle></CardHeader>
