@@ -3,13 +3,18 @@ import Link from "next/link";
 import { Brand } from "@/components/brand";
 
 /**
- * The shell shared by /privacy and /terms. Both are public, static, and linked
- * from Google's consent-screen Branding, so neither may need a session.
+ * The one public contact address, used by the legal pages, the landing footer
+ * and /account-disabled. It is receive-only forwarding: never use it as the
+ * From of mail the app or Supabase sends, or DMARC will reject that mail.
  */
-export const LEGAL_CONTACT_EMAIL = "pokharelsandeep333@gmail.com";
+export const LEGAL_CONTACT_EMAIL = "contact@sandeeppokharel.com.np";
 
 export const legalLink = "font-semibold text-[var(--primary)] underline underline-offset-4";
 
+/**
+ * The shell shared by /privacy and /terms. Both are public, static, and linked
+ * from Google's consent-screen Branding, so neither may need a session.
+ */
 export function LegalPage({ title, effective, children }: { title: string; effective: string; children: ReactNode }) {
   return <main className="min-h-dvh bg-[var(--background)] px-4 py-10 sm:px-8 sm:py-14">
     <article className="mx-auto max-w-2xl">
