@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -9,7 +10,9 @@ import { cn } from "@/lib/utils";
  * the page has one, with only the inner button reachable by keyboard.
  */
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold tracking-[-0.01em] transition-[transform,box-shadow,background-color,border-color,color] duration-300 ease-out disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] active:translate-y-px",
+  // `press` (globals.css) is the transition: the hover lift eases, a press
+  // sinks, and letting go springs back.
+  "press inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold tracking-[-0.01em] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
   {
     variants: {
       variant: {
@@ -36,3 +39,18 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
 });
 
 Button.displayName = "Button";
+
+/**
+ * A button label that turns into a spinner and a busy label while its form is
+ * saving. Both labels sit in one grid cell, so the button is always as wide as
+ * the wider of the two: it never changes size under the finger, and the row
+ * it sits in never reflows. The resting label slides up and out as the busy
+ * one slides in (`.pending-label` in globals.css). The hidden label is
+ * aria-hidden, so the button's name is always the one on show.
+ */
+export function PendingLabel({ pending, label, pendingLabel }: { pending: boolean; label: React.ReactNode; pendingLabel: React.ReactNode }) {
+  return <span className="pending-label" data-pending={pending || undefined}>
+    <span className="pending-rest" aria-hidden={pending || undefined}>{label}</span>
+    <span className="pending-busy" aria-hidden={!pending || undefined}><LoaderCircle className="size-4 animate-spin" />{pendingLabel}</span>
+  </span>;
+}

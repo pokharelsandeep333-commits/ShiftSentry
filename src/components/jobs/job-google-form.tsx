@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { saveJobGoogleSettings } from "@/app/actions/calendar";
 import { runSync } from "@/components/google-sync-trigger";
-import { Button } from "@/components/ui/button";
+import { Button, PendingLabel } from "@/components/ui/button";
 import { PremiumSelect } from "@/components/ui/premium-select";
 import { emptySavedFormState } from "@/lib/form-state";
 
@@ -44,6 +44,6 @@ export function JobGoogleForm({ jobId, jobName, keyword, calendarId, sync, calen
     </label>
     {state.message && <p role="alert" className="text-sm font-medium text-[var(--danger)]">{state.message}</p>}
     {state.savedAt && !state.message && <p role="status" className="text-sm text-[var(--success)]">Saved.</p>}
-    <div className="flex justify-end"><Button size="sm" variant="outline" type="submit" disabled={pending}>{pending ? "Saving…" : "Save Google settings"}</Button></div>
+    <div className="flex justify-end"><Button size="sm" variant="outline" type="submit" disabled={pending}><PendingLabel pending={pending} label="Save Google settings" pendingLabel="Saving…" /></Button></div>
   </form>;
 }

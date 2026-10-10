@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button, PendingLabel, type ButtonProps } from "@/components/ui/button";
 
 type ConfirmSubmitProps = {
   /** Resting label, e.g. "Archive". Doubles as the affirmative button in the dialog. */
@@ -91,14 +91,15 @@ export function ConfirmSubmit({ label, confirmLabel, confirmActionLabel, variant
         // Clicking the backdrop resolves to the dialog itself, since every real
         // control is nested deeper.
         onClick={(event) => { if (event.target === dialogRef.current) setOpen(false); }}
-        className="m-auto w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)] p-0 text-[var(--foreground)] shadow-2xl shadow-black/25 backdrop:bg-black/50"
+        // `dialog-pop` (globals.css) animates it and its scrim in and out.
+        className="dialog-pop m-auto w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)] p-0 text-[var(--foreground)] shadow-2xl shadow-black/25"
       >
         <div className="grid gap-4 p-5">
           <p id={questionId} className="text-base font-semibold leading-6">{confirmLabel}</p>
           <div className="flex flex-wrap justify-end gap-2">
             {/* Focused first: the safe way out should be what a stray Enter hits. */}
             <Button type="button" variant="ghost" size={size} autoFocus onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="danger" size={size} disabled={pending}>{pending ? "Working…" : confirmActionLabel ?? label}</Button>
+            <Button type="submit" variant="danger" size={size} disabled={pending}><PendingLabel pending={pending} label={confirmActionLabel ?? label} pendingLabel="Working…" /></Button>
           </div>
         </div>
       </dialog>

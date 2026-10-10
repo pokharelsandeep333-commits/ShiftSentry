@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { fromZonedTime } from "date-fns-tz";
 import { createShift, updateShift, type ShiftActionState } from "@/app/actions/work";
-import { Button } from "@/components/ui/button";
+import { Button, PendingLabel } from "@/components/ui/button";
 import { CalendarClashNotice } from "@/components/shifts/calendar-clash-notice";
 import { ShiftScheduleFields, type ShiftDateTimeParts, type ShiftSchedule } from "@/components/shifts/date-time-picker";
 import { PremiumSelect } from "@/components/ui/premium-select";
@@ -180,6 +180,6 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
     {mode === "create" && <div className="field-label"><span id="repeat-label">Repeat</span><PremiumSelect name="repeatWeeks" defaultValue="1" options={REPEAT_OPTIONS} labelledBy="repeat-label" onValueChange={(value) => setRepeatWeeks(Number(value))} /></div>}
     {generalMessage && <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{generalMessage}</p>}
     <label className="field-label"><span>Notes</span><textarea name="notes" defaultValue={initialShift?.notes ?? ""} maxLength={500} onInput={markEdited} className="field-textarea text-sm" placeholder="Optional notes" /></label>
-    <div><Button type="submit" disabled={pending}>{pending ? "Saving…" : mode === "create" ? "Save shift" : "Save changes"}</Button></div>
+    <div><Button type="submit" disabled={pending}><PendingLabel pending={pending} label={mode === "create" ? "Save shift" : "Save changes"} pendingLabel="Saving…" /></Button></div>
   </form>;
 }

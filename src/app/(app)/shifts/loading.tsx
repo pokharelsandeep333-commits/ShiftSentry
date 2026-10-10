@@ -1,9 +1,11 @@
+import { ViewTransition } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** Mirrors the week-group accordion so the list does not jump when it arrives. */
 export default function Loading() {
-  return <div aria-busy="true" aria-live="polite">
+  // The skeleton dissolves as the page arrives (`.skeleton-out`, globals.css).
+  return <ViewTransition exit="skeleton-out" default="none"><div aria-busy="true" aria-live="polite">
     <span className="sr-only">Loading shifts</span>
     <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
@@ -30,5 +32,5 @@ export default function Loading() {
         </div>)}</div>}
       </CardContent>
     </Card>)}</div>
-  </div>;
+  </div></ViewTransition>;
 }

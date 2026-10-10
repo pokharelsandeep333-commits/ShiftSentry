@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Check } from "lucide-react";
 import { addJobDeduction, createJob, updateJobDetails } from "@/app/actions/work";
 import { emptyFormState } from "@/lib/form-state";
-import { Button } from "@/components/ui/button";
+import { Button, PendingLabel } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -68,7 +68,7 @@ export function CreateJobForm() {
     <label className="field-label"><span>Weekly limit (hours)</span><input name="weeklyLimitHours" type="number" min={1} max={168} className="field-control" placeholder="Leave blank for no limit" /></label>
     <FormError message={state.message} />
     <p className="rounded-xl bg-[var(--surface-subtle)] px-3 py-2.5 text-xs leading-5 text-[var(--muted-foreground)]">You can add named percentage deductions after creating the job.</p>
-    <Button type="submit" disabled={pending}>{pending ? "Creating…" : "Create job"}</Button>
+    <Button type="submit" disabled={pending}><PendingLabel pending={pending} label="Create job" pendingLabel="Creating…" /></Button>
   </form>;
 }
 
@@ -88,7 +88,7 @@ export function JobDetailsForm({ id, name, hourlyRateCents, taxRateBasisPoints, 
     <ColorField defaultValue={color} />
     <FormError message={state.message} />
     <div className="flex justify-end">
-      <Button size="sm" type="submit" disabled={pending}>{pending ? "Saving…" : "Save job"}</Button>
+      <Button size="sm" type="submit" disabled={pending}><PendingLabel pending={pending} label="Save job" pendingLabel="Saving…" /></Button>
     </div>
   </form>;
 }
@@ -101,7 +101,7 @@ export function AddDeductionForm({ jobId }: { jobId: string }) {
     <div className="grid gap-2 sm:grid-cols-[1fr_110px_auto]">
       <input name="name" required maxLength={80} placeholder="e.g. Retirement" className="field-control h-10 text-sm" />
       <input name="rate" required placeholder="3.00" inputMode="decimal" className="field-control h-10 text-sm" />
-      <Button size="sm" type="submit" disabled={pending}>{pending ? "Adding…" : "Add"}</Button>
+      <Button size="sm" type="submit" disabled={pending}><PendingLabel pending={pending} label="Add" pendingLabel="Adding…" /></Button>
     </div>
     <FormError message={state.message} />
   </form>;

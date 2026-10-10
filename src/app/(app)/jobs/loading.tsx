@@ -1,9 +1,11 @@
+import { ViewTransition } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** Two-column job list and the add-a-job form beside it. */
 export default function Loading() {
-  return <div aria-busy="true" aria-live="polite">
+  // The skeleton dissolves as the page arrives (`.skeleton-out`, globals.css).
+  return <ViewTransition exit="skeleton-out" default="none"><div aria-busy="true" aria-live="polite">
     <span className="sr-only">Loading jobs</span>
     <div className="mb-8">
       <Skeleton className="mb-2 h-3 w-16" />
@@ -31,5 +33,5 @@ export default function Loading() {
         </CardContent>
       </Card>
     </div>
-  </div>;
+  </div></ViewTransition>;
 }
