@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, BriefcaseBusiness, CalendarClock, Clock3, Layers, ShieldCheck, Smartphone, Wallet, type LucideProps } from "lucide-react";
 import { Brand } from "@/components/brand";
+import { LEGAL_CONTACT_EMAIL } from "@/components/legal-page";
 import { HeroArt } from "@/components/welcome/hero-art";
 import { HeroChips } from "@/components/welcome/hero-chips";
 import { RulesBento } from "@/components/welcome/rule-previews";
@@ -157,6 +158,7 @@ export function WelcomeLanding() {
             <FooterColumn title="Legal">
               <li><Link href="/privacy" className={footerLink}>Privacy Policy</Link></li>
               <li><Link href="/terms" className={footerLink}>Terms of Service</Link></li>
+              <li><a href={`mailto:${LEGAL_CONTACT_EMAIL}`} className={footerLink}>Contact</a></li>
             </FooterColumn>
           </div>
           <p className="border-t py-5 text-[13px] text-[var(--muted-foreground)]">© 2026 ShiftSentry</p>
