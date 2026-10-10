@@ -8,8 +8,8 @@
   The art is abstract, in the language of a pearly lavender page:
   - hero: a flowing loop of iridescent lavender glass (a flattened ribbon
     swept along a closed curve with a half twist), a large clear glass sphere,
-    and small accents in the app's colours: a lilac glass pill, a violet bead,
-    a mint pill and one amber bead.
+    and small accents in the app's colours: two clocks standing for shifts
+    (lilac 4h, mint 5h), a violet bead and one amber bead.
   - cta: a smaller cluster in the same language for the closing card.
 
   Colours are the app's own: primary #6d5ce7, job lilac #9486ff and mint
@@ -262,6 +262,51 @@ function softShadow({ x = 0, y = 0, z = 0, width, depth, opacity = 0.12 }) {
   add(new THREE.PlaneGeometry(width, depth), material, { x, y, z, rx: -Math.PI / 2 });
 }
 
+// A clock, standing in for a shift: a coin with rounded edges in a job's
+// glaze, a porcelain face on each side with hour ticks, and an arc from twelve
+// marking the shift's hours (the hour hand points to where it ends). Its axle
+// runs along local Y.
+const clockFace = new THREE.MeshPhysicalMaterial({ color: "#fbfaf7", roughness: 0.36, clearcoat: 0.6, clearcoatRoughness: 0.22, sheen: 0.4, sheenColor: new THREE.Color("#ffffff") });
+const clockInk = new THREE.MeshStandardMaterial({ color: "#2a2740", roughness: 0.45 });
+const clockBezel = new THREE.MeshPhysicalMaterial({ color: "#e3dff0", metalness: 0.65, roughness: 0.28, clearcoat: 0.6, clearcoatRoughness: 0.2, envMapIntensity: 1.3 });
+function clock(hex, hours, { radius = 0.44, depth = 0.17 } = {}) {
+  const token = new THREE.Group();
+  const edge = 0.055;
+  const profile = [new THREE.Vector2(0.0001, -depth / 2)];
+  for (let k = 0; k <= 16; k++) {
+    const a = -Math.PI / 2 + (k / 16) * Math.PI;
+    profile.push(new THREE.Vector2(radius - edge + Math.cos(a) * edge, Math.sin(a) * (depth / 2)));
+  }
+  profile.push(new THREE.Vector2(0.0001, depth / 2));
+  add(new THREE.LatheGeometry(profile, 128), frosted(hex, 0.3), {}, token);
+  const arcMaterial = new THREE.MeshStandardMaterial({ color: hex, emissive: new THREE.Color(hex), emissiveIntensity: 0.35, roughness: 0.3 });
+  for (const side of [1, -1]) {
+    const face = new THREE.Group();
+    face.position.y = side * (depth / 2 + 0.003);
+    face.rotation.x = -side * Math.PI / 2;
+    token.add(face);
+    const r = radius * 0.8;
+    add(new THREE.CircleGeometry(r, 96), clockFace, {}, face);
+    add(new THREE.TorusGeometry(r, 0.012, 10, 128), clockBezel, {}, face);
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      const long = k % 3 === 0;
+      add(new THREE.BoxGeometry(long ? 0.018 : 0.012, long ? 0.07 : 0.045, 0.006), clockInk, { x: Math.sin(a) * r * 0.84, y: Math.cos(a) * r * 0.84, z: 0.004, rz: -a }, face);
+    }
+    const arc = (hours / 12) * Math.PI * 2;
+    add(new THREE.RingGeometry(r * 0.5, r * 0.66, 96, 1, Math.PI / 2 - arc, arc), arcMaterial, { z: 0.003 }, face);
+    const hand = (length, width, angle) => {
+      const geometry = new THREE.BoxGeometry(width, length, 0.008);
+      geometry.translate(0, length / 2 - 0.02, 0);
+      add(geometry, clockInk, { z: 0.009, rz: -angle }, face);
+    };
+    hand(r * 0.48, 0.03, arc);
+    hand(r * 0.7, 0.02, 0);
+    add(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 24), new THREE.MeshStandardMaterial({ color: PRIMARY, emissive: new THREE.Color(PRIMARY), emissiveIntensity: 0.6 }), { z: 0.014, rx: Math.PI / 2 }, face);
+  }
+  return token;
+}
+
 function hero() {
   const group = new THREE.Group();
   add(sculpture(), iridescentGlass(), {}, group);
@@ -272,9 +317,18 @@ function hero() {
   add(new THREE.SphereGeometry(1.0, 128, 96), clearGlass(), { x: 1.75, y: 1.65, z: -1.4 });
 
   // Accents sit clear of the page's three chips (top left, top right, bottom right).
-  add(new THREE.CapsuleGeometry(0.2, 0.85, 16, 48), frosted(LILAC), { x: -0.9, y: 2.75, z: -0.8, rz: -1.05, rx: 0.3 });
+  // The two shifts are clocks where the glass pills used to be: a Campus desk
+  // shift (lilac, 4h) high on the left, the River cafe Saturday (mint, 5h) low
+  // on the left, faces turned to the viewer and tipped a little.
+  const lilacClock = clock(LILAC, 4, { radius: 0.5, depth: 0.18 });
+  lilacClock.position.set(-0.95, 2.7, -0.8);
+  lilacClock.rotation.set(Math.PI / 2 - 0.18, 0.32, -0.12);
+  scene.add(lilacClock);
   add(new THREE.SphereGeometry(0.32, 64, 48), gloss(PRIMARY), { x: 0.35, y: -0.2, z: 0.2 });
-  add(new THREE.CapsuleGeometry(0.16, 0.6, 16, 48), frosted(MINT, 0.35), { x: -2.8, y: -0.4, z: 0.8, rz: 0.9, ry: 0.4 });
+  const mintClock = clock(MINT, 5, { radius: 0.36, depth: 0.15 });
+  mintClock.position.set(-2.75, -0.35, 0.8);
+  mintClock.rotation.set(Math.PI / 2 - 0.1, -0.28, 0.1);
+  scene.add(mintClock);
   add(new THREE.SphereGeometry(0.14, 48, 32), gloss(AMBER, 0.18), { x: 2.75, y: -0.35, z: 0.9 });
 
   softShadow({ y: -2.6, width: 7.5, depth: 3.2, opacity: 0.12 });

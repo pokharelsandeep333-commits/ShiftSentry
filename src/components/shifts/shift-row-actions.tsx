@@ -48,7 +48,7 @@ export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks }: Shi
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="end" sideOffset={8} className="z-50 w-52 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)]/96 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-2xl outline-none">
+          <DropdownMenu.Content align="end" sideOffset={8} className="z-50 w-52 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)]/96 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-2xl outline-none menu-pop">
             <DropdownMenu.Item asChild>
               <Link href={editHref} className={menuItemClass}><Pencil className="size-4 text-[var(--primary)]" />Edit</Link>
             </DropdownMenu.Item>

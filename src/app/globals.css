@@ -28,6 +28,18 @@
      --muted-foreground drops under 4.5:1. Declared here only: it resolves
      against whichever --muted-foreground this element has, light or .dark. */
   --muted-strong: color-mix(in srgb, var(--muted-foreground) 70%, var(--foreground));
+
+  /* Motion. One house curve for anything arriving (fast start, long settle),
+     a quick accelerating one for anything leaving, and a spring with a small
+     overshoot for things let go of (a released button). Durations by job:
+     press feedback, small UI (menus, dialogs), a page change, a morph. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --spring: linear(0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077, 1.121, 1.149 24.3%, 1.159, 1.163, 1.161, 1.154 29.9%, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.974 53.8%, 0.975 57.1%, 0.997 69.8%, 1.003 76.9%, 1.004 83.8%, 1);
+  --dur-press: 90ms;
+  --dur-quick: 180ms;
+  --dur-page: 260ms;
+  --dur-morph: 340ms;
 }
 
 @theme inline {
@@ -140,7 +152,7 @@ body {
   :root[data-sidebar="collapsed"] .app-sidebar-brand > span > span:last-child,
   :root[data-sidebar="collapsed"] .app-sidebar .app-nav-dot,
   :root[data-sidebar="collapsed"] .app-sidebar-note { display: none; }
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link { justify-content: center; padding-inline: 0.625rem; transform: none; }
+  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link { justify-content: center; padding-inline: 0.625rem; translate: none; }
   :root[data-sidebar="collapsed"] .app-sidebar .app-nav-label {
     pointer-events: none;
     position: absolute;
@@ -336,6 +348,18 @@ body {
 .welcome-hero {
   background: radial-gradient(40rem 30rem at 76% 46%, var(--w-glow), transparent 70%);
 }
+/* The hero headline: heavy and tight, with an icon set in after each phrase
+   at the cap height (`HeadlineGlyph`). */
+.hero-title { letter-spacing: -0.036em; }
+.hero-glyph {
+  display: inline-block;
+  width: 0.72em;
+  height: 0.72em;
+  margin-inline: 0.04em;
+  vertical-align: -0.03em;
+}
+.hero-glyph > svg { display: block; width: 100%; height: 100%; }
+
 .hero-disc {
   border: 1px solid var(--w-glass-edge);
   background: radial-gradient(circle at 34% 28%, var(--card) 0%, color-mix(in srgb, var(--primary) 8%, var(--card)) 50%, color-mix(in srgb, var(--primary) 18%, var(--card)) 100%);
@@ -516,6 +540,8 @@ body {
 .hero-fade { animation: hero-fade 800ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both; }
 .hero-fade + .hero-fade { animation-delay: 400ms; }
 
+.hero-glyph { animation: glyph-pop 700ms var(--ease-out) calc(560ms + var(--glyph-order, 0) * 110ms) both; }
+
 /* The render settles in, then breathes; the chips come on after it and drift
    on their own clocks so they never move in step. Both entrances wait, paused,
    until the image has loaded (`data-loaded`, set by hero-art.tsx), so the
@@ -563,6 +589,11 @@ body {
 }
 @keyframes art-float {
   to { transform: translateY(-12px); }
+}
+@keyframes glyph-pop {
+  from { opacity: 0; scale: 0.35; rotate: -16deg; }
+  55% { opacity: 1; }
+  to { opacity: 1; scale: 1; rotate: 0deg; }
 }
 @keyframes chip-in {
   from { opacity: 0; scale: 0.85; }
@@ -649,6 +680,121 @@ html:active-view-transition-type(to-login)::view-transition-group(sign-in-box) {
 @keyframes vt-fade-in { from { opacity: 0; } }
 @keyframes vt-fade-out { to { opacity: 0; } }
 @keyframes vt-box-out { to { opacity: 0; transform: translateY(10px) scale(0.97); } }
+
+/*
+ * App motion: the signed-in pages. The tokens are on :root.
+ *
+ * Page changes. `src/app/(app)/template.tsx` wraps every page body in one
+ * <ViewTransition>; a template remounts on each route change, so the old
+ * body exits and the new one enters while the shell (sidebar, header, bottom
+ * bar) stays put in the layout. The nav links tag the move `nav-forward` or
+ * `nav-back` by their order in the menu, so the pages slide the way the menu
+ * reads; any other route change (a redirect after saving, an in-page link,
+ * browser Back) fades through. Old pages leave fast and new ones arrive a
+ * beat later, so the two never read as one smeared frame.
+ */
+::view-transition-old(.nav-forward-out) { animation: page-out-start var(--dur-quick) var(--ease-in) both; }
+::view-transition-new(.nav-forward-in) { animation: page-in-end var(--dur-page) var(--ease-out) 50ms both; }
+::view-transition-old(.nav-back-out) { animation: page-out-end var(--dur-quick) var(--ease-in) both; }
+::view-transition-new(.nav-back-in) { animation: page-in-start var(--dur-page) var(--ease-out) 50ms both; }
+::view-transition-old(.page-out) { animation: vt-fade-out 140ms var(--ease-in) both; }
+::view-transition-new(.page-in) { animation: page-rise var(--dur-page) var(--ease-out) 40ms both; }
+/* A loading skeleton dissolving as the page it stood in for arrives. */
+::view-transition-old(.skeleton-out) { animation: vt-fade-out var(--dur-quick) ease-out both; }
+
+/* The nav highlight. Only the active link renders it, under one name per
+   navigation (`nav-pill-side`, `nav-pill-bar`), so on a page change the
+   browser moves it from the old tab to the new one. */
+::view-transition-group(.nav-pill) { animation-duration: var(--dur-morph); animation-timing-function: var(--ease-out); }
+
+@keyframes page-out-start { to { opacity: 0; transform: translateX(-20px); } }
+@keyframes page-out-end { to { opacity: 0; transform: translateX(20px); } }
+@keyframes page-in-end { from { opacity: 0; transform: translateX(24px); } }
+@keyframes page-in-start { from { opacity: 0; transform: translateX(-24px); } }
+@keyframes page-rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* Buttons (`buttonVariants`) and the nav links. A press sinks quickly; letting
+   go springs back with a small overshoot. Tailwind v4 moves elements with the
+   `translate` and `scale` properties rather than `transform`, so those are what
+   transition here (a `transition-[transform]` utility would leave the hover
+   lift snapping). In the components layer so a utility on the element can
+   still override it. */
+@layer components {
+  .press {
+    transition:
+      translate 300ms var(--ease-out),
+      scale 420ms var(--spring),
+      box-shadow 300ms ease-out,
+      background-color 300ms ease-out,
+      border-color 300ms ease-out,
+      color 300ms ease-out,
+      filter 300ms ease-out;
+  }
+  .press:active { scale: 0.96; transition: scale var(--dur-press) var(--ease-out), translate var(--dur-press) var(--ease-out); }
+}
+
+/* A button's saving state (`PendingLabel` in button.tsx): the label slides up
+   and out, the spinner and busy label slide in from below. Both share one grid
+   cell, so the button keeps its width. */
+.pending-label { display: grid; overflow: clip; overflow-clip-margin: 2px; }
+.pending-label > span {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: opacity var(--dur-quick) var(--ease-out), translate var(--dur-page) var(--ease-out);
+}
+.pending-label > .pending-busy { opacity: 0; translate: 0 70%; }
+.pending-label[data-pending] > .pending-rest { opacity: 0; translate: 0 -70%; }
+.pending-label[data-pending] > .pending-busy { opacity: 1; translate: 0 0; }
+
+/* The confirm dialog (confirm-submit.tsx): it rises in over a fading scrim and
+   drops away on close. `display` and `overlay` transition discretely so the
+   closing frames are still painted in the top layer (Chromium; elsewhere the
+   close is instant). Unlayered: the backdrop colour must not lose to a
+   utility, or the scrim would never fade. */
+.dialog-pop {
+  opacity: 0;
+  translate: 0 8px;
+  scale: 0.96;
+  transition:
+    opacity 140ms var(--ease-in),
+    translate 140ms var(--ease-in),
+    scale 140ms var(--ease-in),
+    overlay 140ms allow-discrete,
+    display 140ms allow-discrete;
+}
+.dialog-pop[open] {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  transition-duration: 260ms;
+  transition-timing-function: var(--ease-out);
+}
+.dialog-pop::backdrop {
+  background-color: rgb(0 0 0 / 0);
+  transition: background-color var(--dur-quick) ease-out, overlay var(--dur-quick) allow-discrete, display var(--dur-quick) allow-discrete;
+}
+.dialog-pop[open]::backdrop { background-color: rgb(0 0 0 / 0.5); }
+@starting-style {
+  .dialog-pop[open] { opacity: 0; translate: 0 8px; scale: 0.96; }
+  .dialog-pop[open]::backdrop { background-color: rgb(0 0 0 / 0); }
+}
+
+/* The phone navigation drawer (app-shell.tsx) slides in over a fading scrim.
+   It is mounted on open, so `@starting-style` is its first frame. */
+.drawer-panel { transition: translate var(--dur-morph) var(--ease-out); }
+.drawer-scrim { transition: opacity var(--dur-page) ease-out; }
+@starting-style {
+  .drawer-panel { translate: -100% 0; }
+  .drawer-scrim { opacity: 0; }
+}
+
+/* Dropdown menus (account-menu.tsx, shift-row-actions.tsx): the same open as
+   the in-house select's listbox. */
+.menu-pop[data-state="open"] { animation: select-in 200ms var(--ease-out); transform-origin: var(--radix-dropdown-menu-content-transform-origin); }
+.menu-pop[data-state="closed"] { animation: select-out 120ms var(--ease-in); }
 
 /* Switching the sign-in form between Sign in and Create account
    (sign-in-panel.tsx, login-form.tsx). The words that change are keyed on the

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -51,6 +51,33 @@ function isNavigationActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * Which way a nav link's page should slide, by menu order: further down the
+ * menu slides in from the right, further up from the left. The template in
+ * `src/app/(app)/template.tsx` maps these types to animations. Untagged (the
+ * current section, or from a page outside the menu) it simply fades through.
+ */
+const NAV_FORWARD = ["nav-forward"];
+const NAV_BACK = ["nav-back"];
+
+function navDirection(items: NavigationItem[], pathname: string, index: number) {
+  const current = items.findIndex((item) => isNavigationActive(pathname, item.href));
+  if (current < 0 || current === index) return undefined;
+  return index > current ? NAV_FORWARD : NAV_BACK;
+}
+
+/**
+ * The active link's highlight. It is rendered only in the active link and
+ * carries the same name wherever it is, so on a page change the browser moves
+ * it from the old link to the new one (`.nav-pill` in globals.css). Each
+ * navigation passes its own name, and the drawer none: two elements holding one
+ * name at once abort the whole transition.
+ */
+function NavPill({ name, className }: { name?: string; className: string }) {
+  const pill = <span aria-hidden="true" className={cn("absolute inset-0 -z-10", className)} />;
+  return name ? <ViewTransition name={name} share="nav-pill" default="none">{pill}</ViewTransition> : pill;
+}
+
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
@@ -85,13 +112,14 @@ function SidebarToggle() {
   </Button>;
 }
 
-function NavigationLink({ item, active, onNavigate }: { item: NavigationItem; active: boolean; onNavigate?: () => void }) {
+function NavigationLink({ item, active, transitionTypes, pillName, onNavigate }: { item: NavigationItem; active: boolean; transitionTypes?: string[]; pillName?: string; onNavigate?: () => void }) {
   const Icon = item.icon;
 
-  return <Link href={item.href} onClick={onNavigate} className={cn(
-    "app-nav-link group relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-[background-color,color,transform] duration-300 hover:translate-x-0.5",
-    active ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
+  return <Link href={item.href} transitionTypes={transitionTypes} onClick={onNavigate} className={cn(
+    "press app-nav-link group relative isolate flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold hover:translate-x-0.5",
+    active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
   )}>
+    {active && <NavPill name={pillName} className="rounded-2xl bg-[var(--primary-soft)]" />}
     <span className={cn("grid size-8 place-items-center rounded-xl transition-colors", active ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-glow)]" : "bg-[var(--surface-subtle)] text-[var(--muted-foreground)] group-hover:bg-[var(--primary-soft)] group-hover:text-[var(--primary)]")}>
       <Icon className="size-4" />
     </span>
@@ -100,14 +128,15 @@ function NavigationLink({ item, active, onNavigate }: { item: NavigationItem; ac
   </Link>;
 }
 
-function BottomNavigationLink({ item, active }: { item: NavigationItem; active: boolean }) {
+function BottomNavigationLink({ item, active, transitionTypes }: { item: NavigationItem; active: boolean; transitionTypes?: string[] }) {
   const Icon = item.icon;
 
-  return <Link href={item.href} aria-current={active ? "page" : undefined} className={cn(
-    "flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 pb-1.5 pt-2 text-[11px] font-semibold leading-none transition-colors",
+  return <Link href={item.href} transitionTypes={transitionTypes} aria-current={active ? "page" : undefined} className={cn(
+    "press flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 pb-1.5 pt-2 text-[11px] font-semibold leading-none",
     active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
   )}>
-    <span className={cn("grid h-7 w-12 place-items-center rounded-full transition-colors", active && "bg-[var(--primary-soft)]")}>
+    <span className="relative isolate grid h-7 w-12 place-items-center">
+      {active && <NavPill name="nav-pill-bar" className="rounded-full bg-[var(--primary-soft)]" />}
       <Icon className="size-5" />
     </span>
     {item.label}
@@ -125,7 +154,7 @@ function BottomNavigationLink({ item, active }: { item: NavigationItem; active: 
 function BottomNavigation({ pathname }: { pathname: string }) {
   return <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t bg-[var(--background)]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
     <div className="mx-auto flex max-w-md items-stretch gap-1 px-2 py-1">
-      {navigation.map((item) => <BottomNavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} />)}
+      {navigation.map((item, index) => <BottomNavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(navigation, pathname, index)} />)}
     </div>
   </nav>;
 }
@@ -190,14 +219,14 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
         containing block for `position: fixed` descendants. Rendered in place, the
         overlay and panel would be clipped to the header box. Portal to `body`. */}
     {open && createPortal(<>
-        <button type="button" aria-label="Close navigation menu" className="fixed inset-0 z-40 bg-black/45 lg:hidden" onClick={() => closeMenu(true)} />
-        <aside ref={panelRef} id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Mobile navigation" className="fixed left-0 top-0 z-50 flex h-screen w-[min(22rem,calc(100vw-1rem))] flex-col overflow-y-auto overscroll-contain border-r border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[var(--card)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pt-[max(0.75rem,env(safe-area-inset-top))] shadow-2xl shadow-black/30 supports-[height:100dvh]:h-[100dvh] lg:hidden">
+        <button type="button" aria-label="Close navigation menu" className="drawer-scrim fixed inset-0 z-40 bg-black/45 lg:hidden" onClick={() => closeMenu(true)} />
+        <aside ref={panelRef} id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Mobile navigation" className="drawer-panel fixed left-0 top-0 z-50 flex h-screen w-[min(22rem,calc(100vw-1rem))] flex-col overflow-y-auto overscroll-contain border-r border-[color-mix(in_srgb,var(--primary)_25%,var(--border))] bg-[var(--card)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pt-[max(0.75rem,env(safe-area-inset-top))] shadow-2xl shadow-black/30 supports-[height:100dvh]:h-[100dvh] lg:hidden">
           <div className="flex items-center justify-between px-2 py-2">
             <Link href="/" onClick={() => closeMenu()} aria-label="Go to ShiftSentry overview"><Brand /></Link>
             <Button ref={closeButtonRef} variant="ghost" size="icon" className="size-11 sm:size-10" onClick={() => closeMenu(true)} aria-label="Close navigation menu"><X className="size-5" /></Button>
           </div>
           <nav className="mt-6 space-y-1" aria-label="Mobile navigation">
-            {mobileItems.map((item) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} onNavigate={() => closeMenu()} />)}
+            {mobileItems.map((item, index) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(mobileItems, pathname, index)} onNavigate={() => closeMenu()} />)}
           </nav>
           <div className="mt-auto rounded-2xl border bg-[var(--surface-subtle)] p-4 text-sm text-[var(--muted-foreground)]">Your schedule is private to your account.</div>
         </aside>
@@ -225,7 +254,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail 
     <aside id="desktop-sidebar" className="app-sidebar hidden p-4 lg:flex">
       <div className="premium-card sticky top-4 flex h-[calc(100vh-2rem)] w-full flex-col rounded-[1.75rem] border bg-[var(--card)]/82 p-3.5">
         <Link href="/" aria-label="Go to ShiftSentry overview" className="app-sidebar-brand mb-8 rounded-2xl px-2 py-2"><Brand /></Link>
-        <nav className="space-y-1" aria-label="Main navigation">{desktopItems.map((item) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} />)}</nav>
+        <nav className="space-y-1" aria-label="Main navigation">{desktopItems.map((item, index) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(desktopItems, pathname, index)} pillName="nav-pill-side" />)}</nav>
         <div className="app-sidebar-note mt-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 text-xs leading-5 text-[var(--muted-foreground)]"><span className="mb-1 block font-semibold text-[var(--foreground)]">{isDemo ? "Preview mode" : "Private workspace"}</span>{isDemo ? "Connect Supabase to save your workspace data." : "Your work schedule stays private to your account."}</div>
       </div>
     </aside>

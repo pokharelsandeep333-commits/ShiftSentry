@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { NotebookPen } from "lucide-react";
 import { saveWeekNote } from "@/app/actions/work";
-import { Button } from "@/components/ui/button";
+import { Button, PendingLabel } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
 import { emptySavedFormState, type SavedFormState } from "@/lib/form-state";
 import { WEEK_NOTE_MAX, type WeekNoteMatch } from "@/lib/week-notes";
@@ -83,7 +83,7 @@ export function WeekNote({ weekStart, label, note }: { weekStart: string; label:
       <span className="hidden text-xs text-[var(--muted-foreground)] sm:inline">· Ctrl+Enter to save, Esc to cancel</span>
       <div className="ml-auto flex items-center gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={cancel} disabled={pending}>Cancel</Button>
-        <Button type="submit" size="sm" disabled={pending || over || (!note && !draft.trim())}>{pending ? "Saving…" : draft.trim() || !note ? "Save" : "Remove note"}</Button>
+        <Button type="submit" size="sm" disabled={pending || over || (!note && !draft.trim())}><PendingLabel pending={pending} label={draft.trim() || !note ? "Save" : "Remove note"} pendingLabel="Saving…" /></Button>
       </div>
     </div>
     {state.message && <p role="alert" className="text-sm font-medium text-[var(--danger)]">{state.message}</p>}

@@ -8,6 +8,19 @@ const fallbackContentSecurityPolicy = contentSecurityPolicy({
   development: process.env.NODE_ENV === "development",
 });
 
+// Everything a search engine should crawl but never list: the signed-in app,
+// the admin area, the game rooms (their invite links get shared), the auth
+// and Google endpoints, and the account-disabled and offline pages. They say
+// so themselves with a noindex header rather than being hidden by robots.txt:
+// a URL robots.txt blocks can still be indexed from a link, and Google can
+// never read the noindex on it (Search Console's "Indexed, though blocked").
+// `:path*` matches the bare prefix too.
+const NOINDEX_PATHS = [
+  "/admin/:path*", "/api/:path*", "/auth/:path*", "/integrations/:path*", "/game/:path*",
+  "/shifts/:path*", "/jobs/:path*", "/calendar/:path*", "/settings/:path*",
+  "/account-disabled", "/offline",
+];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
@@ -26,7 +39,10 @@ const nextConfig: NextConfig = {
       headers.push({ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" });
     }
 
-    return [{ source: "/:path*", headers }];
+    return [
+      { source: "/:path*", headers },
+      ...NOINDEX_PATHS.map((source) => ({ source, headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] })),
+    ];
   },
 };
 

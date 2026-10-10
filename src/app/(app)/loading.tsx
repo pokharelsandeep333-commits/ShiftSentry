@@ -1,3 +1,4 @@
+import { ViewTransition } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -8,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
  * no static shell to prefetch either.
  */
 export default function Loading() {
-  return <div aria-busy="true" aria-live="polite">
+  // The skeleton dissolves as the page arrives (`.skeleton-out`, globals.css).
+  return <ViewTransition exit="skeleton-out" default="none"><div aria-busy="true" aria-live="polite">
     <span className="sr-only">Loading</span>
     <div className="mb-7 sm:mb-8">
       <Skeleton className="mb-2 h-3 w-32" />
@@ -37,5 +39,5 @@ export default function Loading() {
         <CardContent className="space-y-3">{[0, 1, 2, 3].map((row) => <Skeleton key={row} className="h-11 w-full rounded-xl" />)}</CardContent>
       </Card>)}
     </div>
-  </div>;
+  </div></ViewTransition>;
 }
