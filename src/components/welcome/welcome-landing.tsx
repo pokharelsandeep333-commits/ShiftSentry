@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+import type { ComponentType, CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, CalendarClock, Layers, Smartphone, Wallet } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, CalendarClock, Clock3, Layers, ShieldCheck, Smartphone, Wallet, type LucideProps } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { HeroArt } from "@/components/welcome/hero-art";
 import { HeroChips } from "@/components/welcome/hero-chips";
@@ -72,10 +72,10 @@ export function WelcomeLanding() {
         <section className="welcome-hero relative px-3 pb-28 pt-28 sm:px-6 sm:pt-28 lg:pb-28 lg:pt-24 2xl:pt-28">
           <div className="welcome-container mx-auto grid items-center gap-10 px-5 sm:px-9 lg:grid-cols-12 lg:gap-6 lg:px-10">
             <div className="lg:col-span-6">
-              <h1 className="font-display text-[2.4rem] font-semibold leading-[1.04] sm:text-[3.1rem] lg:text-[3.75rem] 2xl:text-[4.25rem]">
-                <span className="hero-line block"><span>Every job,</span></span>
-                <span className="hero-line block"><span>every shift,</span></span>
-                <span className="hero-line block text-[var(--primary)]"><span>under your limit.</span></span>
+              <h1 className="hero-title font-display text-[2.3rem] font-bold leading-[1.02] sm:text-[3.1rem] lg:text-[3.75rem] 2xl:text-[4.25rem]">
+                <span className="hero-line block"><span>Every job, <HeadlineGlyph icon={BriefcaseBusiness} order={0} /></span></span>
+                <span className="hero-line block"><span>every shift, <HeadlineGlyph icon={Clock3} order={1} /></span></span>
+                <span className="hero-line block text-[var(--primary)]"><span>under your <HeadlineGlyph icon={ShieldCheck} order={2} /> limit.</span></span>
               </h1>
               <p className="hero-fade mt-6 max-w-[27rem] text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base 2xl:max-w-[30rem] 2xl:text-[1.0625rem] 2xl:leading-8">A work hours tracker for students and anyone with more than one job. ShiftSentry warns you at 80% and refuses any shift that would push you over.</p>
               <div className="hero-fade mt-8 flex flex-wrap items-center gap-2.5">
@@ -86,7 +86,7 @@ export function WelcomeLanding() {
 
             <div className="relative mx-auto w-full max-w-[34rem] lg:col-span-6 lg:max-w-none">
               <div aria-hidden="true" className="hero-disc absolute left-1/2 top-1/2 aspect-square w-[86%] -translate-x-1/2 -translate-y-1/2 rounded-full" />
-              <HeroArt src="/welcome/hero-3d.webp" alt="An iridescent lavender glass ribbon loops around a violet bead beside a clear glass sphere, with small lilac, mint and amber accents.">
+              <HeroArt src="/welcome/hero-3d.webp" alt="An iridescent lavender glass ribbon loops around a violet bead beside a clear glass sphere, with two small clocks in lilac and mint and an amber bead.">
                 <HeroChips />
               </HeroArt>
             </div>
@@ -175,6 +175,15 @@ function Pill({ children, prefetch }: { children: ReactNode; prefetch?: boolean 
     {children}
     <span className="pill-disc grid size-9 place-items-center rounded-full"><ArrowUpRight className="size-4" /></span>
   </SignInLink>;
+}
+
+/**
+ * An icon set into the headline, at the type's cap height and in its colour,
+ * so the line reads as one piece of lettering. It pops in just after its line
+ * has risen. Decorative: the heading's text is the words.
+ */
+function HeadlineGlyph({ icon: Icon, order }: { icon: ComponentType<LucideProps>; order: number }) {
+  return <span aria-hidden="true" className="hero-glyph" style={{ "--glyph-order": order } as CSSProperties}><Icon strokeWidth={2.6} /></span>;
 }
 
 function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
