@@ -12,6 +12,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # The Prisma CLI and client must stay on one version; bumped apart,
+      # `prisma generate` and the runtime disagree.
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
   - package-ecosystem: docker
     directory: /
     schedule:
@@ -20,3 +25,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # CodeQL's init and analyze steps must run the same version; separate
+      # PRs each fail with "Loaded a configuration file for version X, but
+      # running version Y".
+      codeql:
+        patterns: ["github/codeql-action*"]
