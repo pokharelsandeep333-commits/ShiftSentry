@@ -123,7 +123,9 @@ flowchart LR
 * **Strict CSP.** A per-request nonce with `'strict-dynamic'` and no `'unsafe-inline'` for scripts. No external script, style, image, or font hosts—fonts are bundled, not fetched.
 * **Disabled means disabled.** Disabling an account is enforced by database policies, so a session token issued before the ban cannot keep writing.
 * **Google access is read-only.** Calendar tokens are stored encrypted and every Google call is made server-to-server. Event titles and details are never stored. The only thing kept is the start and end times of events a job has opted in to sync, which become shifts.
-* **Guarded pipeline.** Gitleaks secret scanning, CodeQL, a production dependency audit, and a Docker build check all gate `main` before a release is built.
+* **Guarded pipeline.** Gitleaks secret scanning, CodeQL, a production dependency audit, and a Docker build check all gate `main` before a release is built. Every high or critical production advisory blocks release; malformed audit reports fail closed. Dependabot alerts and security update PRs are enabled alongside the weekly audit and CodeQL runs.
+
+The production audit currently reports no advisories. Prisma's configuration dependency is pinned to patched `deepmerge-ts` 8.0.2 through a scoped override, verified with Prisma generation, validation, and a production build. The full development audit still reports five affected packages from one unpatched `braces` advisory ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)) in Next.js's ESLint dependency chain. This development dependency is excluded from the production audit; it is not suppressed in the full audit.
 
 <br />
 
@@ -193,6 +195,7 @@ npm run db:generate
 npm run test:earnings
 npm run test:auth
 npm run test:game
+npm run test:security
 npm run test:sql
 npx tsc --noEmit
 npm run lint
@@ -206,6 +209,12 @@ Open [http://localhost:3000](http://localhost:3000).
 These are the same checks the pipeline runs on every pull request:
 
 <a href="https://github.com/pokharelsandeep333-commits/ShiftSentry/actions/workflows/ci.yml"><img alt="CI status" src="https://img.shields.io/github/actions/workflow/status/pokharelsandeep333-commits/ShiftSentry/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" /></a>
+
+### Production release verification
+
+Merging a green PR into protected `main` deploys it. GitHub Actions builds an immutable `sha-<commit>` image, verifies and applies pending Supabase migrations, then promotes the same image to `stable`. EC2 Watchtower polls every 300 seconds. After promotion, the release job polls [the live health endpoint](https://sentry.sandeeppokharel.com.np/api/health) every 30 seconds for up to ten minutes and succeeds only when it returns `status: "ok"` and the exact released commit. A timeout fails verification after promotion; it does not automatically roll back the image or migrations.
+
+Live configuration remains in `/home/ubuntu/sandeepcloud/docker-compose.yml` and `/home/ubuntu/sandeepcloud/nginx.conf`. Runtime credentials are interpolated from `/home/ubuntu/sandeepcloud/.env`, owned by `root:root` with mode `600`; run Compose through `sudo` so it can read that file. Watchtower's Docker Hub credentials remain in `/home/ubuntu/sandeepcloud/watchtower/config/config.json`, also `root:root` with mode `600`. Nginx is the public ingress; the app has no public port mapping.
 
 > [!TIP]
 > Without Supabase configuration the root route intentionally renders a read-only dashboard preview with sample data, so the app boots and is browsable before you have any credentials. With Supabase configured, a signed-out visit to `/` shows the public landing page instead, at the same address.
