@@ -5,10 +5,10 @@
 #   1. Secrets  → Gitleaks scans the full Git history
 #   2. Quality  → Prisma, tests, types, lint, production build
 #   3. DB rules → Migrations + trigger/policy/grant suites on real Postgres
-#   4. Audit    → Blocks new or compatibly-fixable high findings
+#   4. Audit    → Blocks all high/critical production findings
 #   5. Image    → Docker build verification
 #   6. CodeQL   → JavaScript and TypeScript security analysis
-#   7. Release  → Approved image, migration, immutable promotion
+#   7. Release  → Verified image, migration, promotion, live commit check
 # ============================================================
 
 name: "🚀 ShiftSaaS CI/CD Pipeline"
@@ -66,7 +66,7 @@ jobs:
       - name: "🗃️ Validate Prisma schema"
         run: npx prisma validate
       - name: "🧪 Run unit tests"
-        run: npm run test:earnings && npm run test:auth && npm run test:game
+        run: npm run test:earnings && npm run test:auth && npm run test:game && npm run test:security
       - name: "🔎 Type-check"
         run: npx tsc --noEmit
       - name: "🔍 Lint"
@@ -75,7 +75,7 @@ jobs:
         run: npm run build
 
   # ================================================================
-  # JOB 3: DEPENDENCY AUDIT — Allow only the tracked Prisma baseline
+  # JOB 3: DEPENDENCY AUDIT — Block all high/critical production findings
   # ================================================================
   audit-production:
     name: "📦 Production dependency audit"
@@ -169,7 +169,7 @@ jobs:
         uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
 
   # ================================================================
-  # JOB 7: RELEASE — Protected approval, migration, stable promotion
+  # JOB 7: RELEASE — Protected main, migration, promotion, live verification
   # ================================================================
   release:
     name: "🚀 Build, migrate, and release"
@@ -230,3 +230,20 @@ jobs:
         run: supabase db push --db-url "$SUPABASE_DB_URL"
       - name: "🏷️ Promote tested candidate to stable"
         run: docker buildx imagetools create --tag "$IMAGE_NAME:stable" "$IMAGE_NAME:sha-${GITHUB_SHA}"
+      - name: "🌐 Verify live commit after Watchtower update"
+        run: |
+          deadline=$((SECONDS + 600))
+          while (( SECONDS < deadline )); do
+            if curl --silent --show-error --fail --max-time 15 \
+              https://sentry.sandeeppokharel.com.np/api/health > health.json; then
+              if jq --exit-status --arg commit "$GITHUB_SHA" \
+                '.status == "ok" and .commit == $commit' health.json > /dev/null; then
+                echo "Production is serving verified commit $GITHUB_SHA."
+                exit 0
+              fi
+            fi
+            echo "Waiting for Watchtower to pull the released image."
+            sleep 30
+          done
+          echo "The image was promoted, but production did not report $GITHUB_SHA within ten minutes."
+          exit 1

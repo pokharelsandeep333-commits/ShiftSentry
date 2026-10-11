@@ -11,6 +11,7 @@
     "test:auth": "tsx --test src/lib/request-origin.test.ts src/lib/validation.test.ts src/lib/content-security-policy.test.ts src/lib/google/token-crypto.test.ts src/lib/google/config.test.ts src/lib/rate-limit.test.ts src/lib/google/oauth.test.ts src/lib/google/sync-work.test.ts",
     "test:game": "tsx --test src/lib/game.test.ts",
     "test:sql": "bash scripts/run-sql-tests.sh",
+    "test:security": "node --test scripts/check-production-audit.test.mjs",
     "db:generate": "prisma generate",
     "audit:production": "npm audit --omit=dev --json | node scripts/check-production-audit.mjs"
   },
@@ -38,7 +39,10 @@
     "zod": "^4.4.3"
   },
   "overrides": {
-    "mysql2": "^3.24.3"
+    "mysql2": "^3.24.3",
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
