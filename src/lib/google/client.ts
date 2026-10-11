@@ -1,6 +1,7 @@
 import { mergeCalendarResults, normalizeGoogleEvent, type CalendarEvent, type GoogleEventResource } from "@/lib/calendar-clash";
 import type { GoogleCalendarConfig } from "./config";
 import { readIdTokenEmail } from "./oauth";
+import { SyncBudget, SyncBudgetExceeded, SYNC_LIMITS } from "./sync-budget";
 
 /**
  * Every call to Google, server-side only. Each has a 3 s budget; the pages that
@@ -54,10 +55,10 @@ export async function revokeToken(token: string) {
   }
 }
 
-async function calendarGet<T>(accessToken: string, path: string, params: Record<string, string>) {
+async function calendarGet<T>(accessToken: string, path: string, params: Record<string, string>, budget?: SyncBudget) {
   const url = new URL(`${CALENDAR_API}${path}`);
   url.search = new URLSearchParams(params).toString();
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: budget?.requestSignal() ?? AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   // A refused access token is not a revoked grant: clock skew or an early
   // expiry does this too. The refresh that follows decides whether to reconnect.
   if (response.status === 401) throw new GoogleAuthError("expired");
@@ -102,8 +103,9 @@ export function calendarColorMap(calendars: GoogleCalendarListEntry[]) {
  * calendar that failed or was cut short must be reported rather than silently
  * returning fewer events. An auth failure still fails the whole call.
  */
-export async function listEventsForSync(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string): Promise<{ events: CalendarEvent[]; failedCalendarIds: string[] }> {
-  const results = await Promise.allSettled(calendarIds.map(async (calendarId) => {
+export async function listEventsForSync(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string, budget = new SyncBudget()): Promise<{ events: CalendarEvent[]; failedCalendarIds: string[] }> {
+  const ids = budget.calendarIds(calendarIds);
+  const readCalendar = async (calendarId: string) => {
     const events: CalendarEvent[] = [];
     let pageToken: string | undefined;
     for (let page = 0; page < 10; page += 1) {
@@ -115,7 +117,8 @@ export async function listEventsForSync(accessToken: string, calendarIds: string
         maxResults: "250",
         fields: "items(id,status,summary,transparency,start,end,attendees(self,responseStatus)),nextPageToken",
         ...(pageToken ? { pageToken } : {}),
-      });
+      }, budget);
+      budget.recordEvents(body.items?.length ?? 0);
       for (const item of body.items ?? []) {
         const event = normalizeGoogleEvent(item, calendarId, timeZone);
         if (event) events.push(event);
@@ -124,11 +127,30 @@ export async function listEventsForSync(accessToken: string, calendarIds: string
       pageToken = body.nextPageToken;
     }
     throw new Error("Calendar has more events than one sync reads");
+  };
+  const results: PromiseSettledResult<CalendarEvent[]>[] = new Array(ids.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(SYNC_LIMITS.concurrency, ids.length) }, async () => {
+    while (next < ids.length) {
+      const index = next++;
+      try {
+        budget.check();
+        results[index] = { status: "fulfilled", value: await readCalendar(ids[index]) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
   }));
+
+  // Exhaustion invalidates the whole snapshot. No partial result may be used
+  // to conclude an absent event was deleted or to apply a partial sync plan.
+  const exhausted = results.find((result): result is PromiseRejectedResult => result.status === "rejected" && result.reason instanceof SyncBudgetExceeded);
+  if (exhausted) throw exhausted.reason;
+  budget.check();
 
   const auth = results.find((result): result is PromiseRejectedResult => result.status === "rejected" && result.reason instanceof GoogleAuthError);
   if (auth) throw auth.reason;
-  const failedCalendarIds = calendarIds.filter((_, index) => results[index].status === "rejected");
+  const failedCalendarIds = ids.filter((_, index) => results[index].status === "rejected");
   const seen = new Set<string>();
   const events = results
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
@@ -141,10 +163,10 @@ export async function listEventsForSync(accessToken: string, calendarIds: string
  * Deleted (404/410) or cancelled is "gone"; anything unreadable throws, so the
  * caller keeps the shift rather than guessing.
  */
-export async function getEvent(accessToken: string, calendarId: string, eventId: string, timeZone: string): Promise<CalendarEvent | "gone"> {
+export async function getEvent(accessToken: string, calendarId: string, eventId: string, timeZone: string, budget?: SyncBudget): Promise<CalendarEvent | "gone"> {
   const url = new URL(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
   url.search = new URLSearchParams({ fields: "id,status,summary,transparency,start,end,attendees(self,responseStatus)" }).toString();
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: budget?.requestSignal() ?? AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   if (response.status === 404 || response.status === 410) return "gone";
   if (response.status === 401) throw new GoogleAuthError("expired");
   if (!response.ok) throw new Error(`Calendar API event returned ${response.status}`);

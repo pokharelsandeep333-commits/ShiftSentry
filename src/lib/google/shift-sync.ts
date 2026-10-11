@@ -1,6 +1,7 @@
-import { planShiftSync, resolveMissing, type LinkedShift, type MissingResolution, type PendingCheck, type SyncIssue, type SyncJob, type SyncPlan } from "@/lib/google-sync-plan";
+import { type LinkedShift, type MissingResolution, type PendingCheck, type SyncIssue, type SyncJob, type SyncPlan } from "@/lib/google-sync-plan";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getEvent, listEventsForSync } from "./client";
+import { readSyncWork } from "./sync-work";
+import { SyncBudget, SyncBudgetExceeded } from "./sync-budget";
 import { isGoogleCalendarEnabled } from "./config";
 import { withCalendarAccess, type CalendarAccess } from "./connection";
 import { UNLINKED_SHIFT } from "./unlink";
@@ -60,30 +61,16 @@ export async function syncGoogleShifts(profile: { id: string; time_zone: string 
   if (shiftError) return { status: "unavailable", changed: 0 };
   const shifts: LinkedShift[] = (shiftRows ?? []).map((row) => ({ id: row.id, jobId: row.job_id, startsAt: row.starts_at, endsAt: row.ends_at, calendarId: row.google_calendar_id, eventId: row.google_event_id, adopted: row.google_adopted }));
 
-  const calendarIds = [...new Set([...selected, ...syncJobs.flatMap((job) => (job.calendarId ? [job.calendarId] : []))])];
-  const access = await withCalendarAccess(profile.id, async (token) => {
-    const fetched = await listEventsForSync(token, calendarIds, range, profile.time_zone);
-    const plan = planShiftSync({ events: fetched.events, jobs, shifts, selectedCalendarIds: selected, failedCalendarIds: fetched.failedCalendarIds, now });
-    // Missing is not deleted: ask Google about each one. An answer we cannot
-    // get leaves the shift exactly as it is.
-    const resolved: { pending: PendingCheck; resolution: MissingResolution }[] = [];
-    for (const pending of plan.verify) {
-      try {
-        resolved.push({ pending, resolution: resolveMissing(pending, await getEvent(token, pending.calendarId, pending.eventId, profile.time_zone), jobs, selected) });
-      } catch {
-        resolved.push({ pending, resolution: { action: "keep" } });
-      }
-    }
-    return { plan, resolved };
-  });
+  const budget = new SyncBudget();
+  const access = await withCalendarAccess(profile.id, (token) => readSyncWork(token, selected, jobs, shifts, range, profile.time_zone, now, budget));
   if (access.status !== "ok") return { status: access.status, changed: 0 };
 
-  const issues = await applyPlan(supabase, profile.id, jobs, access.value.plan, access.value.resolved, now);
-  await supabase.from("google_calendar_connections").update({ sync_issues: issues.list.slice(0, 20) }).eq("user_id", profile.id);
-  return { status: "ok", changed: issues.changed };
+  const issues = await applyPlan(supabase, profile.id, jobs, access.value.plan, access.value.resolved, now, budget);
+  await supabase.from("google_calendar_connections").update({ sync_issues: issues.list.slice(0, 20) }).eq("user_id", profile.id).abortSignal(AbortSignal.timeout(3_000));
+  return { status: issues.exhausted ? "unavailable" : "ok", changed: issues.changed };
 }
 
-async function applyPlan(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, jobs: SyncJob[], plan: SyncPlan, resolved: { pending: PendingCheck; resolution: MissingResolution }[], now: Date) {
+async function applyPlan(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, jobs: SyncJob[], plan: SyncPlan, resolved: { pending: PendingCheck; resolution: MissingResolution }[], now: Date, budget: SyncBudget) {
   const jobName = new Map(jobs.map((job) => [job.id, job.name]));
   const list: SyncIssue[] = [...plan.issues];
   const nowIso = now.toISOString();
@@ -92,40 +79,46 @@ async function applyPlan(supabase: Awaited<ReturnType<typeof createServerSupabas
   // Every write re-checks in SQL what the plan assumed: this user's shift,
   // linked (or, for an adoption, not yet linked), and -- for anything that
   // moves or removes it -- not started.
-  for (const { pending, resolution } of resolved) {
-    if (resolution.action === "delete") {
-      const { data } = await supabase.from("shifts").delete().eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).eq("google_adopted", false).gt("starts_at", nowIso).select("id");
-      changed += data?.length ?? 0;
-    } else if (resolution.action === "detach") {
-      const { data } = await supabase.from("shifts").update(UNLINKED_SHIFT).eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).select("id");
-      changed += data?.length ?? 0;
-    } else if (resolution.action === "update") {
-      const { data, error } = await supabase.from("shifts").update({ job_id: resolution.jobId, starts_at: resolution.startsAt, ends_at: resolution.endsAt }).eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).gt("starts_at", nowIso).select("id");
-      if (error) report(resolution.jobId, resolution.startsAt, resolution.endsAt, error.message);
+  try {
+    for (const { pending, resolution } of resolved) {
+      if (resolution.action === "delete") {
+        const { data } = await supabase.from("shifts").delete().eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).eq("google_adopted", false).gt("starts_at", nowIso).select("id").abortSignal(budget.operationSignal());
+        changed += data?.length ?? 0;
+      } else if (resolution.action === "detach") {
+        const { data } = await supabase.from("shifts").update(UNLINKED_SHIFT).eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).select("id").abortSignal(budget.operationSignal());
+        changed += data?.length ?? 0;
+      } else if (resolution.action === "update") {
+        const { data, error } = await supabase.from("shifts").update({ job_id: resolution.jobId, starts_at: resolution.startsAt, ends_at: resolution.endsAt }).eq("id", pending.shiftId).eq("user_id", userId).not("google_event_id", "is", null).gt("starts_at", nowIso).select("id").abortSignal(budget.operationSignal());
+        if (error) report(resolution.jobId, resolution.startsAt, resolution.endsAt, error.message);
+        else changed += data?.length ?? 0;
+      }
+    }
+    for (const item of plan.update) {
+      const { data, error } = await supabase.from("shifts").update({ job_id: item.jobId, starts_at: item.startsAt, ends_at: item.endsAt }).eq("id", item.shiftId).eq("user_id", userId).not("google_event_id", "is", null).gt("starts_at", nowIso).select("id").abortSignal(budget.operationSignal());
+      if (error) report(item.jobId, item.startsAt, item.endsAt, error.message);
       else changed += data?.length ?? 0;
     }
+    for (const item of plan.relink) {
+      const { data, error } = await supabase.from("shifts").update({ google_calendar_id: item.calendarId, google_event_id: item.eventId, starts_at: item.startsAt, ends_at: item.endsAt }).eq("id", item.shiftId).eq("user_id", userId).not("google_event_id", "is", null).gt("starts_at", nowIso).select("id").abortSignal(budget.operationSignal());
+      if (error) report(item.jobId, item.startsAt, item.endsAt, error.message);
+      else changed += data?.length ?? 0;
+    }
+    for (const item of plan.adopt) {
+      const { data, error } = await supabase.from("shifts").update({ google_calendar_id: item.calendarId, google_event_id: item.eventId, google_adopted: true }).eq("id", item.shiftId).eq("user_id", userId).is("google_event_id", null).select("id").abortSignal(budget.operationSignal());
+      if (error || !data?.length) list.push({ jobName: jobName.get(item.jobId) ?? "Shift", startsAt: item.startsAt, endsAt: item.endsAt, reason: "couldn't be linked to its Google event" });
+      else changed += 1;
+    }
+    for (const item of plan.create) {
+      const { error } = await supabase.from("shifts").insert({ user_id: userId, job_id: item.jobId, starts_at: item.startsAt, ends_at: item.endsAt, google_calendar_id: item.calendarId, google_event_id: item.eventId }).abortSignal(budget.operationSignal());
+      if (error) report(item.jobId, item.startsAt, item.endsAt, error.message);
+      else changed += 1;
+    }
+    budget.check();
+  } catch (error) {
+    if (!(error instanceof SyncBudgetExceeded)) throw error;
+    return { list, changed, exhausted: true };
   }
-  for (const item of plan.update) {
-    const { data, error } = await supabase.from("shifts").update({ job_id: item.jobId, starts_at: item.startsAt, ends_at: item.endsAt }).eq("id", item.shiftId).eq("user_id", userId).not("google_event_id", "is", null).gt("starts_at", nowIso).select("id");
-    if (error) report(item.jobId, item.startsAt, item.endsAt, error.message);
-    else changed += data?.length ?? 0;
-  }
-  for (const item of plan.relink) {
-    const { data, error } = await supabase.from("shifts").update({ google_calendar_id: item.calendarId, google_event_id: item.eventId, starts_at: item.startsAt, ends_at: item.endsAt }).eq("id", item.shiftId).eq("user_id", userId).not("google_event_id", "is", null).gt("starts_at", nowIso).select("id");
-    if (error) report(item.jobId, item.startsAt, item.endsAt, error.message);
-    else changed += data?.length ?? 0;
-  }
-  for (const item of plan.adopt) {
-    const { data, error } = await supabase.from("shifts").update({ google_calendar_id: item.calendarId, google_event_id: item.eventId, google_adopted: true }).eq("id", item.shiftId).eq("user_id", userId).is("google_event_id", null).select("id");
-    if (error || !data?.length) list.push({ jobName: jobName.get(item.jobId) ?? "Shift", startsAt: item.startsAt, endsAt: item.endsAt, reason: "couldn't be linked to its Google event" });
-    else changed += 1;
-  }
-  for (const item of plan.create) {
-    const { error } = await supabase.from("shifts").insert({ user_id: userId, job_id: item.jobId, starts_at: item.startsAt, ends_at: item.endsAt, google_calendar_id: item.calendarId, google_event_id: item.eventId });
-    if (error) report(item.jobId, item.startsAt, item.endsAt, error.message);
-    else changed += 1;
-  }
-  return { list, changed };
+  return { list, changed, exhausted: false };
 }
 
 /** The last sync's refused shifts, for the Calendar page. */

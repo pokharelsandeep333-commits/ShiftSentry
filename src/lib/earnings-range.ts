@@ -27,11 +27,23 @@ export function monthKeyLabel(key: string) {
   return formatInTimeZone(monthAtNoon(key), "UTC", "MMM yyyy");
 }
 
-/** Every key from `from` through `to`, inclusive; empty when the pair is inverted. */
+/** Empty display months are limited to ten years; actual worked months are retained separately. */
+export const MAX_EMPTY_MONTHS = 120;
+
+/** Every key in a bounded display window; reject invalid or excessive spans rather than truncate. */
 export function monthKeysBetween(from: string, to: string) {
-  const keys: string[] = [];
-  for (let key = from; key <= to; key = shiftMonthKey(key, 1)) keys.push(key);
-  return keys;
+  const indexOf = (key: string) => {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(key)) throw new RangeError("Invalid month key.");
+    return Number(key.slice(0, 4)) * 12 + Number(key.slice(5)) - 1;
+  };
+  const first = indexOf(from);
+  const count = indexOf(to) - first + 1;
+  if (count <= 0) return [];
+  if (count > MAX_EMPTY_MONTHS) throw new RangeError("Month display range is too large.");
+  return Array.from({ length: count }, (_, offset) => {
+    const index = first + offset;
+    return `${String(Math.floor(index / 12)).padStart(4, "0")}-${String(index % 12 + 1).padStart(2, "0")}`;
+  });
 }
 
 export const EARNINGS_RANGE_PRESETS = [

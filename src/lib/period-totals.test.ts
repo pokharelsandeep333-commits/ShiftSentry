@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { bucketWorkedShiftsByMonth, combineMonthTotals, type WorkedShift } from "./period-totals";
+import { MAX_EMPTY_MONTHS, monthRangeForPreset, selectMonths } from "./earnings-range";
 
 const NOW = new Date("2026-08-15T12:00:00Z");
 
@@ -101,4 +102,20 @@ test("combining no months totals to zero rather than throwing", () => {
   assert.equal(combined.minutes, 0);
   assert.equal(combined.earnings.grossCents, 0);
   assert.deepEqual(combined.jobs, []);
+});
+
+test("an ancient shift keeps its earnings without expanding every empty historical month", () => {
+  const months = bucket([
+    shift({ startsAt: new Date("0100-01-31T23:00:00Z"), endsAt: new Date("0100-02-01T01:00:00Z") }),
+    shift({}),
+  ]);
+  assert.equal(months.length, MAX_EMPTY_MONTHS + 2);
+  assert.deepEqual(months.slice(0, 2).map((month) => [month.key, month.minutes]), [["0100-01", 60], ["0100-02", 60]]);
+  assert.equal(months.at(-1)?.key, "2026-08");
+  assert.equal(combineMonthTotals(months).earnings.netCents, 18_000);
+  const allTime = monthRangeForPreset("allTime", months)!;
+  assert.equal(combineMonthTotals(selectMonths(months, allTime.from, allTime.to)).minutes, 180);
+  const current = monthRangeForPreset("thisMonth", months)!;
+  assert.equal(combineMonthTotals(selectMonths(months, current.from, current.to)).minutes, 60);
+  assert.deepEqual(monthRangeForPreset("last3", months), { from: "2026-06", to: "2026-08" });
 });
