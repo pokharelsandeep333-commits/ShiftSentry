@@ -1,5 +1,5 @@
 import { calculateEarnings, type DeductionSnapshot } from "@/lib/earnings";
-import { monthKeyLabel, monthKeyOf, monthKeysBetween } from "@/lib/earnings-range";
+import { MAX_EMPTY_MONTHS, monthKeyLabel, monthKeyOf, monthKeysBetween, shiftMonthKey } from "@/lib/earnings-range";
 import { allocateShiftMinutes } from "@/lib/time";
 import type { EarningsSummary, MonthTotals, PeriodJobTotal, PeriodTotals } from "@/lib/types";
 
@@ -66,9 +66,10 @@ export function finalizeTotals(totals: TotalsAccumulator): PeriodTotals {
  * populated by the earnings trigger for the whole span, so summing the column
  * would report money nobody has earned yet.
  *
- * The result is contiguous from the first month worked to the month in
- * progress, so a month nobody worked still has a bucket. Every range the card
- * offers is then a slice of this array rather than a lookup that can miss.
+ * Every worked month is retained. Empty months are filled only within the
+ * recent display window, so one ancient shift cannot allocate thousands of
+ * empty buckets. The current month still anchors the range presets, and all
+ * time/custom totals sum the actual history without dropping earnings.
  */
 export function bucketWorkedShiftsByMonth(shifts: WorkedShift[], now: Date, timeZone: string): MonthTotals[] {
   const buckets = new Map<string, TotalsAccumulator>();
@@ -87,7 +88,10 @@ export function bucketWorkedShiftsByMonth(shifts: WorkedShift[], now: Date, time
   const earliest = Array.from(buckets.keys()).sort()[0];
   if (!earliest) return [];
 
-  return monthKeysBetween(earliest, monthKeyOf(now, timeZone)).map((key) => ({
+  const current = monthKeyOf(now, timeZone);
+  const displayStart = shiftMonthKey(current, 1 - MAX_EMPTY_MONTHS);
+  const keys = new Set([...buckets.keys(), ...monthKeysBetween(earliest > displayStart ? earliest : displayStart, current)]);
+  return Array.from(keys).sort().map((key) => ({
     key,
     label: monthKeyLabel(key),
     ...finalizeTotals(buckets.get(key) ?? createTotals()),

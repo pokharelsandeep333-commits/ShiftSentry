@@ -23,6 +23,13 @@ test("monthKeysBetween is inclusive and empty when the pair is inverted", () => 
   assert.deepEqual(monthKeysBetween("2026-08", "2026-06"), []);
 });
 
+test("month displays reject malformed and ancient spans without allocating their history", () => {
+  assert.throws(() => monthKeysBetween("0100-01", "2026-10"), RangeError);
+  assert.throws(() => monthKeysBetween("2026-00", "2026-10"), RangeError);
+  assert.throws(() => monthKeysBetween("2026-01", "2026-13"), RangeError);
+  assert.equal(monthKeysBetween("2016-11", "2026-10").length, 120);
+});
+
 test("presets resolve against the month in progress", () => {
   assert.deepEqual(monthRangeForPreset("thisMonth", MONTHS), { from: "2026-08", to: "2026-08" });
   // Three months means the current one and the two before it, matching the chart.
