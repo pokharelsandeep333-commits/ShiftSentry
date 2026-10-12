@@ -22,6 +22,7 @@ model Profile {
   weekStartsOn             Int          @default(0) @map("week_starts_on")
   globalWeeklyLimitMinutes Int?         @map("global_weekly_limit_minutes")
   disabledAt               DateTime?    @map("disabled_at") @db.Timestamptz(6)
+  deletionPendingAt        DateTime?    @map("deletion_pending_at") @db.Timestamptz(6)
   createdAt                DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   jobs                     Job[]
@@ -29,8 +30,30 @@ model Profile {
   auditEvents              AuditEvent[] @relation("AuditActor")
   googleCalendarConnection GoogleCalendarConnection?
   weekNotes                WeekNote[]
+  legalAcceptances         LegalAcceptance[]
 
   @@map("profiles")
+}
+
+model LegalVersion {
+  version     String @id
+  minimumAge  Int @map("minimum_age")
+  documents   Json
+  publishedAt DateTime @default(now()) @map("published_at") @db.Timestamptz(6)
+  acceptances LegalAcceptance[]
+
+  @@map("legal_versions")
+}
+
+model LegalAcceptance {
+  userId     String @map("user_id") @db.Uuid
+  version    String
+  acceptedAt DateTime @default(now()) @map("accepted_at") @db.Timestamptz(6)
+  profile    Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   LegalVersion @relation(fields: [version], references: [version])
+
+  @@id([userId, version])
+  @@map("legal_acceptances")
 }
 
 model Job {

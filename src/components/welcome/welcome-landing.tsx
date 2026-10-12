@@ -48,7 +48,7 @@ import { cn } from "@/lib/utils";
 const CAPABILITIES = [
   { icon: Layers, title: "All your jobs, one week", body: "One weekly limit across every job, plus an optional cap for each job." },
   { icon: CalendarClock, title: "Planned shifts count now", body: "Schedule Friday on Monday and it counts toward this week straight away." },
-  { icon: Wallet, title: "Take-home, to the cent", body: "Hourly rate, tax and deductions per job, so you see net pay, not a guess." },
+  { icon: Wallet, title: "Take-home estimates", body: "Estimate net earnings from the hourly rate, tax and deductions you enter for each job." },
   { icon: Smartphone, title: "On your phone", body: "Installs to your home screen. Sign in with Google, GitHub, or email." },
 ];
 
@@ -60,7 +60,7 @@ const sectionTitle = "font-display text-[1.85rem] font-semibold leading-[1.12] [
 const panel = "welcome-panel welcome-container mx-auto rounded-[1.5rem]";
 
 /* `py-1` lifts each link past the 24px minimum touch target without spreading the columns. */
-const footerLink = "inline-block py-1 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]";
+const footerLink = "inline-flex min-h-11 items-center py-1 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)] sm:min-h-0";
 
 export function WelcomeLanding() {
   const calendarEnabled = isGoogleCalendarEnabled();
@@ -158,6 +158,8 @@ export function WelcomeLanding() {
             <FooterColumn title="Legal">
               <li><Link href="/privacy" className={footerLink}>Privacy Policy</Link></li>
               <li><Link href="/terms" className={footerLink}>Terms of Service</Link></li>
+              <li><Link href="/cookies" className={footerLink}>Cookies and storage</Link></li>
+              <li><a href="/third-party-notices.txt" className={footerLink}>Third-party notices</a></li>
               <li><a href={`mailto:${LEGAL_CONTACT_EMAIL}`} className={footerLink}>Contact</a></li>
             </FooterColumn>
           </div>
@@ -199,6 +201,6 @@ function FooterColumn({ title, children }: { title: string; children: ReactNode 
 function Screenshot({ name, width, height, alt, className, sizes }: { name: string; width: number; height: number; alt: string; className?: string; sizes: string }) {
   return <>
     <Image src={`/welcome/${name}-light.webp`} width={width} height={height} alt={alt} sizes={sizes} unoptimized className={cn("theme-light-only h-auto w-full", className)} />
-    <Image src={`/welcome/${name}-dark.webp`} width={width} height={height} alt="" aria-hidden="true" sizes={sizes} unoptimized className={cn("theme-dark-only h-auto w-full", className)} />
+    <Image src={`/welcome/${name}-dark.webp`} width={width} height={height} alt={alt} sizes={sizes} unoptimized className={cn("theme-dark-only h-auto w-full", className)} />
   </>;
 }

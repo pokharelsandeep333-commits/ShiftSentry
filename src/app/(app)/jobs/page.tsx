@@ -1,3 +1,5 @@
+export const metadata = { title: "Jobs | ShiftSentry" };
+
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

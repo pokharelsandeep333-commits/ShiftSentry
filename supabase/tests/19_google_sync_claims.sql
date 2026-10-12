@@ -16,6 +16,7 @@ declare
   granted boolean; refused boolean; seen integer;
 begin
   insert into auth.users (id, email) values (hana, 'hana@example.com'), (ivan, 'ivan@example.com');
+  insert into public.legal_acceptances(user_id, version) values (hana, '2026-10-11.1'), (ivan, '2026-10-11.1');
 
   execute 'set local role authenticated';
   perform set_config('request.jwt.claim.sub', hana::text, true);

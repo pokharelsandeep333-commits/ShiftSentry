@@ -1,3 +1,5 @@
+export const metadata = { title: "User support | ShiftSentry" };
+
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";

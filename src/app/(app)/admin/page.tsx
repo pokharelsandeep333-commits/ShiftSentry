@@ -1,3 +1,5 @@
+export const metadata = { title: "Administration | ShiftSentry" };
+
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/page-header";

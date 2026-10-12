@@ -1,0 +1,222 @@
+{
+  "version": "2026-10-11.1",
+  "effectiveDate": "October 11, 2026",
+  "minimumAge": 16,
+  "operator": "Sandeep Pokharel, South Dakota, United States",
+  "contact": "contact@sandeeppokharel.com.np",
+  "terms": {
+    "title": "Terms of Service",
+    "description": "The agreement, eligibility requirements, and rules for using the free ShiftSentry work hours tracker.",
+    "intro": "These Terms govern your use of ShiftSentry, operated by Sandeep Pokharel in South Dakota, United States. You must explicitly accept the current Terms before using the workspace. Our Privacy Policy explains how your information is handled.",
+    "sections": [
+      {
+        "title": "Who can use ShiftSentry",
+        "paragraphs": [
+          "You must be at least 16 years old. If you are under the age of majority where you live, you must have permission from a parent or guardian. This is the app's eligibility rule, not a statement of the age at which employment is lawful. We ask for your confirmation, not your birth date or identity documents."
+        ]
+      },
+      {
+        "title": "Your account",
+        "paragraphs": [
+          "Provide accurate account information, protect your sign-in details, and contact us if you suspect unauthorized access. You are responsible for activity under your account, subject to rights that applicable law provides."
+        ]
+      },
+      {
+        "title": "Work planning and earnings estimates",
+        "paragraphs": [
+          "ShiftSentry tracks the jobs and shifts you enter, enforces the hour limits you set, and estimates earnings using your entered rates, taxes, and deductions. It does not know the limits imposed by your employer, school, visa, or local law. Its warnings and calculated totals are not legal, immigration, employment, tax, or financial advice, a payslip, or an official record of hours worked. Check the estimates against your employer's records and keep independent copies of important records."
+        ]
+      },
+      {
+        "title": "Free service",
+        "paragraphs": [
+          "ShiftSentry currently has no paid accounts, subscriptions, or in-app purchases. We collect no payment details. There are no subscription renewals, cancellation charges, or refunds to administer. Any future paid offering would have its own disclosed price and payment terms before purchase."
+        ]
+      },
+      {
+        "title": "Your content and intellectual property",
+        "paragraphs": [
+          "Your jobs, shifts, notes, and other content remain yours. You permit us to store and process them to provide and secure ShiftSentry as described in the Privacy Policy. This does not transfer ownership of your content. ShiftSentry's software and branding remain subject to their owners' rights; third-party software, fonts, and assets retain their respective licenses."
+        ]
+      },
+      {
+        "title": "Acceptable use",
+        "items": [
+          "Do not access another person's account or data, bypass security or business limits, or disrupt or overload the service.",
+          "Do not harass or threaten other players, impersonate anyone, or put another person's private information into game names or clues.",
+          "Do not use the service for unlawful activity. Report suspected security problems to our contact address without testing against other people's accounts."
+        ]
+      },
+      {
+        "title": "Google Calendar",
+        "paragraphs": [
+          "Calendar connection is optional and read-only. ShiftSentry cannot create, edit, or delete Google Calendar events. If you enable automatic shift sync for a job, matching event times become shifts in ShiftSentry; verify those shifts as you would manually entered ones. You may disconnect in Settings, and Google's own terms continue to apply to its services."
+        ]
+      },
+      {
+        "title": "Game rooms and account deletion",
+        "paragraphs": [
+          "Your game name, clues, and votes are shared with participants in that room. Deleting your account removes your records and game contributions. Rooms you host, including their shared history, are deleted under the current room ownership model. The deletion screen explains this before you confirm."
+        ]
+      },
+      {
+        "title": "Availability and account restrictions",
+        "paragraphs": [
+          "We work to keep the service available but cannot promise uninterrupted operation or error-free calculations. Features may change. We may restrict accounts that violate these Terms or put the service or others at risk. Contact us about a restriction or data request if you cannot sign in."
+        ]
+      },
+      {
+        "title": "Exporting and closing your account",
+        "paragraphs": [
+          "Account tools let you download your data and request permanent account deletion. These tools remain available without accepting new Terms. Deletion requires recent authentication and an explicit confirmation, and cannot be undone through the app. If deletion fails or you cannot access your account, contact us for help. Export data before deletion if you need to keep it."
+        ]
+      },
+      {
+        "title": "Disclaimer and limitation of liability",
+        "paragraphs": [
+          "ShiftSentry is provided as is and as available, without warranties to the extent allowed by law. To the extent allowed by law, the operator is not liable for indirect or consequential losses, including lost wages, fines, or visa and employment consequences from relying on the app's warnings or estimates. Nothing in these Terms excludes rights or liability that applicable law does not allow an agreement to exclude."
+        ]
+      },
+      {
+        "title": "Changes and contact",
+        "paragraphs": [
+          "Material changes receive a new Terms version and require explicit acceptance before continued workspace use. Earlier accepted document versions remain available from the account's agreement history while the account exists. Questions, support, privacy requests, and security reports: contact@sandeeppokharel.com.np."
+        ]
+      }
+    ]
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "description": "What ShiftSentry collects, its service providers, and how to export or delete your account data.",
+    "intro": "ShiftSentry is operated by Sandeep Pokharel in South Dakota, United States. This notice explains the information used to run the service and your account controls. Contact contact@sandeeppokharel.com.np for privacy questions or requests.",
+    "sections": [
+      {
+        "title": "Information we collect",
+        "items": [
+          "Account email and display name. Supabase handles authentication and stores password hashes for password accounts; we do not receive plaintext stored passwords. Google or GitHub sign-in may share basic profile information with the authentication provider.",
+          "Jobs, shifts, weekly notes, pay and tax rates, deductions, calculated earnings, calendar sync identifiers, and the schedule settings you provide.",
+          "Terms versions, server-recorded acceptance times, and confirmation that you meet our age and guardian-permission requirements. We do not store birth dates, identity documents, or acceptance IP addresses.",
+          "Game names, room membership and presence, clues, votes, and game state. Other room participants can see information needed for that game.",
+          "Limited administrative/security records and standard request information processed by our hosting and security providers, such as IP addresses and request timestamps."
+        ]
+      },
+      {
+        "title": "Why we use it",
+        "paragraphs": [
+          "We use account and work information to provide the service you request, calculate estimates, save settings, and support you. We use limited security information to protect accounts, investigate abuse, and maintain the service. We do not sell personal information, share it for targeted advertising, or send promotional emails. Cloudflare Web Analytics remains enabled at the hosting layer to measure page visits and site performance. Its beacon reports page and referrer information and performance measurements to Cloudflare. It does not use analytics cookies or browser storage. Hosting and security providers also process operational request information. We do not install advertising trackers."
+        ]
+      },
+      {
+        "title": "Optional Google Calendar access",
+        "items": [
+          "We request read-only calendar-list and event access. We cannot create, change, or delete events in Google Calendar.",
+          "Events are fetched when needed and displayed to you. We do not store event titles, descriptions, locations, or attendees.",
+          "If you enable automatic shift sync for a job, matching start/end times are stored as ShiftSentry shifts, along with calendar/event identifiers to follow changes. Turning sync off keeps the shifts. Disconnecting also removes the stored Google identifiers.",
+          "Access and refresh tokens are encrypted at rest and used only to access the calendars you connect. Disconnecting attempts to revoke access with Google and deletes our stored credentials. You can also revoke access from your Google Account's security settings.",
+          "Google user data is never sold, used for advertising, or used to train AI models. People do not read it except with your permission, for security reasons, or where required by law."
+        ],
+        "paragraphs": [
+          "Our use and transfer of information received from Google APIs adheres to the Google API Services User Data Policy, including its Limited Use requirements."
+        ],
+        "link": {
+          "href": "https://developers.google.com/terms/api-services-user-data-policy",
+          "label": "Google API Services User Data Policy"
+        }
+      },
+      {
+        "title": "Providers and access",
+        "paragraphs": [
+          "Supabase provides the database and authentication. Amazon Web Services hosts the application, and Cloudflare handles traffic delivery and security. Google and GitHub handle optional sign-in; Google also handles an optional calendar connection. These services receive the information needed for those functions and process some account, security, and operational information under their own policies.",
+          "Database access rules isolate personal work records by account. Administrators can access account details and work summaries for support and security. Game information is shared with room participants. We may disclose information if required by law. Provider processing may occur outside your state or country; contact us for information about the service's current hosting and provider settings."
+        ]
+      },
+      {
+        "title": "Cookies and device storage",
+        "paragraphs": [
+          "Authentication and short-lived sign-in/security cookies support requested account functions. Your device stores theme and workspace preferences. The service worker caches static app assets and an offline page, not your account pages or work data. The Cookie and Storage Policy lists purposes, lifetimes, and removal instructions."
+        ]
+      },
+      {
+        "title": "Retention",
+        "paragraphs": [
+          "Account and work records, including agreement history, remain while your account exists. Deleting your account removes them from the active application database. Minimal administrative/security audit entries follow a 30-day retention policy with daily cleanup. Deleted-user identifiers are removed from retained audit details. Evidence that must be kept for a specific legal obligation or investigation is held separately with restricted access and a documented retention reason.",
+          "Copies may remain in provider backups or provider-managed logs until those systems' configured retention periods expire. They are not ordinary active account records. If a backup is restored, completed deletions must be reapplied before the restored service is made available. Contact us for the current verified provider retention settings; we do not promise an unverified backup expiry period."
+        ]
+      },
+      {
+        "title": "Your controls and requests",
+        "paragraphs": [
+          "You can edit your account settings and delete jobs or shifts. Account tools provide a JSON download of your records and permanent account deletion, even if you decline updated Terms. Exports exclude passwords, tokens, other users' records, and hidden game roles or words. Deletion also removes rooms you host and their shared history, as explained before confirmation.",
+          "For access, correction, deletion, applicable portability, or other privacy rights, contact us from your account email. We verify requests using information proportionate to the request rather than routinely asking for identity documents. If you are unable to sign in, contact support. Rights and legally required response periods depend on the laws applicable to your request."
+        ]
+      },
+      {
+        "title": "Eligibility and children",
+        "paragraphs": [
+          "ShiftSentry is for people aged 16 or older. Users below legal adulthood must have guardian permission. The service is not directed to children under 13, and we do not knowingly collect their information. Contact us if you believe an ineligible person's information was collected so we can investigate and remove it as appropriate."
+        ]
+      },
+      {
+        "title": "Security and incidents",
+        "paragraphs": [
+          "We use authenticated access, database access controls, encrypted calendar tokens, HTTPS, and application security safeguards. No service can guarantee absolute security. We investigate suspected incidents and assess notification obligations under the laws applicable to affected individuals."
+        ]
+      },
+      {
+        "title": "Changes and contact",
+        "paragraphs": [
+          "The effective date and version identify this notice. We announce material changes through the app and maintain the versions associated with recorded agreements. Terms acceptance acknowledges this notice; it is not blanket consent to optional marketing or tracking. Contact contact@sandeeppokharel.com.np."
+        ]
+      }
+    ]
+  },
+  "cookies": {
+    "title": "Cookie and Storage Policy",
+    "description": "Authentication cookies, local preferences, offline storage, their lifetimes, and how to clear them.",
+    "intro": "ShiftSentry uses device storage to deliver requested account and display functions. Cloudflare Web Analytics also measures page visits and performance without analytics cookies or browser storage. These purposes are separate from agreeing to our Terms.",
+    "sections": [
+      {
+        "title": "Authentication cookies",
+        "paragraphs": [
+          "Supabase cookies named sb-<project>-auth-token, including numbered chunks where needed, hold authentication tokens. The installed SSR SDK uses a cookie maximum age of 400 days, renewed as the session changes. Token validity and server-side session revocation are separate and may end access sooner. Sign-out clears the app's session cookies. An sb-<project>-auth-token-code-verifier cookie supports email/OAuth proof-key exchange and is cleared after a successful exchange; if an exchange is abandoned, SDK cookie expiry or clearing site data removes it."
+        ]
+      },
+      {
+        "title": "Short-lived security and return cookies",
+        "items": [
+          "shiftsentry-next remembers the safe page to return to after signing in. It expires after 10 minutes and is cleared when the callback uses it.",
+          "shiftsentry-google-oauth protects an optional Google Calendar connection with state and proof-key information. It is HttpOnly, has a 10-minute lifetime, and is cleared by the calendar callback.",
+          "Cloudflare may use security cookies when a security challenge or abuse-prevention feature is used. Their presence and lifetime depend on the active Cloudflare configuration; these must be used for security, not visitor analytics."
+        ]
+      },
+      {
+        "title": "Cloudflare Web Analytics",
+        "paragraphs": [
+          "Cloudflare injects a performance beacon at the hosting layer. It reports page visits, referring page information, and browser performance measurements. Cloudflare documents that its beacon does not store or access cookies, local storage, session storage, or IndexedDB. Its settings are managed independently from this app. Browser tools that block the beacon may prevent these measurements."
+        ],
+        "link": {
+          "href": "https://developers.cloudflare.com/speed/observatory/rum-beacon/",
+          "label": "Cloudflare beacon data and privacy documentation"
+        }
+      },
+      {
+        "title": "Local preferences",
+        "paragraphs": [
+          "The theme key and shiftsentry-prefixed keys remember selected theme, sidebar state, calendar view, earnings range, open shift weeks, game settings, and dismissed help. They are stored locally without a programmed expiry and remain until replaced or cleared. They do not hold your work records and are not used to identify you across websites."
+        ]
+      },
+      {
+        "title": "Offline cache",
+        "paragraphs": [
+          "The service worker caches app assets and the offline page. It does not cache authenticated account pages or database responses. Old cache versions are removed when the service worker activates an update. Your browser can also evict storage."
+        ]
+      },
+      {
+        "title": "Your choices",
+        "paragraphs": [
+          "Use the app's controls to choose preferences, sign out to clear authentication cookies, or clear this site's cookies and storage in your browser to remove preferences and caches. Blocking authentication or security cookies may prevent sign-in. No optional tracking choice is bundled into Terms acceptance. If optional tracking is introduced, we will update these disclosures and provide any required consent or opt-out controls before it operates."
+        ]
+      }
+    ]
+  }
+}

@@ -1,3 +1,5 @@
+export const metadata = { title: "New shift | ShiftSentry" };
+
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";

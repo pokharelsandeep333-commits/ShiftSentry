@@ -1,3 +1,5 @@
+export const metadata = { title: "System health | ShiftSentry" };
+
 import { CheckCircle2, Database, ServerCog } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";

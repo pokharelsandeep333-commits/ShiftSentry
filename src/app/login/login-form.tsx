@@ -9,6 +9,7 @@ import { GoogleMark, GitHubMark } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { acceptancePath } from "@/lib/legal";
 
 export type SignInMode = "signin" | "signup";
 
@@ -36,7 +37,9 @@ export function LoginForm({ mode, onModeChange }: { mode: SignInMode; onModeChan
   // runs and sign-in itself breaks. A short-lived cookie carries it instead,
   // and the callback clears it.
   function rememberNext() {
-    if (next !== "/") document.cookie = `${NEXT_COOKIE}=${encodeURIComponent(next)}; path=/; max-age=600; SameSite=Lax`;
+    // Always replace it, including `/`, so an abandoned deep link cannot leak
+    // into a later sign-in on the same device.
+    document.cookie = `${NEXT_COOKIE}=${encodeURIComponent(next)}; path=/; max-age=600; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
   }
 
   async function submit(event: React.FormEvent) {
@@ -61,7 +64,7 @@ export function LoginForm({ mode, onModeChange }: { mode: SignInMode; onModeChan
         setMessage("Check your email to confirm your account, then sign in.");
         onModeChange("signin");
       }
-      else router.replace(next);
+      else router.replace(acceptancePath(next));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to sign in.");
     } finally {
@@ -84,7 +87,7 @@ export function LoginForm({ mode, onModeChange }: { mode: SignInMode; onModeChan
     }
   }
 
-  return <form onSubmit={submit} className="space-y-4">
+  return <form onSubmit={submit} className="space-y-4" aria-busy={busy}>
     <div><label className="mb-2 block text-sm font-semibold" htmlFor="email">Email</label><Input id="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></div>
     <div>
       <label className="mb-2 block text-sm font-semibold" htmlFor="password">Password</label>
@@ -94,7 +97,8 @@ export function LoginForm({ mode, onModeChange }: { mode: SignInMode; onModeChan
         <div><p id="password-requirements" className="pt-2 text-xs leading-5 text-[var(--muted-foreground)]">At least 8 characters, including an uppercase letter, a lowercase letter and a number.</p></div>
       </div>
     </div>
-    {message && <p className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--primary-soft)] p-3 text-sm leading-6 text-[var(--muted-foreground)]">{message}</p>}
+    {message && <p role="status" aria-live="polite" className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--primary-soft)] p-3 text-sm leading-6 text-[var(--foreground)]">{message}</p>}
+    {mode === "signup" && <p className="text-xs leading-5 text-[var(--muted-foreground)]">For ages 16+. After signing in, review and accept the Terms before entering your workspace.</p>}
     <Button className="w-full" disabled={busy}>{busy && <LoaderCircle className="size-4 animate-spin" />}<span key={mode} className="mode-swap inline-block">{mode === "signin" ? "Sign in" : "Create account"}</span></Button>
     <div className="relative py-2 text-center text-xs text-[var(--muted-foreground)] before:absolute before:left-0 before:right-0 before:top-1/2 before:border-t"><span className="relative bg-[var(--card)] px-3">or</span></div>
     {/* Google's Sign in with Google branding guidelines require one of "Sign in /

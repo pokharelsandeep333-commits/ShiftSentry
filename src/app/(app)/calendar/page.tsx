@@ -1,3 +1,5 @@
+export const metadata = { title: "Calendar | ShiftSentry" };
+
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";

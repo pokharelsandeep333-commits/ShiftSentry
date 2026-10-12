@@ -1,3 +1,5 @@
+export const metadata = { title: "Shifts | ShiftSentry" };
+
 import Link from "next/link";
 import { CalendarClock, NotebookPen } from "lucide-react";
 import { addDays } from "date-fns";

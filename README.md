@@ -65,6 +65,10 @@ Hours are counted in **your** time zone and **your** week, not the server's. An 
 
 ## ✨ Features
 
+Account protections now include explicit versioned Terms acceptance and 16+ eligibility, an account JSON export, and confirmed permanent deletion from `/account`. Privacy and storage disclosures are at `/privacy`, `/terms`, and `/cookies`. See [the deduplicated screenshot audit](docs/checklist-audit.md) and [privacy/incident/retention operations](docs/privacy-operations.md) for evidence and deployment boundaries. Cloudflare analytics is left unchanged and disclosed.
+
+The daily security-retention workflow uses the existing protected production `SUPABASE_DB_URL` and removes audit entries older than 30 days after this release is deployed. It is not a new runtime/build secret. `npm run check:legal` checks immutable policy snapshots; `npm run licenses:generate` creates dependency notices, also run automatically before production builds. Merging remains a separate deployment step.
+
 | Capability | Description |
 | :--- | :--- |
 | 💼 **Track multiple jobs** | Keep job-specific colors, pay rates, deductions, and weekly caps organized in one workspace. |
