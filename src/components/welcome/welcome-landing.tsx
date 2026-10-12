@@ -159,7 +159,7 @@ export function WelcomeLanding() {
               <li><Link href="/privacy" className={footerLink}>Privacy Policy</Link></li>
               <li><Link href="/terms" className={footerLink}>Terms of Service</Link></li>
               <li><Link href="/cookies" className={footerLink}>Cookies and storage</Link></li>
-              <li><a href="/third-party-notices.txt" className={footerLink}>Third-party notices</a></li>
+              <li><Link href="/open-source-licenses" className={footerLink}>Open-source licenses</Link></li>
               <li><a href={`mailto:${LEGAL_CONTACT_EMAIL}`} className={footerLink}>Contact</a></li>
             </FooterColumn>
           </div>
