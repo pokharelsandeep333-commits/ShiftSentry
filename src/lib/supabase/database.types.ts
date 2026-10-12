@@ -12,6 +12,18 @@ export type Database = {
   };
   public: {
     Tables: {
+      legal_versions: {
+        Row: { version: string; minimum_age: number; documents: Json; published_at: string };
+        Insert: { version: string; minimum_age: number; documents: Json; published_at?: string };
+        Update: { version?: string; minimum_age?: number; documents?: Json; published_at?: string };
+        Relationships: [];
+      };
+      legal_acceptances: {
+        Row: { user_id: string; version: string; accepted_at: string };
+        Insert: { user_id: string; version: string; accepted_at?: string };
+        Update: { user_id?: string; version?: string; accepted_at?: string };
+        Relationships: [];
+      };
       audit_events: {
         Row: {
           action: string;
@@ -659,6 +671,7 @@ export type Database = {
       };
       profiles: {
         Row: {
+          deletion_pending_at: string | null;
           created_at: string;
           disabled_at: string | null;
           display_name: string | null;
@@ -671,6 +684,7 @@ export type Database = {
           week_starts_on: number;
         };
         Insert: {
+          deletion_pending_at?: string | null;
           created_at?: string;
           disabled_at?: string | null;
           display_name?: string | null;
@@ -683,6 +697,7 @@ export type Database = {
           week_starts_on?: number;
         };
         Update: {
+          deletion_pending_at?: string | null;
           created_at?: string;
           disabled_at?: string | null;
           display_name?: string | null;
@@ -814,6 +829,11 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      has_current_legal_acceptance: { Args: Record<PropertyKey, never>; Returns: boolean };
+      accept_legal_terms: { Args: { p_version: string; p_agreed: boolean; p_eligible: boolean }; Returns: undefined };
+      export_account_data: { Args: Record<PropertyKey, never>; Returns: Json };
+      prepare_account_deletion: { Args: { p_user_id: string }; Returns: undefined };
+      purge_security_audit: { Args: Record<PropertyKey, never>; Returns: number };
       claim_google_shift_sync: {
         Args: {
           p_force?: boolean;

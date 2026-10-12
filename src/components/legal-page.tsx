@@ -9,7 +9,7 @@ import { Brand } from "@/components/brand";
  */
 export const LEGAL_CONTACT_EMAIL = "contact@sandeeppokharel.com.np";
 
-export const legalLink = "font-semibold text-[var(--primary)] underline underline-offset-4";
+export const legalLink = "font-semibold text-[var(--primary)] underline underline-offset-4 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)]";
 
 /**
  * The shell shared by /privacy and /terms. Both are public, static, and linked
@@ -18,14 +18,15 @@ export const legalLink = "font-semibold text-[var(--primary)] underline underlin
 export function LegalPage({ title, effective, children }: { title: string; effective: string; children: ReactNode }) {
   return <main className="min-h-dvh bg-[var(--background)] px-4 py-10 sm:px-8 sm:py-14">
     <article className="mx-auto max-w-2xl">
-      <Link href="/login" className="inline-block"><Brand /></Link>
+      <Link href="/" className="inline-flex min-h-11 items-center rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)]"><Brand /></Link>
       <h1 className="mt-10 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
       <p className="mt-3 text-sm text-[var(--muted-foreground)]">Effective {effective}</p>
       {children}
       <p className="mt-12 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-        <Link href="/login" className="font-semibold text-[var(--primary)] transition-opacity hover:opacity-75">Back to ShiftSentry</Link>
-        <Link href="/privacy" className="text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]">Privacy Policy</Link>
-        <Link href="/terms" className="text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]">Terms of Service</Link>
+        <Link href="/" className={`${legalLink} inline-flex min-h-11 items-center sm:min-h-0`}>Back to ShiftSentry</Link>
+        <Link href="/privacy" className={`${legalLink} inline-flex min-h-11 items-center sm:min-h-0`}>Privacy Policy</Link>
+        <Link href="/terms" className={`${legalLink} inline-flex min-h-11 items-center sm:min-h-0`}>Terms of Service</Link>
+        <Link href="/cookies" className={`${legalLink} inline-flex min-h-11 items-center sm:min-h-0`}>Cookies and storage</Link>
       </p>
     </article>
   </main>;

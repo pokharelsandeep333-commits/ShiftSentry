@@ -1,3 +1,5 @@
+export const metadata = { title: "Audit log | ShiftSentry" };
+
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth";

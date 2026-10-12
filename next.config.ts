@@ -18,7 +18,7 @@ const fallbackContentSecurityPolicy = contentSecurityPolicy({
 const NOINDEX_PATHS = [
   "/admin/:path*", "/api/:path*", "/auth/:path*", "/integrations/:path*", "/game/:path*",
   "/shifts/:path*", "/jobs/:path*", "/calendar/:path*", "/settings/:path*",
-  "/account-disabled", "/offline",
+  "/account-disabled", "/offline", "/account/:path*", "/accept-terms", "/account-deleted",
 ];
 
 const nextConfig: NextConfig = {

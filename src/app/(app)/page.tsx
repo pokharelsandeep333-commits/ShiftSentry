@@ -1,3 +1,5 @@
+export const metadata = { title: "Dashboard | ShiftSentry", robots: { index: false, follow: false } };
+
 import { Suspense } from "react";
 import { CalendarGlance, CalendarGlanceSkeleton } from "@/components/dashboard/calendar-glance";
 import { DashboardView } from "@/components/dashboard/dashboard-view";

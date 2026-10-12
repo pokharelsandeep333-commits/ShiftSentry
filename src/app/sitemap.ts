@@ -12,5 +12,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${origin}/login`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${origin}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${origin}/terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${origin}/cookies`, changeFrequency: "yearly", priority: 0.3 },
   ];
 }

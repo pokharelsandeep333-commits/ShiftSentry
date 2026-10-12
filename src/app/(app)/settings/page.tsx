@@ -7,6 +7,10 @@ import { SettingsForm } from "@/components/settings/settings-form";
 import { requireUser } from "@/lib/auth";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { timeZoneOptions } from "@/lib/time-zones";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+
+export const metadata = { title: "Settings | ShiftSentry" };
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +46,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </CardContent>
       </Card>
       {isGoogleCalendarEnabled() && <Suspense fallback={<GoogleCalendarCardSkeleton />}><GoogleCalendarCard userId={profile.id} /></Suspense>}
+      <Card className="max-w-2xl"><CardHeader><CardTitle>Account and privacy</CardTitle></CardHeader><CardContent><p className="mb-4 text-sm leading-6 text-[var(--muted-foreground)]">Download your records, review agreements, or permanently delete your account.</p><Link href="/account" className={buttonVariants({ variant: "outline" })}>Manage account data</Link></CardContent></Card>
     </div>
   </>;
 }

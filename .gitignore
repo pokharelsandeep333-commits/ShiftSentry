@@ -20,6 +20,10 @@
 # production
 /build
 
+# Regenerated for the actual installed platform before every production build.
+/public/third-party-notices.txt
+/public/dependency-license-inventory.json
+
 # misc
 .DS_Store
 *.pem

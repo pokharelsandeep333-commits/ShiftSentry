@@ -10,3 +10,8 @@ insert into auth.users (id, email) values
   ('44444444-4444-4444-4444-444444444444', 'dave@example.com'),
   ('55555555-5555-5555-5555-555555555555', 'erin@example.com')
 on conflict (id) do nothing;
+
+-- Existing business-rule fixtures represent users who accepted the agreement.
+-- New-account/declined-version behavior is exercised explicitly in suite 23.
+insert into public.legal_acceptances(user_id, version)
+  select id, '2026-10-11.1' from public.profiles on conflict do nothing;

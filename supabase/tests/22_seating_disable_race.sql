@@ -7,6 +7,9 @@ insert into auth.users(id, email) values
   ('66666666-6666-4666-8666-666666666664', 'disable-race-host@example.com'),
   ('66666666-6666-4666-8666-666666666665', 'stale-seat@example.com');
 
+insert into public.legal_acceptances(user_id, version)
+  select id, '2026-10-11.1' from public.profiles where email like '%@example.com' on conflict do nothing;
+
 create temp table disable_race (code text);
 do $$
 declare code text;

@@ -1,3 +1,4 @@
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@supabase/server/core";
 import { cookies } from "next/headers";

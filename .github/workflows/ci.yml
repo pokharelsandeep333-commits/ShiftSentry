@@ -67,6 +67,8 @@ jobs:
         run: npx prisma validate
       - name: "🧪 Run unit tests"
         run: npm run test:earnings && npm run test:auth && npm run test:game && npm run test:security
+      - name: "📜 Verify immutable legal snapshot"
+        run: npm run check:legal
       - name: "🔎 Type-check"
         run: npx tsc --noEmit
       - name: "🔍 Lint"

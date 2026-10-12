@@ -1,3 +1,5 @@
+export const metadata = { title: "Game room | ShiftSentry" };
+
 import Link from "next/link";
 import { Crown, Trophy, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";

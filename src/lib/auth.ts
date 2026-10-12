@@ -1,6 +1,9 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
+import { acceptancePath } from "./legal";
+import { hasCurrentLegalAcceptance } from "./legal-server";
+import { headers } from "next/headers";
 
 type Profile = {
   id: string;
@@ -11,6 +14,7 @@ type Profile = {
   week_starts_on: number;
   global_weekly_limit_minutes: number | null;
   disabled_at: string | null;
+  deletion_pending_at: string | null;
 };
 
 function allowlisted(email: string) {
@@ -36,29 +40,43 @@ export const getSignedInProfile = cache(async (): Promise<Profile | null> => {
   const user = claimsResult?.claims ? { id: claimsResult.claims.sub, email: claimsResult.claims.email } : null;
   if (!user?.email) return null;
 
-  let { data: profile } = await supabase.from("profiles").select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at").eq("id", user.id).maybeSingle();
+  const { data: initialProfile, error: profileError } = await supabase.from("profiles").select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at,deletion_pending_at").eq("id", user.id).maybeSingle();
+  if (profileError) throw new Error("We could not load your account. Please try again.");
+  let profile = initialProfile;
 
   if (!profile) {
-    const { error } = await supabase.from("profiles").insert({ id: user.id, email: user.email });
+    // Re-check with Auth before recreating a profile: a deleted account's JWT
+    // can still verify cryptographically until its expiry.
+    const { data: { user: liveUser } } = await supabase.auth.getUser();
+    if (!liveUser) return null;
+    const { error } = await supabase.from("profiles").insert({ id: liveUser.id, email: liveUser.email! });
     if (error) throw error;
-    const result = await supabase.from("profiles").select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at").eq("id", user.id).single();
+    const result = await supabase.from("profiles").select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at,deletion_pending_at").eq("id", user.id).single();
     if (result.error) throw result.error;
     profile = result.data;
   }
 
-  if (allowlisted(user.email) && profile.role !== "ADMIN") {
+  if (allowlisted(user.email) && profile.role !== "ADMIN" && !profile.deletion_pending_at) {
     const admin = createAdminSupabaseClient();
-    const { data, error } = await admin.from("profiles").update({ role: "ADMIN" }).eq("id", user.id).select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at").single();
+    const { data, error } = await admin.from("profiles").update({ role: "ADMIN" }).eq("id", user.id).select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at,deletion_pending_at").single();
     if (error) throw error;
     profile = data;
   }
   return profile as Profile;
 });
 
-export async function requireUser() {
+/** Account rights deliberately do not require Terms acceptance or an enabled workspace. */
+export async function requireAccount() {
   const profile = await getSignedInProfile();
   if (!profile) redirect("/login");
+  return profile;
+}
+
+export async function requireUser() {
+  const profile = await requireAccount();
+  if (profile.deletion_pending_at) redirect("/account?deletion=pending");
   if (profile.disabled_at) redirect("/account-disabled");
+  if (!await hasCurrentLegalAcceptance()) redirect(acceptancePath((await headers()).get("x-shiftsentry-path")));
   return profile;
 }
 

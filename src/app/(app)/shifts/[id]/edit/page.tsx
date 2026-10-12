@@ -1,3 +1,5 @@
+export const metadata = { title: "Edit shift | ShiftSentry" };
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatInTimeZone } from "date-fns-tz";

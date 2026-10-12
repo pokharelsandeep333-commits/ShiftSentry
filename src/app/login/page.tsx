@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { HeroChips } from "@/components/welcome/hero-chips";
 import { SignInPanel } from "./sign-in-panel";
+import { publicMetadata } from "@/lib/public-metadata";
 
 /**
  * Sign in: one box in the middle of the landing page's lavender ground, on the
@@ -29,10 +30,7 @@ import { SignInPanel } from "./sign-in-panel";
  */
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Sign in | ShiftSentry",
-  description: "Sign in to ShiftSentry to plan shifts under your weekly hour limit.",
-};
+export const metadata = publicMetadata("Sign in | ShiftSentry", "Sign in to ShiftSentry to plan shifts under your weekly hour limit.", "/login");
 
 const toHome = ["to-home"];
 
@@ -46,7 +44,7 @@ export default function LoginPage() {
         <Link href="/" transitionTypes={toHome} aria-label="ShiftSentry home" className="rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
           <Brand size="compact" markClassName="size-9 rounded-xl" className="gap-2.5 text-[1.0625rem]" />
         </Link>
-        <Link href="/" transitionTypes={toHome} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]"><ArrowLeft className="size-4" />Back to home</Link>
+        <Link href="/" transitionTypes={toHome} className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] sm:h-9"><ArrowLeft className="size-4" />Back to home</Link>
       </header>
 
       <main className="relative flex flex-1 items-center justify-center px-4 py-6 sm:py-8 short:sm:py-4">
@@ -65,8 +63,9 @@ export default function LoginPage() {
       </main>
 
       <footer className="relative flex flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 pb-5 short:pb-3 text-xs text-[var(--muted-foreground)]">
-        <Link href="/privacy" className="font-semibold transition-colors hover:text-[var(--foreground)]">Privacy Policy</Link>
-        <Link href="/terms" className="font-semibold transition-colors hover:text-[var(--foreground)]">Terms of Service</Link>
+        <Link href="/privacy" className="inline-flex min-h-11 items-center font-semibold transition-colors hover:text-[var(--foreground)] sm:min-h-0">Privacy Policy</Link>
+        <Link href="/terms" className="inline-flex min-h-11 items-center font-semibold transition-colors hover:text-[var(--foreground)] sm:min-h-0">Terms of Service</Link>
+        <Link href="/cookies" className="inline-flex min-h-11 items-center font-semibold transition-colors hover:text-[var(--foreground)] sm:min-h-0">Cookies and storage</Link>
         <span>© 2026 ShiftSentry</span>
       </footer>
     </div>

@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/database.types";
 import { contentSecurityPolicy, createNonce } from "@/lib/content-security-policy";
 import { safeInternalRedirect } from "@/lib/request-origin";
+import { acceptancePath } from "@/lib/legal";
 
 export async function proxy(request: NextRequest) {
   // Set on the request so Next.js can find the nonce while it renders, and on
@@ -12,6 +13,8 @@ export async function proxy(request: NextRequest) {
   const csp = contentSecurityPolicy({ nonce, supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL, development: process.env.NODE_ENV === "development" });
   request.headers.set("x-nonce", nonce);
   request.headers.set("Content-Security-Policy", csp);
+  // Overwrite any caller-supplied value; guards use this only for a safe return path.
+  request.headers.set("x-shiftsentry-path", `${request.nextUrl.pathname}${request.nextUrl.search}`);
 
   const response = await route(request);
   response.headers.set("Content-Security-Policy", csp);
@@ -23,6 +26,15 @@ async function route(request: NextRequest) {
   let response = NextResponse.next({ request });
   const supabase = createServerClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, { cookies: { getAll: () => request.cookies.getAll(), setAll: (values) => { values.forEach(({ name, value }) => request.cookies.set(name, value)); response = NextResponse.next({ request }); values.forEach(({ name, value, options }) => response.cookies.set(name, value, options)); } } });
   const { data: { user } } = await supabase.auth.getUser();
+  if (user && (request.nextUrl.pathname === "/" || /^\/(?:admin|game|shifts|jobs|calendar|settings|integrations)(?:\/|$)/.test(request.nextUrl.pathname))) {
+    const { data: accepted, error } = await supabase.rpc("has_current_legal_acceptance");
+    if (!error && accepted !== true) {
+      const destination = acceptancePath(`${request.nextUrl.pathname}${request.nextUrl.search}`);
+      const redirect = NextResponse.redirect(new URL(destination, request.nextUrl.origin));
+      response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+      return redirect;
+    }
+  }
   // An invite link or a QR scan is the one deep link people follow signed out.
   // `requireUser()` on the page would bounce to /login and forget the code, so
   // the redirect is issued here with `next` set, the way /admin already does.

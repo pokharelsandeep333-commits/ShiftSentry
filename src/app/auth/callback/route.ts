@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/lib/supabase/database.types";
 import { NEXT_COOKIE, publicRequestOrigin, safeInternalRedirect } from "@/lib/request-origin";
+import { acceptancePath } from "@/lib/legal";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -13,7 +14,9 @@ export async function GET(request: Request) {
   // The query parameter first for anything that still sends one; otherwise the
   // cookie the login form left. Both go through the same same-origin check.
   const remembered = cookieStore.get(NEXT_COOKIE)?.value;
-  const next = safeInternalRedirect(url.searchParams.get("next") ?? (remembered ? decodeURIComponent(remembered) : null));
+  let decoded: string | null = null;
+  try { decoded = remembered ? decodeURIComponent(remembered) : null; } catch { /* A malformed cookie is not a redirect destination. */ }
+  const next = safeInternalRedirect(url.searchParams.get("next") ?? decoded);
   if (!code || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) return NextResponse.redirect(new URL("/login?error=auth_configuration", origin));
   const response = NextResponse.redirect(new URL(next, origin));
   if (remembered) response.cookies.set(NEXT_COOKIE, "", { path: "/", maxAge: 0 });
@@ -25,8 +28,10 @@ export async function GET(request: Request) {
   });
   const { error } = await supabase.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
   if (error) {
-    console.error("Auth callback error:", error);
+    console.error("Auth callback failed.");
     return NextResponse.redirect(new URL("/login?error=callback", origin));
   }
+  const { data: accepted, error: agreementError } = await supabase.rpc("has_current_legal_acceptance");
+  if (agreementError || accepted !== true) response.headers.set("Location", new URL(acceptancePath(next), origin).href);
   return response;
 }
