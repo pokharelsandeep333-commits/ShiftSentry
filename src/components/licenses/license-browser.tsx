@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ExternalLink, Moon, Sun } from "lucide-react";
+import { ChevronDown, ExternalLink, Moon, Search, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { legalLink } from "@/components/legal-page";
@@ -68,7 +68,10 @@ export function LicenseBrowser({ catalog }: { catalog: LicenseCatalog }) {
     <section aria-labelledby="library-heading">
       <div className="mb-5 flex items-center justify-between gap-4"><h2 id="library-heading" className="font-display text-2xl font-semibold">Library licenses</h2><Button variant="ghost" size="icon" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? <Sun className="size-5" aria-hidden="true" /> : <Moon className="size-5" aria-hidden="true" />}</Button></div>
       <label htmlFor="license-search" className="sr-only">Search libraries or licenses</label>
-      <Input id="license-search" type="search" placeholder="Search libraries or licenses" value={query} onChange={(event) => { setQuery(event.target.value); setVisible(PAGE_SIZE); }} className="text-base sm:text-sm" aria-describedby="license-results" />
+      <div className="relative">
+        <Input id="license-search" type="search" placeholder="Search libraries or licenses" value={query} onChange={(event) => { setQuery(event.target.value); setVisible(PAGE_SIZE); }} className="pr-12! text-base [&::-webkit-search-cancel-button]:appearance-none sm:text-sm" aria-describedby="license-results" />
+        <Search className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]" aria-hidden="true" />
+      </div>
       <p id="license-results" role="status" aria-live="polite" aria-atomic="true" className="mb-4 mt-3 text-sm text-[var(--muted-foreground)]">{search ? `${matches.length} ${matches.length === 1 ? "library matches" : "libraries match"} your search` : `${catalog.packages.length} libraries. Select a library to read its notices.`}</p>
       {matches.length ? <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]">{matches.slice(0, visible).map((entry) => <LicenseRow key={`${entry.name}@${entry.version}`} entry={entry} />)}</div> : <div className="rounded-2xl border border-[var(--border)] px-5 py-8"><h3 className="font-display text-lg font-semibold">No matching libraries</h3><p className="mb-4 mt-2 text-sm text-[var(--muted-foreground)]">Try a package name or a license such as MIT.</p><Button variant="outline" size="sm" onClick={() => { setQuery(""); setVisible(PAGE_SIZE); }}>Clear search</Button></div>}
       {matches.length > PAGE_SIZE && <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><p role="status" className="text-sm tabular-nums text-[var(--muted-foreground)]">Showing {Math.min(visible, matches.length)} of {matches.length}</p><Button variant="outline" disabled={visible >= matches.length} onClick={() => setVisible(visible + PAGE_SIZE)}>{visible >= matches.length ? "All libraries shown" : `Show ${Math.min(PAGE_SIZE, matches.length - visible)} more libraries`}</Button></div>}
