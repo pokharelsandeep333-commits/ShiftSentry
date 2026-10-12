@@ -11,7 +11,7 @@
     "test:auth": "tsx --test src/lib/request-origin.test.ts src/lib/validation.test.ts src/lib/content-security-policy.test.ts src/lib/google/token-crypto.test.ts src/lib/google/config.test.ts src/lib/rate-limit.test.ts src/lib/google/oauth.test.ts src/lib/google/sync-work.test.ts src/lib/legal.test.ts src/lib/account-deletion.test.ts",
     "test:game": "tsx --test src/lib/game.test.ts",
     "test:sql": "bash scripts/run-sql-tests.sh",
-    "test:security": "node --test scripts/check-production-audit.test.mjs",
+    "test:security": "node --test scripts/check-production-audit.test.mjs scripts/purge-security-audit.test.mjs",
     "db:generate": "prisma generate",
     "audit:production": "npm audit --omit=dev --json | node scripts/check-production-audit.mjs",
     "check:legal": "node scripts/snapshot-legal.mjs --check",
