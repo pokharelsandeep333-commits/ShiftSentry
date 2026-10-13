@@ -6,12 +6,13 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { LogOut, Settings, UserRound } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 
-function accountInitial(email: string) {
-  return email.trim().charAt(0).toUpperCase();
+/** The display name's first letter when there is one, else the email's. */
+function accountInitial(name: string | null | undefined, email: string) {
+  return (name?.trim() || email.trim()).charAt(0).toUpperCase();
 }
 
-export function AccountMenu({ email = "" }: { email?: string }) {
-  const initial = accountInitial(email);
+export function AccountMenu({ email = "", name }: { email?: string; name?: string | null }) {
+  const initial = accountInitial(name, email);
   const accountLabel = email || "Account";
   const [isSigningOut, startSignOut] = useTransition();
 
@@ -27,7 +28,7 @@ export function AccountMenu({ email = "" }: { email?: string }) {
   // only ever shoved the page 15px left for as long as the menu was open.
   return <DropdownMenu.Root modal={false}>
     <DropdownMenu.Trigger asChild>
-      <button type="button" aria-label="Open account menu" className="grid size-11 place-items-center rounded-xl sm:size-9 border border-[color-mix(in_srgb,var(--primary)_18%,var(--border))] bg-[var(--card)]/70 text-sm font-bold text-[var(--primary)] shadow-sm transition-[transform,background-color,border-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--primary)_38%,var(--border))] hover:bg-[var(--primary-soft)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
+      <button type="button" aria-label="Open account menu" className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--primary-soft)] font-display text-sm font-semibold text-[var(--primary)] transition-[background-color,box-shadow] duration-200 hover:bg-[color-mix(in_srgb,var(--primary)_22%,transparent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] data-[state=open]:shadow-[0_0_0_2px_var(--card),0_0_0_4px_var(--primary)] md:size-9">
         {initial || <UserRound className="size-4" />}
       </button>
     </DropdownMenu.Trigger>

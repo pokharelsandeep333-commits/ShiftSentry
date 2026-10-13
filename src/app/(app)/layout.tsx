@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { getWeekMeter } from "@/lib/dashboard";
+import { demoDashboard } from "@/lib/dashboard-demo";
+import { buildWeekMeter } from "@/lib/week-meter";
 
 /**
  * The chrome for every signed-in route. It lives here rather than inside each
@@ -14,8 +17,11 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
  * they must render without a session.
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  if (!isSupabaseConfigured()) return <AppShell isDemo>{children}</AppShell>;
+  if (!isSupabaseConfigured()) return <AppShell isDemo weekMeter={Promise.resolve(buildWeekMeter(demoDashboard.jobs, demoDashboard.globalLimitMinutes))}>{children}</AppShell>;
   const profile = await requireUser();
 
-  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email}>{children}</AppShell>;
+  // Not awaited: the header meter streams in behind its own Suspense boundary,
+  // so no page waits on it. A revalidating Server Action refreshes every
+  // dynamic segment, this layout included, so the meter follows each save.
+  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email} userName={profile.display_name} weekMeter={getWeekMeter(profile)}>{children}</AppShell>;
 }

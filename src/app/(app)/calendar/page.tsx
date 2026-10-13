@@ -34,7 +34,7 @@ const GOOGLE_NOTES = {
  *
  * Laid out after Google Calendar: on a desktop the page is exactly one screen
  * tall -- it pulls in half the shell's top padding and most of its bottom one,
- * leaving the header plus 2rem, 6.75rem in all -- and the grid takes
+ * leaving the header plus 2rem, 6.5rem in all -- and the grid takes
  * whatever the toolbar leaves, scrolling its hours inside rather than the page.
  * From `xl` a rail on the left holds Add shift, a month picker and the colour
  * legend; narrower, the grid keeps the width (Add shift is in the shell header).
@@ -59,7 +59,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   return <>
     <CalendarViewMemory view={range.view} explicit={view === "week" || view === "month"} date={date} />
     {showSync && <GoogleSyncTrigger />}
-    <div className="flex flex-col gap-4 lg:-mb-8 lg:-mt-4 lg:h-[calc(100dvh-6.75rem)] lg:min-h-[34rem] xl:grid xl:grid-cols-[13.5rem_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] xl:gap-5">
+    <div className="flex flex-col gap-4 lg:-mb-8 lg:-mt-4 lg:h-[calc(100dvh-6.5rem)] lg:min-h-[34rem] xl:grid xl:grid-cols-[13.5rem_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)] xl:gap-5">
       <div className="flex min-h-0 min-w-0 flex-col gap-3 lg:gap-2 xl:col-start-2 xl:row-start-1">
         {/* One row on a desktop. On a phone the view switch sits beside the
             title and the date controls take the next row; DOM order stays the

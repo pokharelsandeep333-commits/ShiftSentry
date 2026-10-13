@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
+import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ClipboardClock, Drama, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { createLocalPreference } from "@/lib/local-preference";
-import { cn } from "@/lib/utils";
+import { cn, formatMinutes } from "@/lib/utils";
+import { limitPosition, type WeekMeter } from "@/lib/week-meter";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
 import { Brand } from "@/components/brand";
@@ -78,11 +79,19 @@ function NavPill({ name, className }: { name?: string; className: string }) {
   return name ? <ViewTransition name={name} share="nav-pill" default="none">{pill}</ViewTransition> : pill;
 }
 
+/**
+ * The header's controls share one shape: a 36px circle from md, like the
+ * landing bar's, and 44px below it, the touch-target floor. Ghost until
+ * hovered. The one filled control is Add shift, and it does not glow: the
+ * header sits on every page, so nothing in it should shout.
+ */
+const headerIconButton = "size-11 shrink-0 rounded-full md:size-9";
+
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
 
-  return <Button variant="ghost" size="icon" className="size-11 sm:size-10" onClick={() => setTheme(isDark ? "light" : "dark")} aria-label="Toggle color theme">
+  return <Button variant="ghost" size="icon" className={headerIconButton} onClick={() => setTheme(isDark ? "light" : "dark")} aria-label="Toggle color theme">
     {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
   </Button>;
 }
@@ -107,7 +116,7 @@ function SidebarToggle() {
     else delete document.documentElement.dataset.sidebar;
     sidebarPreference.write(next);
   }
-  return <Button variant="ghost" size="icon" className="hidden shrink-0 lg:inline-flex" onClick={toggle} title="Toggle sidebar" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="desktop-sidebar">
+  return <Button variant="ghost" size="icon" className={cn(headerIconButton, "hidden lg:inline-flex")} onClick={toggle} title="Toggle sidebar" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} aria-controls="desktop-sidebar">
     {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
   </Button>;
 }
@@ -214,7 +223,7 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
   }, [open]);
 
   return <>
-    <Button ref={menuTriggerRef} variant="ghost" size="icon" className="size-11 shrink-0 sm:size-10 lg:hidden" onClick={() => setOpen(true)} aria-label="Open navigation menu" aria-expanded={open} aria-controls="mobile-navigation"><Menu className="size-5" /></Button>
+    <Button ref={menuTriggerRef} variant="ghost" size="icon" className={cn(headerIconButton, "lg:hidden")} onClick={() => setOpen(true)} aria-label="Open navigation menu" aria-expanded={open} aria-controls="mobile-navigation"><Menu className="size-5" /></Button>
     {/* The header wrapping this trigger sets `backdrop-blur`, which makes it the
         containing block for `position: fixed` descendants. Rendered in place, the
         overlay and panel would be clipped to the header box. Portal to `body`. */}
@@ -234,9 +243,56 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
   </>;
 }
 
-export function AppShell({ children, isAdmin = false, isDemo = false, userEmail }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string }) {
+// The raw amber and coral tokens are fill colours: as 14px text on white they
+// fall to 2.2:1 and 3.7:1. Mixed toward the ink they clear 4.5:1 in light mode,
+// and in dark mode the mix only pales them against the dark card.
+const METER_TONE = { calm: "text-[var(--foreground)]", warning: "text-[color-mix(in_srgb,var(--warning)_60%,var(--foreground))]", danger: "text-[color-mix(in_srgb,var(--danger)_70%,var(--foreground))]" } as const;
+
+function meterNote(meter: WeekMeter) {
+  if (meter.limitMinutes === null) return "No weekly limit";
+  const over = meter.plannedMinutes - meter.limitMinutes;
+  return over > 0 ? `${formatMinutes(over)} over` : `${formatMinutes(-over)} left`;
+}
+
+/**
+ * The week against its limit, on every page: the product's one number, kept
+ * where the eye starts. Job colours fill the bar, worked time solid and
+ * planned time faint, and the figure turns amber from 80% and coral at the
+ * limit -- the dashboard's ladder, from the same total.
+ */
+function WeekMeterLink({ weekMeter }: { weekMeter: Promise<WeekMeter | null> }) {
+  const meter = use(weekMeter);
+  if (!meter) return null;
+  const tick = limitPosition(meter);
+  const summary = meter.limitMinutes === null
+    ? `This week: ${formatMinutes(meter.plannedMinutes)} planned, no weekly limit set. Open overview.`
+    : `This week: ${formatMinutes(meter.plannedMinutes)} of ${formatMinutes(meter.limitMinutes)} planned, ${meterNote(meter)}. Open overview.`;
+
+  return <Link href="/" aria-label={summary} className="group flex h-9 min-w-0 items-center gap-3 rounded-full px-3.5 transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
+    <span aria-hidden="true" className="whitespace-nowrap text-xs font-medium text-[var(--muted-foreground)]">This week</span>
+    <span aria-hidden="true" className="relative flex h-2 w-24 shrink-0 gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)] lg:w-32 xl:w-44 2xl:w-56">
+      {meter.segments.map((segment) => <span key={`${segment.jobId}-${segment.scheduled}`} title={`${segment.name}: ${formatMinutes(segment.minutes)} ${segment.scheduled ? "planned" : "worked"}`} className="h-full rounded-full" style={{ width: `${segment.widthPercent}%`, background: segment.scheduled ? `color-mix(in srgb, ${segment.color} 38%, transparent)` : segment.color }} />)}
+      {tick !== null && tick < 100 && <span className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-[var(--foreground)]" style={{ left: `${tick}%` }} />}
+    </span>
+    <span aria-hidden="true" className="whitespace-nowrap font-display text-sm font-semibold tabular-nums">
+      <span className={METER_TONE[meter.tone]}>{formatMinutes(meter.plannedMinutes)}</span>
+      {meter.limitMinutes !== null && <span className="font-medium text-[var(--muted-foreground)]"> / {formatMinutes(meter.limitMinutes)}</span>}
+    </span>
+    <span aria-hidden="true" className={cn("hidden whitespace-nowrap text-xs font-medium xl:inline", meter.tone === "calm" ? "text-[var(--muted-foreground)]" : METER_TONE[meter.tone])}>{meterNote(meter)}</span>
+  </Link>;
+}
+
+function WeekMeterPlaceholder() {
+  return <span aria-hidden="true" className="flex h-9 items-center gap-3 px-3.5">
+    <span className="text-xs font-medium text-[var(--muted-foreground)]">This week</span>
+    <span className="h-2 w-24 rounded-full bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)] lg:w-32 xl:w-44 2xl:w-56" />
+  </span>;
+}
+
+export function AppShell({ children, isAdmin = false, isDemo = false, userEmail, userName, weekMeter }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string; userName?: string | null; weekMeter?: Promise<WeekMeter | null> }) {
   const pathname = usePathname();
   const desktopItems = isAdmin ? [...menuNavigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : menuNavigation;
+  const section = desktopItems.find((item) => isNavigationActive(pathname, item.href));
 
   return <div className="app-canvas app-frame min-h-screen lg:grid lg:grid-cols-[292px_minmax(0,1fr)]">
     <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-xl focus:bg-[var(--primary)] focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-[var(--primary-foreground)] focus:shadow-2xl focus:shadow-[var(--primary-glow)]">Skip to content</a>
@@ -259,7 +315,25 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail 
       </div>
     </aside>
     <div className="min-w-0">
-      <header className="px-3 pt-3 sm:px-5 lg:px-6"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-1 rounded-[1.25rem] border bg-[var(--background)]/90 px-2 shadow-lg shadow-black/[0.03] sm:h-16 sm:px-3"><div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2"><SidebarToggle /><MobileNavigation pathname={pathname} isAdmin={isAdmin} /><Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2" /></Link></div><div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5"><ThemeToggle /><Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants({ size: "sm" }), "size-11 rounded-xl p-0 sm:h-8 sm:w-auto sm:px-3")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>{!isDemo && <AccountMenu email={userEmail} />}</div></div></header>
+      {/* Left and right groups both flex from zero, so the week meter sits on
+          the bar's true centre whatever the two sides hold. Sized like the
+          landing's top bar (56px, 36px controls from md) and, from lg, 16px
+          down so its top lines up with the sidebar card's. The calendar page's
+          `100dvh - 6.5rem` counts this: change both together. */}
+      <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-4"><div className="premium-card mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border bg-[var(--card)]/82 px-2.5">
+        <div className="flex min-w-0 flex-1 basis-0 items-center gap-1 sm:gap-2">
+          <SidebarToggle />
+          <MobileNavigation pathname={pathname} isAdmin={isAdmin} />
+          <Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2" /></Link>
+          {section && <p className="hidden truncate font-display text-[15px] font-semibold tracking-[-0.02em] lg:block">{section.label}</p>}
+        </div>
+        {weekMeter && <div className="hidden min-w-0 md:block"><Suspense fallback={<WeekMeterPlaceholder />}><WeekMeterLink weekMeter={weekMeter} /></Suspense></div>}
+        <div className="flex min-w-0 flex-1 basis-0 items-center justify-end gap-1 sm:gap-2">
+          <ThemeToggle />
+          <Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants(), "size-11 rounded-full p-0 shadow-none hover:shadow-none sm:w-auto sm:px-4 md:h-9")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>
+          {!isDemo && <AccountMenu email={userEmail} name={userName} />}
+        </div>
+      </div></header>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12">{children}</main>
       <BottomNavigation pathname={pathname} />
     </div>
