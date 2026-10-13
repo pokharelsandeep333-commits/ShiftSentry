@@ -1,6 +1,6 @@
 # Account and privacy operations
 
-Implementation prepared October 11, 2026. This describes the review branch; it does not assert that its migration, pages, or daily job are deployed. Operator: Sandeep Pokharel, South Dakota, United States. Contact: contact@sandeeppokharel.com.np. No postal address is asserted.
+Implementation prepared October 11, 2026 and released through PR #95; on October 12, 2026 `/api/health` reported a commit containing it and the daily retention workflow had completed successfully on `main`. The manual checks under **Release verification** below are not recorded here as done. Operator: Sandeep Pokharel, South Dakota, United States. Contact: contact@sandeeppokharel.com.np. No postal address is asserted.
 
 ## Account agreement and rights
 
