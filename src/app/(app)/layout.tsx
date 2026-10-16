@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { AnnouncementSlot } from "@/components/announcement-slot";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -23,5 +24,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Not awaited: the header meter streams in behind its own Suspense boundary,
   // so no page waits on it. A revalidating Server Action refreshes every
   // dynamic segment, this layout included, so the meter follows each save.
-  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email} userName={profile.display_name} weekMeter={getWeekMeter(profile)}>{children}</AppShell>;
+  // The admin announcement streams the same way, above the page body and
+  // outside the page template, so it does not slide with page changes.
+  return <AppShell isAdmin={profile.role === "ADMIN"} userEmail={profile.email} userName={profile.display_name} weekMeter={getWeekMeter(profile)}>
+    <Suspense fallback={null}><AnnouncementSlot /></Suspense>
+    {children}
+  </AppShell>;
 }

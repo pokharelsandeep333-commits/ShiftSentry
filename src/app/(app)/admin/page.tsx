@@ -1,15 +1,14 @@
 export const metadata = { title: "Administration | ShiftSentry" };
 
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdminOverview } from "@/components/admin/admin-overview";
 import { requireAdmin } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { loadAuditRows } from "@/lib/admin-audit-server";
+import { getUsageStats } from "@/lib/admin-stats";
 
 export const dynamic = "force-dynamic";
 
-// The account counts are one line under the title rather than three equal stat cards: they are a status, not the page's subject.
-const toolLink = "-mx-2 flex items-center justify-between gap-4 rounded-xl px-2 py-3.5 transition-colors hover:bg-[var(--surface-subtle)]";
-
-export default async function AdminPage() { await requireAdmin(); const [users, active, disabled, recent] = await Promise.all([prisma.profile.count(), prisma.profile.count({ where: { disabledAt: null } }), prisma.profile.count({ where: { disabledAt: { not: null } } }), prisma.auditEvent.findMany({ take: 5, orderBy: { createdAt: "desc" }, include: { actor: { select: { email: true } } } })]); return <><PageHeader title="Platform overview" description={`${users} account${users === 1 ? "" : "s"} · ${active} active · ${disabled} disabled`} /><div className="grid gap-6 lg:grid-cols-2"><Card><CardHeader><CardTitle>Admin tools</CardTitle></CardHeader><CardContent className="divide-y"><Link className={toolLink} href="/admin/users"><span><b>User support</b><span className="mt-1 block text-sm text-[var(--muted-foreground)]">Search, inspect, disable, or reset accounts.</span></span><ArrowRight className="size-4 shrink-0 text-[var(--muted-foreground)]" /></Link><Link className={toolLink} href="/admin/audit"><span><b>Audit log</b><span className="mt-1 block text-sm text-[var(--muted-foreground)]">Review administrative activity.</span></span><ArrowRight className="size-4 shrink-0 text-[var(--muted-foreground)]" /></Link><Link className={toolLink} href="/admin/health"><span><b>System health</b><span className="mt-1 block text-sm text-[var(--muted-foreground)]">Check application and database status.</span></span><ArrowRight className="size-4 shrink-0 text-[var(--muted-foreground)]" /></Link></CardContent></Card><Card><CardHeader><CardTitle>Recent admin actions</CardTitle></CardHeader><CardContent className="space-y-2">{recent.length ? recent.map((event) => <div key={event.id} className="rounded-xl p-2.5 transition-colors hover:bg-[var(--surface-subtle)]"><p className="text-sm font-medium">{event.action}</p><p className="mt-1 text-xs text-[var(--muted-foreground)]">{event.actor?.email ?? "System"} · {event.createdAt.toLocaleString()}</p></div>) : <p className="text-sm text-[var(--muted-foreground)]">No administrative actions yet.</p>}</CardContent></Card></div></>; }
+export default async function AdminPage() {
+  const admin = await requireAdmin();
+  const [stats, recent] = await Promise.all([getUsageStats(), loadAuditRows({ take: 6 })]);
+  return <AdminOverview stats={stats} recent={recent} timeZone={admin.time_zone} />;
+}

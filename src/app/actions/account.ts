@@ -6,8 +6,7 @@ import { accountDeletionSchema, hasRecentAuthentication, legalAcceptanceSchema, 
 import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { deleteAccountSafely } from "@/lib/account-deletion";
-import { decryptToken, parseEncryptionKey } from "@/lib/google/token-crypto";
-import { revokeToken } from "@/lib/google/client";
+import { revokeStoredCalendarToken } from "@/lib/google/revoke-stored";
 import type { FormActionState } from "@/lib/form-state";
 
 const allowAccept = createRateLimiter({ limit: 10, windowMs: 60_000 });
@@ -46,12 +45,7 @@ export async function deleteOwnAccount(_previous: FormActionState, form: FormDat
       const { error } = await admin.auth.admin.signOut(token, "global");
       if (error) throw new Error("Session revocation failed.");
     },
-    revokeCalendar: async () => {
-      const { data, error } = await admin.from("google_calendar_connections").select("refresh_token_ciphertext").eq("user_id", user.id).maybeSingle();
-      if (error) throw new Error("Calendar lookup failed.");
-      const encryptionKey = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY;
-      if (data && encryptionKey) await revokeToken(decryptToken(data.refresh_token_ciphertext, user.id, parseEncryptionKey(encryptionKey)));
-    },
+    revokeCalendar: () => revokeStoredCalendarToken(admin, user.id),
     deleteAccount: async () => {
       const { error } = await admin.auth.admin.deleteUser(user.id, false);
       if (error) throw new Error("Auth deletion failed.");

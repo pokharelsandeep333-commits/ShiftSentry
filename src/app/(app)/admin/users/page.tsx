@@ -1,12 +1,30 @@
-export const metadata = { title: "User support | ShiftSentry" };
+export const metadata = { title: "Users | ShiftSentry" };
 
-import Link from "next/link";
-import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import type { Prisma } from "@prisma/client";
+import { UsersView } from "@/components/admin/users-view";
+import { SavedToast } from "@/components/saved-toast";
 import { requireAdmin } from "@/lib/auth";
+import { USERS_PAGE_SIZE, readUserFilters } from "@/lib/admin-users";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) { await requireAdmin(); const query = (await searchParams).q?.trim() ?? ""; const users = await prisma.profile.findMany({ where: query ? { OR: [{ email: { contains: query, mode: "insensitive" } }, { displayName: { contains: query, mode: "insensitive" } }] } : undefined, orderBy: { createdAt: "desc" }, take: 100 }); return <><PageHeader title="User support" description="Search account records and inspect user data." actions={<form><input name="q" defaultValue={query} placeholder="Search email or name" className="field-control w-64 text-sm" /></form>} /><Card><CardContent className="space-y-1 p-2 sm:p-3">{users.map((user) => <Link href={`/admin/users/${user.id}`} key={user.id} className="flex items-center gap-4 rounded-2xl p-4 transition-colors hover:bg-[var(--surface-subtle)]"><div className="min-w-0 flex-1"><p className="truncate font-medium">{user.displayName ?? user.email}</p><p className="truncate text-sm text-[var(--muted-foreground)]">{user.email}</p></div><Badge variant={user.disabledAt ? "danger" : user.role === "ADMIN" ? "default" : "success"} className="rounded-xl">{user.disabledAt ? "Disabled" : user.role}</Badge></Link>)}{!users.length && <p className="p-10 text-center text-sm text-[var(--muted-foreground)]">No matching users.</p>}</CardContent></Card></>; }
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireAdmin();
+  const params = await searchParams;
+  const filters = readUserFilters(params);
+  const where: Prisma.ProfileWhereInput = {
+    ...(filters.q ? { OR: [{ email: { contains: filters.q, mode: "insensitive" } }, { displayName: { contains: filters.q, mode: "insensitive" } }] } : {}),
+    ...(filters.status === "active" ? { disabledAt: null, deletionPendingAt: null }
+      : filters.status === "disabled" ? { disabledAt: { not: null } }
+      : filters.status === "pending" ? { deletionPendingAt: { not: null } }
+      : {}),
+    ...(filters.role === "admin" ? { role: "ADMIN" } : filters.role === "user" ? { role: "USER" } : {}),
+  };
+  const [users, total] = await Promise.all([
+    prisma.profile.findMany({ where, orderBy: { createdAt: "desc" }, take: USERS_PAGE_SIZE, skip: (filters.page - 1) * USERS_PAGE_SIZE, select: { id: true, email: true, displayName: true, role: true, disabledAt: true, deletionPendingAt: true, createdAt: true } }),
+    prisma.profile.count({ where }),
+  ]);
+  // `?deleted=1` is where deleteAccountAsAdmin lands; the toast strips the flag.
+  return <>{params.deleted === "1" && <SavedToast message="Account deleted" clearParams={["deleted"]} />}<UsersView users={users} total={total} filters={filters} /></>;
+}

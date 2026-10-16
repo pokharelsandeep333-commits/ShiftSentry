@@ -24,6 +24,22 @@ create table auth.users (
   raw_user_meta_data jsonb not null default '{}'::jsonb
 );
 
+-- Just the columns admin_revoke_user_sessions touches, with the same cascade
+-- the live project has (verified 2026-10-16): deleting a session removes its
+-- refresh tokens, and deleting the user removes their sessions.
+create table auth.sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create table auth.refresh_tokens (
+  id bigserial primary key,
+  token text,
+  user_id text,
+  session_id uuid references auth.sessions(id) on delete cascade
+);
+
 -- The real auth.uid() reads the verified JWT. Here it reads a GUC the tests set,
 -- which is enough to exercise every policy and every `(select auth.uid())`.
 create or replace function auth.uid()

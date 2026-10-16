@@ -804,6 +804,54 @@ export type Database = {
           },
         ];
       };
+      // 20261016140000_site_announcements.sql. Signed-in users hold a column
+      // grant on id, message, tone, created_at and cleared_at only; select
+      // those columns by name.
+      site_announcements: {
+        Row: {
+          cleared_at: string | null;
+          cleared_by: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          message: string;
+          tone: "info" | "warning";
+        };
+        Insert: {
+          cleared_at?: string | null;
+          cleared_by?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          message: string;
+          tone?: "info" | "warning";
+        };
+        Update: {
+          cleared_at?: string | null;
+          cleared_by?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          message?: string;
+          tone?: "info" | "warning";
+        };
+        Relationships: [
+          {
+            foreignKeyName: "site_announcements_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "site_announcements_cleared_by_fkey";
+            columns: ["cleared_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       week_notes: {
         Row: {
           body: string;
