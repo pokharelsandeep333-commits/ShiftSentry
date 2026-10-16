@@ -1,14 +1,17 @@
 import { Suspense } from "react";
+import { CalendarClock, Palette, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SavedToast } from "@/components/saved-toast";
+import { AccountLinks } from "@/components/settings/account-links";
 import { GoogleCalendarCard, GoogleCalendarCardSkeleton } from "@/components/settings/google-calendar-card";
+import { SETTINGS_SECTIONS } from "@/components/settings/sections";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { SettingsNav } from "@/components/settings/settings-nav";
+import { SettingsSection } from "@/components/settings/settings-section";
+import { ThemeChoice } from "@/components/settings/theme-choice";
 import { requireUser } from "@/lib/auth";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { timeZoneOptions } from "@/lib/time-zones";
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
 
 export const metadata = { title: "Settings | ShiftSentry" };
 
@@ -27,26 +30,37 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const [profile, { saved, google }] = await Promise.all([requireUser(), searchParams]);
   const savedMessage = typeof saved === "string" ? SAVED_MESSAGES[saved] : undefined;
   const googleProblem = typeof google === "string" ? GOOGLE_PROBLEMS[google] : undefined;
+  const googleOn = isGoogleCalendarEnabled();
+  const sections = SETTINGS_SECTIONS.filter((section) => googleOn || section.id !== "google-calendar");
 
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
     {googleProblem && <SavedToast message={googleProblem} clearParams={["google"]} />}
-    <PageHeader title="Settings" description="Your time zone and week-start day determine how every cap is calculated." />
-    <div className="grid gap-6">
-      <Card className="max-w-2xl">
-        <CardHeader><CardTitle>Work schedule</CardTitle></CardHeader>
-        <CardContent>
+    <PageHeader title="Settings" description="Your profile, how your week is counted, connected calendars, and your account." />
+    <div className="grid gap-6 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-8 xl:gap-10">
+      <SettingsNav sections={sections} />
+      <div className="grid min-w-0 max-w-3xl gap-6">
+        <SettingsSection id="week" icon={CalendarClock} title="Profile and week" description="Your name, and the time zone, week and weekly limit every total is measured against.">
           <SettingsForm
+            email={profile.email}
             displayName={profile.display_name ?? ""}
             timeZone={profile.time_zone}
             timeZones={timeZoneOptions(profile.time_zone)}
             weekStartsOn={profile.week_starts_on}
             globalWeeklyLimitMinutes={profile.global_weekly_limit_minutes}
           />
-        </CardContent>
-      </Card>
-      {isGoogleCalendarEnabled() && <Suspense fallback={<GoogleCalendarCardSkeleton />}><GoogleCalendarCard userId={profile.id} /></Suspense>}
-      <Card className="max-w-2xl"><CardHeader><CardTitle>Account and privacy</CardTitle></CardHeader><CardContent><p className="mb-4 text-sm leading-6 text-[var(--muted-foreground)]">Download your records, review agreements, or permanently delete your account.</p><Link href="/account" className={buttonVariants({ variant: "outline" })}>Manage account data</Link></CardContent></Card>
+        </SettingsSection>
+
+        {googleOn && <Suspense fallback={<GoogleCalendarCardSkeleton />}><GoogleCalendarCard userId={profile.id} /></Suspense>}
+
+        <SettingsSection id="appearance" icon={Palette} title="Appearance" description="How ShiftSentry looks on this device. The moon and sun in the header switch it too.">
+          <ThemeChoice />
+        </SettingsSection>
+
+        <SettingsSection id="account" icon={ShieldCheck} title="Account and privacy" description="These tools open on their own page and work even when the workspace is locked.">
+          <AccountLinks />
+        </SettingsSection>
+      </div>
     </div>
   </>;
 }

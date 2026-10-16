@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { saveCalendarSelection } from "@/app/actions/calendar";
-import { Button } from "@/components/ui/button";
+import { Button, PendingLabel } from "@/components/ui/button";
 import { emptySavedFormState } from "@/lib/form-state";
 import type { GoogleCalendarListEntry } from "@/lib/google/client";
 
@@ -12,7 +12,8 @@ export function CalendarPickerForm({ calendars, selected }: { calendars: GoogleC
 
   return <form action={formAction} className="grid gap-4">
     <fieldset className="grid gap-2">
-      <legend className="mb-2 text-sm font-semibold">Calendars ShiftSentry reads</legend>
+      <legend className="mb-1 text-sm font-semibold">Calendars ShiftSentry reads</legend>
+      <p className="mb-1 text-xs leading-5 text-[var(--muted-foreground)]">Events from the ticked calendars appear on your Calendar page and are checked for clashes.</p>
       {calendars.map((calendar) => <label key={calendar.id} className="flex min-h-11 items-center gap-3 rounded-xl px-2 text-sm hover:bg-[var(--surface-subtle)]">
         <input type="checkbox" name="calendarId" value={calendar.id} defaultChecked={isSelected(calendar)} className="size-4 accent-[var(--primary)]" />
         <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: calendar.color }} />
@@ -21,6 +22,6 @@ export function CalendarPickerForm({ calendars, selected }: { calendars: GoogleC
     </fieldset>
     {state.message && <p role="alert" className="text-sm font-medium text-[var(--danger)]">{state.message}</p>}
     {state.savedAt && !state.message && <p role="status" className="text-sm text-[var(--success)]">Saved.</p>}
-    <div><Button type="submit" variant="outline" disabled={pending}>{pending ? "Saving…" : "Save calendars"}</Button></div>
+    <div><Button type="submit" variant="outline" disabled={pending}><PendingLabel pending={pending} label="Save calendars" pendingLabel="Saving…" /></Button></div>
   </form>;
 }
