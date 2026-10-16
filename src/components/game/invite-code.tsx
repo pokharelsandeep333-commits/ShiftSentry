@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
  * refused by permission policy, and a copy button that silently does nothing is
  * worse than one that admits it.
  */
-export function InviteCode({ code }: { code: string }) {
+export function InviteCode({ code, bare = false }: { code: string; bare?: boolean }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [showQr, setShowQr] = useState(false);
@@ -46,7 +46,8 @@ export function InviteCode({ code }: { code: string }) {
     }
   }
 
-  return <div className="rounded-2xl border border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[var(--primary-soft)] p-5 text-center">
+  // `bare` drops the box when a parent card already supplies one (the lobby's status card).
+  return <div className={cn("text-center", !bare && "rounded-2xl border border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[var(--primary-soft)] p-5")}>
     <p className="text-sm font-semibold text-[var(--primary)]">Invite code</p>
     <p className="mt-2 font-display text-4xl font-semibold tracking-[0.28em] sm:text-5xl" aria-label={`Invite code ${code.split("").join(" ")}`}>{code}</p>
 

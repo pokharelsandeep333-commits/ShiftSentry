@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useId, useState, useSyncExternalStore } from "react";
-import { History, RotateCcw, Settings2 } from "lucide-react";
+import { ChevronDown, History, RotateCcw, Settings2 } from "lucide-react";
 import { updateGameSettings } from "@/app/actions/game";
 import { emptySavedFormState } from "@/lib/form-state";
-import { Button } from "@/components/ui/button";
+import { Button, PendingLabel } from "@/components/ui/button";
 import { PremiumSelect, type SelectOption } from "@/components/ui/premium-select";
 import { useToast } from "@/components/ui/toast-provider";
 import { gameSettingsPreference } from "@/lib/game-preferences";
@@ -29,7 +29,7 @@ function FormError({ message }: { message: string }) {
 }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return <section className="grid gap-2.5 border-t pt-4 first:border-t-0 first:pt-0">
+  return <section className="grid gap-2.5 border-t pt-4 first-of-type:border-t-0 first-of-type:pt-0">
     <div>
       <h4 className="text-sm font-semibold">{title}</h4>
       {hint && <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)]">{hint}</p>}
@@ -186,6 +186,10 @@ export function LobbySettingsForm({ roomId, settings, categories }: LobbySetting
   );
 
   const draft = override ?? settings;
+  // How many folded rules the saved room has away from the defaults. A room
+  // that changed one opens the fold, so nothing set is hidden from the host.
+  const moreRulesChanged = (["imposterHint", "hideRoles", "discussionPhase", "banRepeatClues", "imposterFinalGuess", "maxPlayers"] as const)
+    .filter((key) => settings[key] !== DEFAULT_GAME_SETTINGS[key]).length;
   const dirty = override !== null && !gameSettingsEqual(override, settings);
 
   // Offered rather than applied: a room nobody has configured yet can adopt the
@@ -235,52 +239,7 @@ export function LobbySettingsForm({ roomId, settings, categories }: LobbySetting
   >
     <input type="hidden" name="roomId" value={roomId} />
 
-    <Section title="The imposter" hint="How much the imposter is given to work with.">
-      <fieldset className="grid gap-2">
-        <legend className="sr-only">What the imposter is told</legend>
-        {IMPOSTER_HINTS.map((hint) => {
-          const active = draft.imposterHint === hint;
-          return <label key={hint} className={cn(
-            "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[var(--primary-soft)]",
-            active
-              ? "border-[color-mix(in_srgb,var(--primary)_45%,var(--border))] bg-[var(--primary-soft)]"
-              : "bg-[var(--card)]/45 hover:bg-[var(--surface-subtle)]",
-          )}>
-            <input
-              type="radio"
-              name="imposterHint"
-              value={hint}
-              checked={active}
-              onChange={() => update({ imposterHint: hint })}
-              className="sr-only"
-            />
-            <span aria-hidden className={cn(
-              "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border-2 transition-colors",
-              active ? "border-[var(--primary)]" : "border-[var(--border)]",
-            )}>
-              {active && <span className="size-2.5 rounded-full bg-[var(--primary)]" />}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold">{IMPOSTER_HINT_LABELS[hint].label}</span>
-              <span className="mt-0.5 block text-xs leading-5 text-[var(--muted-foreground)]">{IMPOSTER_HINT_LABELS[hint].description}</span>
-            </span>
-          </label>;
-        })}
-      </fieldset>
-
-      <Toggle
-        name="hideRoles"
-        label="Hide roles"
-        hint={canHideRoles(draft.imposterHint)
-          ? "Nobody is told what they are. Everyone just has a word, and you work out whether yours is the odd one."
-          : "Needs the decoy word: with nothing in hand, an empty card tells the imposter what they are."}
-        checked={draft.hideRoles}
-        disabled={!canHideRoles(draft.imposterHint)}
-        onChange={(next) => update({ hideRoles: next })}
-      />
-    </Section>
-
-    <Section title="The round">
+    <Section title="The basics" hint="What most games change between rounds.">
       <div className="grid gap-3 sm:grid-cols-2">
         <Steps
           legend="Imposters"
@@ -299,31 +258,6 @@ export function LobbySettingsForm({ roomId, settings, categories }: LobbySetting
           onChange={(next) => update({ cluePasses: next })}
         />
       </div>
-
-      <Toggle
-        name="discussionPhase"
-        label="Talk before voting"
-        hint="A pause after the last clue with the vote locked, instead of voting opening the instant someone finishes."
-        checked={draft.discussionPhase}
-        onChange={(next) => update({ discussionPhase: next })}
-      />
-      <Toggle
-        name="banRepeatClues"
-        label="No repeated clues"
-        hint="Refuses a clue somebody already said. Echoing the last player is the safest thing an imposter can do."
-        checked={draft.banRepeatClues}
-        onChange={(next) => update({ banRepeatClues: next })}
-      />
-      <Toggle
-        name="imposterFinalGuess"
-        label="Caught imposter can guess"
-        hint="Voted out, they still take the round by naming the word."
-        checked={draft.imposterFinalGuess}
-        onChange={(next) => update({ imposterFinalGuess: next })}
-      />
-    </Section>
-
-    <Section title="The words">
       <Tiers
         legend="How obscure words can get"
         name="wordDifficulty"
@@ -347,21 +281,102 @@ export function LobbySettingsForm({ roomId, settings, categories }: LobbySetting
       </div>
     </Section>
 
-    <Section title="The room">
-      <div className="grid gap-3">
-        <div className="field-label">
-          <span id={`${ids}-max`}>Max players</span>
-          <PremiumSelect
-            key={`max-${resetKey}`}
-            name="maxPlayers"
-            defaultValue={String(draft.maxPlayers)}
-            options={maxPlayerOptions}
-            labelledBy={`${ids}-max`}
-            onValueChange={(value) => update({ maxPlayers: Number(value) })}
+    {/* The rest, folded: most hosts never touch them, and the chips above the
+        form already say what they are set to. Controls inside a closed
+        <details> are still in the form, so Save sends them either way. */}
+    <details className="group rounded-2xl border" open={moreRulesChanged > 0 || undefined}>
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 text-sm font-semibold outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] [&::-webkit-details-marker]:hidden">
+        <span>More rules{moreRulesChanged > 0 && <span className="ml-2 font-normal text-[var(--muted-foreground)]">{moreRulesChanged} changed from the default</span>}</span>
+        <ChevronDown className="size-4 shrink-0 text-[var(--muted-foreground)] transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="grid gap-5 border-t p-4">
+        <Section title="The imposter" hint="How much the imposter is given to work with.">
+          <fieldset className="grid gap-2">
+            <legend className="sr-only">What the imposter is told</legend>
+            {IMPOSTER_HINTS.map((hint) => {
+              const active = draft.imposterHint === hint;
+              return <label key={hint} className={cn(
+                "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[var(--primary-soft)]",
+                active
+                  ? "border-[color-mix(in_srgb,var(--primary)_45%,var(--border))] bg-[var(--primary-soft)]"
+                  : "bg-[var(--card)]/45 hover:bg-[var(--surface-subtle)]",
+              )}>
+                <input
+                  type="radio"
+                  name="imposterHint"
+                  value={hint}
+                  checked={active}
+                  onChange={() => update({ imposterHint: hint })}
+                  className="sr-only"
+                />
+                <span aria-hidden className={cn(
+                  "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border-2 transition-colors",
+                  active ? "border-[var(--primary)]" : "border-[var(--border)]",
+                )}>
+                  {active && <span className="size-2.5 rounded-full bg-[var(--primary)]" />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{IMPOSTER_HINT_LABELS[hint].label}</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-[var(--muted-foreground)]">{IMPOSTER_HINT_LABELS[hint].description}</span>
+                </span>
+              </label>;
+            })}
+          </fieldset>
+
+          <Toggle
+            name="hideRoles"
+            label="Hide roles"
+            hint={canHideRoles(draft.imposterHint)
+              ? "Nobody is told what they are. Everyone just has a word, and you work out whether yours is the odd one."
+              : "Needs the decoy word: with nothing in hand, an empty card tells the imposter what they are."}
+            checked={draft.hideRoles}
+            disabled={!canHideRoles(draft.imposterHint)}
+            onChange={(next) => update({ hideRoles: next })}
           />
-        </div>
+        </Section>
+
+        <Section title="The round">
+
+          <Toggle
+            name="discussionPhase"
+            label="Talk before voting"
+            hint="A pause after the last clue with the vote locked, instead of voting opening the instant someone finishes."
+            checked={draft.discussionPhase}
+            onChange={(next) => update({ discussionPhase: next })}
+          />
+          <Toggle
+            name="banRepeatClues"
+            label="No repeated clues"
+            hint="Refuses a clue somebody already said. Echoing the last player is the safest thing an imposter can do."
+            checked={draft.banRepeatClues}
+            onChange={(next) => update({ banRepeatClues: next })}
+          />
+          <Toggle
+            name="imposterFinalGuess"
+            label="Caught imposter can guess"
+            hint="Voted out, they still take the round by naming the word."
+            checked={draft.imposterFinalGuess}
+            onChange={(next) => update({ imposterFinalGuess: next })}
+          />
+        </Section>
+
+        <Section title="The room">
+          <div className="grid gap-3">
+            <div className="field-label">
+              <span id={`${ids}-max`}>Max players</span>
+              <PremiumSelect
+                key={`max-${resetKey}`}
+                name="maxPlayers"
+                defaultValue={String(draft.maxPlayers)}
+                options={maxPlayerOptions}
+                labelledBy={`${ids}-max`}
+                onValueChange={(value) => update({ maxPlayers: Number(value) })}
+              />
+            </div>
+          </div>
+        </Section>
       </div>
-    </Section>
+    </details>
 
     <FormError message={state.message} />
 
@@ -380,7 +395,7 @@ export function LobbySettingsForm({ roomId, settings, categories }: LobbySetting
         </Button>}
         <Button type="submit" size="sm" disabled={pending || !dirty}>
           <Settings2 className="size-3.5" />
-          {pending ? "Saving…" : "Save settings"}
+          <PendingLabel pending={pending} label="Save settings" pendingLabel="Saving…" />
         </Button>
       </div>
     </div>
