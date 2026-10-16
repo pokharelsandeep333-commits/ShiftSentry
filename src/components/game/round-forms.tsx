@@ -16,6 +16,7 @@ import {
 import { emptyFormState } from "@/lib/form-state";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
+import { PlayerAvatar } from "@/components/game/player-avatar";
 import type { RoundSeat } from "@/lib/game-round";
 import { cn } from "@/lib/utils";
 
@@ -67,9 +68,11 @@ export function ClueForm({ roundId }: { roundId: string }) {
  * no second confirm step between deciding and voting.
  */
 export function VotePanel({
-  roundId, seats, yourVoteTargetId,
+  roundId, seats, yourVoteTargetId, cluesBy,
 }: {
   roundId: string; seats: RoundSeat[]; yourVoteTargetId: string | null;
+  /** Each player's clues, in the order given, so you vote on what was said without scrolling to the clue list. */
+  cluesBy: Record<string, string[]>;
 }) {
   const [state, formAction, pending] = useActionState(submitGameVote, emptyFormState);
   const candidates = seats.filter((seat) => !seat.eliminated && !seat.isYou);
@@ -96,7 +99,7 @@ export function VotePanel({
             // button is the grid item here, and a grid item defaults to
             // min-width:auto -- so with a nowrap name it sized to 296px inside a
             // 288px cell and spilled out, no matter what the span was told.
-            "flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
+            "flex min-h-14 w-full min-w-0 items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
             chosen
               ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-glow)]"
               : "bg-[var(--card)]/45 hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--primary)_35%,var(--border))] hover:bg-[var(--primary-soft)]",
@@ -106,7 +109,15 @@ export function VotePanel({
               min-width:auto and nowrap text reports its whole width as
               min-content, so a long name widens the button instead of
               ellipsing inside it. */}
-          <span className="min-w-0 flex-1 truncate text-left">{seat.displayName}</span>
+          <PlayerAvatar userId={seat.userId} name={seat.displayName} size="sm" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate">{seat.displayName}</span>
+            {/* Wrapping, not truncating: a clue is the evidence, and a cut-off
+                one is worse than a taller button. */}
+            <span className={cn("mt-0.5 block break-words text-xs font-normal", chosen ? "opacity-85" : "text-[var(--muted-foreground)]")}>
+              {cluesBy[seat.userId]?.length ? cluesBy[seat.userId].map((clue) => `“${clue}”`).join(" · ") : "No clue given"}
+            </span>
+          </span>
           <span className="flex shrink-0 items-center gap-2">
             {seat.hasLeft && <span className="text-xs font-normal opacity-70">left</span>}
             {chosen && <><span className="text-xs font-normal">your vote</span><Vote className="size-4" /></>}
@@ -226,17 +237,18 @@ export function AbandonRoundButton({ roundId }: { roundId: string }) {
 /** A seat in the turn order, used by the clue and voting screens. */
 export function SeatRow({ seat, marker }: { seat: RoundSeat; marker?: "turn" | "voted" | "out" }) {
   return <div className={cn(
-    "flex items-center gap-3 rounded-xl border px-3.5 py-2.5",
+    "flex min-w-0 items-center gap-2.5 rounded-xl border px-3 py-2",
     marker === "turn" ? "border-[color-mix(in_srgb,var(--primary)_45%,var(--border))] bg-[var(--primary-soft)]" : "bg-[var(--card)]/45",
     marker === "out" && "opacity-55",
   )}>
-    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--surface-subtle)] text-xs font-bold text-[var(--muted-foreground)]">{seat.turnOrder}</span>
+    <span className="w-4 shrink-0 text-center text-xs font-semibold tabular-nums text-[var(--muted-foreground)]" aria-label={`Turn ${seat.turnOrder}`}>{seat.turnOrder}</span>
+    <PlayerAvatar userId={seat.userId} name={seat.displayName} size="sm" />
     <span className="min-w-0 flex-1 truncate text-sm font-medium">{seat.displayName}</span>
     {/* Outside the truncating span, not inside it. `truncate` clips its
         overflow, so a long enough name would hide the one marker telling you
         which row is yours. */}
     {seat.isYou && <span className="shrink-0 text-xs font-normal text-[var(--muted-foreground)]">(you)</span>}
-    {marker === "turn" && <span className="text-xs font-semibold text-[var(--primary)]">their turn</span>}
+    {marker === "turn" && <span className="shrink-0 text-xs font-semibold text-[var(--primary)]">{seat.isYou ? "your turn" : "their turn"}</span>}
     {marker === "voted" && <Check className="size-4 text-[var(--success)]" />}
     {marker === "out" && <span className="text-xs font-semibold text-[var(--danger)]">voted out</span>}
     {seat.hasLeft && marker !== "out" && <span className="text-xs text-[var(--muted-foreground)]">left</span>}

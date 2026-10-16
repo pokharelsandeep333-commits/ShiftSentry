@@ -1,105 +1,91 @@
 export const metadata = { title: "Jobs | ShiftSentry" };
 
+import Link from "next/link";
+import { BriefcaseBusiness, ChevronRight, Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireUser } from "@/lib/auth";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { archiveJob, deleteJob, deleteJobDeduction, unarchiveJob } from "@/app/actions/work";
-import { AddDeductionForm, CreateJobForm, JobDetailsForm } from "@/components/jobs/job-forms";
-import { JobGoogleForm } from "@/components/jobs/job-google-form";
-import { LoadError } from "@/components/load-error";
-import { listCalendars } from "@/lib/google/client";
-import { isGoogleCalendarEnabled } from "@/lib/google/config";
-import { getConnectionSummary, withCalendarAccess } from "@/lib/google/connection";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
-import { formatCents } from "@/lib/earnings";
-import { formatMinutes } from "@/lib/utils";
+import { deleteJob, unarchiveJob } from "@/app/actions/work";
+import { JobCard } from "@/components/jobs/job-card";
+import { JobAvatar } from "@/components/jobs/job-summary";
+import { jobSavedMessage } from "@/components/jobs/saved-messages";
+import { LoadError } from "@/components/load-error";
 import { SavedToast } from "@/components/saved-toast";
-import { formatInTimeZone } from "date-fns-tz";
-import { JOB_PAY_COLUMNS, describePaySchedule, payScheduleFromColumns } from "@/lib/pay-period";
+import { requireUser } from "@/lib/auth";
+import { formatCents } from "@/lib/earnings";
+import { isGoogleCalendarEnabled } from "@/lib/google/config";
+import { JOB_PAY_COLUMNS } from "@/lib/pay-period";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Confirmation copy for the `?saved=` flag each mutation redirects with. These
- * actions used to only revalidate, so the page re-rendered looking identical
- * and nothing told you the write had landed.
- */
-const SAVED_MESSAGES: Record<string, string> = {
-  "job-created": "Job created",
-  "job-updated": "Job updated",
-  "job-archived": "Job archived",
-  "job-restored": "Job restored",
-  "job-deleted": "Job deleted",
-  "deduction-added": "Deduction added",
-  "deduction-removed": "Deduction removed",
-};
 
 /**
  * PostgREST returns an embedded aggregate as a one-row array. A job with no
  * shifts can be deleted outright; one with shifts is held by the ON DELETE
  * RESTRICT foreign key on shifts.job_id.
  */
-/** The job's pay schedule for its one-line summary, or nothing when it has none. */
-function payScheduleLabel(job: Parameters<typeof payScheduleFromColumns>[0]) {
-  const schedule = payScheduleFromColumns(job);
-  return schedule ? ` · Pay: ${describePaySchedule(schedule)}` : "";
-}
-
 function shiftCount(job: { shifts: { count: number }[] }) {
   return job.shifts[0]?.count ?? 0;
 }
 
+const addJobLink = <Link href="/jobs/new" className={buttonVariants()}><Plus className="size-4" />Add job</Link>;
+
+/**
+ * The jobs list. Each job is one card that opens its own page (/jobs/[id]),
+ * where it is edited; this page only shows what each job is set to, so a new
+ * user can see at a glance what a job holds. Nothing here calls Google: the
+ * calendar settings live on the job's page, so the list never waits on it.
+ */
 export default async function JobsPage({ searchParams }: { searchParams: Promise<{ saved?: string | string[] }> }) {
   const [profile, { saved }] = await Promise.all([requireUser(), searchParams]);
   const supabase = await createServerSupabaseClient();
-  // Google settings show for any connected account, even when Google is
-  // unreachable -- turning sync off must never depend on Google answering.
-  // The calendar list is fetched alongside the jobs, not before them.
-  const googleOn = isGoogleCalendarEnabled();
-  const [googleConnection, googleAccess, { data: allJobs, error: jobsError }] = await Promise.all([
-    googleOn ? getConnectionSummary(profile.id) : Promise.resolve(null),
-    googleOn ? withCalendarAccess(profile.id, (token) => listCalendars(token)) : Promise.resolve(null),
-    supabase.from("jobs").select(`id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_keyword,google_calendar_id,google_sync,${JOB_PAY_COLUMNS},job_deductions(id,name,rate_basis_points),shifts(count)`).eq("user_id", profile.id).order("name"),
-  ]);
-  const googleCalendars = googleConnection ? (googleAccess?.status === "ok" ? googleAccess.value : []) : null;
+  const { data: allJobs, error: jobsError } = await supabase.from("jobs").select(`id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_sync,${JOB_PAY_COLUMNS},job_deductions(id,name,rate_basis_points),shifts(count)`).eq("user_id", profile.id).order("name");
   const jobs = (allJobs ?? []).filter((job) => !job.archived_at);
   const archivedJobs = (allJobs ?? []).filter((job) => job.archived_at);
-  const today = formatInTimeZone(new Date(), profile.time_zone, "yyyy-MM-dd");
-  const savedMessage = SAVED_MESSAGES[Array.isArray(saved) ? saved[0] ?? "" : saved ?? ""];
+  const savedMessage = jobSavedMessage(saved);
+  const googleOn = isGoogleCalendarEnabled();
 
-  const header = <PageHeader title="Jobs, pay, and deductions" description="Rates are saved onto each new shift, so changing them never changes past earnings." />;
+  const header = <PageHeader title="Jobs" description="Each job holds the pay rate, tax, deductions and weekly limit that its shifts are measured against." actions={jobs.length ? addJobLink : undefined} />;
   if (jobsError) return <>{header}<LoadError what="jobs" /></>;
 
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
     {header}
-    <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-      <Card>
-        <CardHeader><CardTitle>Your active jobs</CardTitle></CardHeader>
-        <CardContent className="divide-y">{jobs.length ? jobs.map((job) => <div key={job.id} className="py-5 first:pt-0 last:pb-0">
-          <div className="flex items-start gap-3"><span className="mt-1.5 size-3 shrink-0 rounded-full shadow-sm" style={{ background: job.color }} /><div className="min-w-0 flex-1"><p className="font-display text-lg font-semibold">{job.name}</p><p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">{formatCents(job.hourly_rate_cents)}/hr · {job.tax_rate_basis_points / 100}% tax · {job.weekly_limit_minutes ? `${formatMinutes(job.weekly_limit_minutes)} weekly limit` : "No hour limit"}{payScheduleLabel(job)}</p></div><form action={archiveJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Archive" confirmLabel="Archive job?" /></form></div>
-          <details className="group mt-4 border-t pt-4"><summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-1 py-1 text-sm font-semibold text-[var(--primary)] outline-none transition-colors hover:text-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]"><span>Manage job settings, pay, and deductions</span><span className="text-lg transition-transform duration-300 group-open:rotate-45">+</span></summary><div className="mt-4 grid gap-5">
-            <JobDetailsForm id={job.id} name={job.name} hourlyRateCents={job.hourly_rate_cents} taxRateBasisPoints={job.tax_rate_basis_points} color={job.color} weeklyLimitMinutes={job.weekly_limit_minutes} paySchedule={payScheduleFromColumns(job)} today={today} />
-            {googleCalendars && <JobGoogleForm jobId={job.id} jobName={job.name} keyword={job.google_keyword} calendarId={job.google_calendar_id} sync={job.google_sync} calendars={googleCalendars} />}
-            <div><p className="mb-2 text-sm font-semibold">Percentage deductions</p><div className="space-y-2">{job.job_deductions.map((deduction) => <div key={deduction.id} className="flex items-center justify-between rounded-xl bg-[var(--surface-subtle)] px-3 py-2.5 text-sm"><span>{deduction.name} · {deduction.rate_basis_points / 100}%</span><form action={deleteJobDeduction}><input type="hidden" name="id" value={deduction.id} /><Button size="sm" variant="ghost">Remove</Button></form></div>)}</div><AddDeductionForm jobId={job.id} /></div>
-          </div></details>
-        </div>) : <div className="rounded-2xl border border-dashed px-5 py-10 text-center"><p className="text-sm leading-6 text-[var(--muted-foreground)]">No jobs yet. A job holds the pay rate, tax, and weekly cap that every shift you log against it inherits.</p></div>}</CardContent>
+
+    {jobs.length ? <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {jobs.map((job) => <li key={job.id}><JobCard job={job} googleOn={googleOn} /></li>)}
+      <li>
+        <Link href="/jobs/new" className="press flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-[1.35rem] border border-dashed p-5 text-sm font-semibold text-[var(--muted-foreground)] outline-none hover:border-[color-mix(in_srgb,var(--primary)_40%,var(--border))] hover:bg-[var(--primary-soft)] hover:text-[var(--primary)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
+          <span className="grid size-10 place-items-center rounded-xl border border-dashed"><Plus className="size-5" aria-hidden="true" /></span>
+          Add another job
+        </Link>
+      </li>
+    </ul> : <Card className="grid justify-items-center gap-4 px-6 py-12 text-center">
+      <span className="grid size-12 place-items-center rounded-2xl bg-[var(--primary-soft)] text-[var(--primary)]"><BriefcaseBusiness className="size-6" aria-hidden="true" /></span>
+      <div>
+        <h2 className="font-display text-xl font-semibold">Add your first job</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--muted-foreground)]">A job holds the pay rate, tax and weekly limit that every shift you log against it uses. You need one before you can log a shift.</p>
+      </div>
+      {addJobLink}
+    </Card>}
+
+    {archivedJobs.length > 0 && <details className="group mt-8" open={saved === "job-archived" || undefined}>
+      <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 rounded-xl px-2 text-sm font-semibold text-[var(--muted-foreground)] outline-none hover:text-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden="true" />
+        Archived jobs ({archivedJobs.length})
+      </summary>
+      <Card className="mt-3 p-5">
+        <p className="mb-2 max-w-2xl text-sm leading-6 text-[var(--muted-foreground)]">Archived jobs are hidden from your dashboard and left out of hours and earnings. Restore one to log shifts against it again. A job can only be deleted once it has no shifts, so its earnings history is never lost.</p>
+        <ul className="divide-y">{archivedJobs.map((job) => <li key={job.id} className="flex flex-wrap items-center gap-3 py-3">
+          <JobAvatar name={job.name} color={job.color} muted />
+          <div className="min-w-0 flex-1"><p className="truncate font-medium">{job.name}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{formatCents(job.hourly_rate_cents)}/hr · archived {new Date(job.archived_at!).toLocaleDateString()}{shiftCount(job) ? ` · ${shiftCount(job)} shift${shiftCount(job) === 1 ? "" : "s"} logged` : ""}</p></div>
+          <div className="flex items-center gap-2">
+            {!shiftCount(job) && <form action={deleteJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Delete" confirmLabel="Delete job?" size="sm" /></form>}
+            <form action={unarchiveJob}><input type="hidden" name="id" value={job.id} /><Button variant="outline" size="sm">Restore</Button></form>
+          </div>
+        </li>)}</ul>
       </Card>
-      {archivedJobs.length > 0 && <Card>
-        <CardHeader><CardTitle>Archived jobs</CardTitle></CardHeader>
-        <CardContent><p className="mb-2 text-sm leading-6 text-[var(--muted-foreground)]">Archived jobs are hidden from your dashboard and excluded from hours and earnings. Restore one to start logging shifts against it again. A job can only be deleted once it has no shifts, so its earnings history is never lost.</p><div className="divide-y">{archivedJobs.map((job) => <div key={job.id} className="flex items-center gap-3 py-3">
-          <span className="size-3 shrink-0 rounded-full opacity-60" style={{ background: job.color }} />
-          <div className="min-w-0 flex-1"><p className="truncate font-medium">{job.name}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{formatCents(job.hourly_rate_cents)}/hr · archived {new Date(job.archived_at!).toLocaleDateString()}</p></div>
-          {shiftCount(job) ? <span className="text-xs font-medium text-[var(--muted-foreground)]">{shiftCount(job)} shift{shiftCount(job) === 1 ? "" : "s"} logged</span> : <form action={deleteJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Delete" confirmLabel="Delete job?" /></form>}
-          <form action={unarchiveJob}><input type="hidden" name="id" value={job.id} /><Button variant="outline" size="sm">Restore</Button></form>
-        </div>)}</div></CardContent>
-      </Card>}
-      <Card className="h-fit">
-        <CardHeader><CardTitle>Add a job</CardTitle></CardHeader>
-        <CardContent><CreateJobForm today={today} /></CardContent>
-      </Card>
-    </div>
+    </details>}
   </>;
 }

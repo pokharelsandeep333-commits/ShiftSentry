@@ -159,7 +159,7 @@ export function DashboardView({ data, calendarSlot }: { data: DashboardData; cal
 
     <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
       <Reveal><MonthlyAllocationChart allocation={data.monthlyJobAllocation} metric="hours" /></Reveal>
-      <Reveal delay={0.06}><Card className="h-full"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <EmptyState message="Add a job to start tracking its limit." href="/jobs" cta="Create your first job" />}</CardContent></Card></Reveal>
+      <Reveal delay={0.06}><Card className="h-full"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <EmptyState message="Add a job to start tracking its limit." href="/jobs/new" cta="Create your first job" />}</CardContent></Card></Reveal>
     </section>
 
     <section className={cn("mt-6 grid grid-cols-1 gap-6", calendarSlot && "xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]")}>
@@ -598,8 +598,8 @@ function DashboardHeading({ data }: { data: DashboardData }) {
 }
 
 const FIRST_RUN_STEPS = [
-  { href: "/jobs", cta: "Create a job", title: "Add your first job", body: "Its pay rate, tax, and deductions are copied onto every shift you log against it, so a later raise never rewrites what you already earned." },
-  { href: "/settings", cta: "Set your cap", title: "Set your weekly limit", body: "Confirm your time zone and the day your week starts, then set the weekly hour cap you need to stay under. Everything is measured in that zone." },
+  { href: "/jobs/new", cta: "Create a job", title: "Add your first job", body: "Its pay rate, tax, and deductions are copied onto every shift you log against it, so a later raise never rewrites what you already earned." },
+  { href: "/settings#week", cta: "Set your cap", title: "Set your weekly limit", body: "Confirm your time zone and the day your week starts, then set the weekly hour cap you need to stay under. Everything is measured in that zone." },
   { href: "/shifts/new", cta: "Log a shift", title: "Log a shift", body: "Past and future both count. Scheduled shifts feed the projection, so you are warned before you go over rather than after." },
 ];
 

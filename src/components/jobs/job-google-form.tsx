@@ -30,12 +30,11 @@ export function JobGoogleForm({ jobId, jobName, keyword, calendarId, sync, calen
   // Google may be unreachable: keep the saved choice selectable rather than silently dropping it.
   if (calendarId && !options.some((option) => option.value === calendarId)) options.push({ value: calendarId, label: calendarId === "primary" ? "Primary calendar" : "Saved calendar" });
 
-  return <form action={formAction} onSubmit={(event) => { const box = event.currentTarget.elements.namedItem("sync"); syncOnSave.current = box instanceof HTMLInputElement && box.checked; }} className="grid gap-3 border-t pt-5">
+  return <form action={formAction} onSubmit={(event) => { const box = event.currentTarget.elements.namedItem("sync"); syncOnSave.current = box instanceof HTMLInputElement && box.checked; }} className="grid gap-4">
     <input type="hidden" name="jobId" value={jobId} />
-    <p className="text-sm font-semibold">Google Calendar</p>
     <div className="grid gap-3 sm:grid-cols-2">
-      <label className="field-label text-xs"><span>Title keyword</span><input name="keyword" defaultValue={keyword ?? ""} maxLength={80} placeholder={jobName} className="field-control h-10 text-sm" /></label>
-      <div className="field-label text-xs"><span id={`google-calendar-${jobId}`}>Calendar</span><PremiumSelect name="calendarId" defaultValue={calendarId ?? ""} options={options} labelledBy={`google-calendar-${jobId}`} /></div>
+      <label className="field-label"><span>Title keyword</span><input name="keyword" defaultValue={keyword ?? ""} maxLength={80} placeholder={jobName} className="field-control" /></label>
+      <div className="field-label"><span id={`google-calendar-${jobId}`}>Calendar</span><PremiumSelect name="calendarId" defaultValue={calendarId ?? ""} options={options} labelledBy={`google-calendar-${jobId}`} /></div>
     </div>
     <p className="text-xs leading-5 text-[var(--muted-foreground)]">Google events with the keyword as whole words in the title are this job&apos;s shifts (at least 2 characters). Leave it blank to use the job name. Changing the keyword or calendar stops matching old events; their shifts are kept.</p>
     <label className="flex min-h-11 items-start gap-3 rounded-xl px-1 text-sm">
@@ -44,6 +43,6 @@ export function JobGoogleForm({ jobId, jobName, keyword, calendarId, sync, calen
     </label>
     {state.message && <p role="alert" className="text-sm font-medium text-[var(--danger)]">{state.message}</p>}
     {state.savedAt && !state.message && <p role="status" className="text-sm text-[var(--success)]">Saved.</p>}
-    <div className="flex justify-end"><Button size="sm" variant="outline" type="submit" disabled={pending}><PendingLabel pending={pending} label="Save Google settings" pendingLabel="Saving…" /></Button></div>
+    <div className="flex justify-end border-t pt-5"><Button variant="outline" type="submit" disabled={pending}><PendingLabel pending={pending} label="Save calendar settings" pendingLabel="Saving…" /></Button></div>
   </form>;
 }
