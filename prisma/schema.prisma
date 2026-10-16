@@ -31,6 +31,10 @@ model Profile {
   googleCalendarConnection GoogleCalendarConnection?
   weekNotes                WeekNote[]
   legalAcceptances         LegalAcceptance[]
+  supportNotes             AdminUserNote[] @relation("NoteSubject")
+  supportNotesWritten      AdminUserNote[] @relation("NoteAuthor")
+  announcementsPosted      SiteAnnouncement[] @relation("AnnouncementAuthor")
+  announcementsCleared     SiteAnnouncement[] @relation("AnnouncementClearer")
 
   @@map("profiles")
 }
@@ -150,6 +154,41 @@ model AuditEvent {
   @@index([createdAt])
   @@index([targetUserId, createdAt])
   @@map("audit_events")
+}
+
+/// Admin-only support notes (20261016120000_admin_support_tools.sql). No API
+/// role can reach the table; included in the subject's export without the author.
+model AdminUserNote {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  authorId  String?  @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  subject   Profile  @relation("NoteSubject", fields: [userId], references: [id], onDelete: Cascade)
+  author    Profile? @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)], map: "admin_user_notes_user_created")
+  @@index([authorId], map: "admin_user_notes_author")
+  @@map("admin_user_notes")
+}
+
+/// Admin-posted banner notices (20261016140000_site_announcements.sql). At most
+/// one live (clearedAt null); signed-in users read only the live one's text.
+model SiteAnnouncement {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  message   String
+  tone      String    @default("info")
+  createdBy String?   @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  clearedAt DateTime? @map("cleared_at") @db.Timestamptz(6)
+  clearedBy String?   @map("cleared_by") @db.Uuid
+  author    Profile?  @relation("AnnouncementAuthor", fields: [createdBy], references: [id], onDelete: SetNull)
+  clearer   Profile?  @relation("AnnouncementClearer", fields: [clearedBy], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)], map: "site_announcements_created")
+  @@index([createdBy], map: "site_announcements_created_by")
+  @@index([clearedBy], map: "site_announcements_cleared_by")
+  @@map("site_announcements")
 }
 
 model GoogleCalendarConnection {
