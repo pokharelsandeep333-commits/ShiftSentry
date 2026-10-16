@@ -6,10 +6,12 @@ import { fromZonedTime } from "date-fns-tz";
  * ends as a class starts does not clash. All-day, "free" and declined events
  * never clash -- a birthday should not flag every shift that day.
  */
-export type CalendarEvent = { id: string; calendarId: string; title: string; startsAt: string; endsAt: string; allDay: boolean; free: boolean; declined: boolean };
+/** `seriesId` is Google's `recurringEventId`: set on every occurrence of a repeating event, absent otherwise. */
+export type CalendarEvent = { id: string; calendarId: string; title: string; startsAt: string; endsAt: string; allDay: boolean; free: boolean; declined: boolean; seriesId?: string | null };
 
 export type GoogleEventResource = {
   id?: string;
+  recurringEventId?: string;
   status?: string;
   summary?: string;
   transparency?: string;
@@ -41,6 +43,7 @@ export function normalizeGoogleEvent(event: GoogleEventResource, calendarId: str
     allDay: Boolean(event.start?.date && !event.start.dateTime),
     free: event.transparency === "transparent",
     declined: event.attendees?.some((attendee) => attendee.self && attendee.responseStatus === "declined") ?? false,
+    seriesId: event.recurringEventId ?? null,
   };
 }
 

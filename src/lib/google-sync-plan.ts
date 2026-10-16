@@ -15,7 +15,8 @@ import { isSameShift, titleHasKeyword } from "./shift-match";
  *     keyword edit). It goes to `verify`, and `resolveMissing` decides once
  *     Google has been asked about that one event. A calendar that failed to
  *     load puts nothing in `verify`;
- *   - an event the user deleted here (the job's ignore list) stays deleted;
+ *   - an event the user deleted here (the job's ignore list) stays deleted, and
+ *     so does every occurrence of a repeating event whose series they stopped;
  *   - an event longer than the 24-hour shift limit is reported, not created.
  *
  * Refusals by the database (caps, overlaps) happen when the plan is applied.
@@ -37,7 +38,50 @@ export type MissingResolution = { action: "delete" } | { action: "detach" } | { 
 
 const DAY_MS = 24 * 60 * 60_000;
 const keywordOf = (job: SyncJob) => (job.keyword ?? job.name).trim();
-const isIgnored = (job: SyncJob, eventId: string) => job.ignored.some((key) => key.endsWith(`:${eventId}`));
+/**
+ * The repeating event an occurrence belongs to, or null for a one-off event.
+ * Google's `recurringEventId` is the authority; a shift only stores the event
+ * id, so the id itself is read as a fallback -- Google names an occurrence
+ * `<series id>_<original start>` (`..._20261210T140000Z`, `..._20261210` all day).
+ */
+export function seriesIdOf(event: { id: string; seriesId?: string | null }) {
+  if (event.seriesId) return event.seriesId;
+  return /^(.+)_\d{8}(T\d{6}Z)?$/.exec(event.id)?.[1] ?? null;
+}
+
+/**
+ * Ignore-list keys, `<calendar>:<event>` for one occurrence and
+ * `<calendar>:series:<series>` for a whole repeating event. Matching ignores the
+ * calendar part, because an invite arrives on several calendars under one id.
+ */
+export const eventIgnoreKey = (calendarId: string, eventId: string) => `${calendarId}:${eventId}`;
+export const seriesIgnoreKey = (calendarId: string, seriesId: string) => `${calendarId}:series:${seriesId}`;
+
+/** How many ignore keys a job keeps; the oldest go first. */
+const IGNORE_LIMIT = 500;
+
+/** The job's ignore list with one more occurrence on it. */
+export function withEventIgnored(ignored: string[], calendarId: string, eventId: string) {
+  return [...new Set([...ignored, eventIgnoreKey(calendarId, eventId)])].slice(-IGNORE_LIMIT);
+}
+
+/**
+ * The job's ignore list with a whole repeating event on it. Keys for single
+ * occurrences of that series are dropped, since the series key covers them --
+ * otherwise a series the user deleted one week at a time would use up the list.
+ */
+export function withSeriesIgnored(ignored: string[], calendarId: string, seriesId: string) {
+  const kept = ignored.filter((key) => key.includes(":series:") || seriesIdOf({ id: key.slice(key.lastIndexOf(":") + 1) }) !== seriesId);
+  return [...new Set([...kept, seriesIgnoreKey(calendarId, seriesId)])].slice(-IGNORE_LIMIT);
+}
+
+export function isIgnored(job: Pick<SyncJob, "ignored">, event: { id: string; seriesId?: string | null }) {
+  const series = new Set([event.seriesId, seriesIdOf({ id: event.id })].filter((value): value is string => Boolean(value)));
+  return job.ignored.some((key) => {
+    const seriesAt = key.indexOf(":series:");
+    return seriesAt === -1 ? key.endsWith(`:${event.id}`) : series.has(key.slice(seriesAt + ":series:".length));
+  });
+}
 const sameInstant = (a: string, b: string) => Date.parse(a) === Date.parse(b);
 
 /** The job an event belongs to: its keyword as whole words in the title, from an allowed calendar; the longest keyword wins, ties by name. */
@@ -62,7 +106,7 @@ export function planShiftSync({ events, jobs, shifts, selectedCalendarIds, faile
   for (const event of [...events].sort((a, b) => a.startsAt.localeCompare(b.startsAt))) {
     if (chosen.has(event.id)) continue;
     const job = jobForEvent(event, syncJobs, selectedCalendarIds);
-    if (job && !isIgnored(job, event.id)) chosen.set(event.id, { event, job });
+    if (job && !isIgnored(job, event)) chosen.set(event.id, { event, job });
   }
 
   const linkedByEvent = new Map(shifts.filter((shift) => shift.eventId).map((shift) => [shift.eventId!, shift]));
@@ -111,6 +155,8 @@ export function resolveMissing(pending: PendingCheck, event: CalendarEvent | "go
   if (event === "gone" || event.declined) return pending.adopted ? { action: "detach" } : { action: "delete" };
   const job = jobForEvent(event, jobs.filter((candidate) => candidate.sync), selectedCalendarIds);
   if (!job) return { action: "detach" };
+  // Its series was stopped since the shift was made: treat it as gone.
+  if (isIgnored(job, event)) return pending.adopted ? { action: "detach" } : { action: "delete" };
   if (Date.parse(event.endsAt) - Date.parse(event.startsAt) > DAY_MS) return { action: "detach" };
   const changed = !sameInstant(pending.startsAt, event.startsAt) || !sameInstant(pending.endsAt, event.endsAt) || pending.jobId !== job.id;
   return changed ? { action: "update", jobId: job.id, startsAt: event.startsAt, endsAt: event.endsAt } : { action: "keep" };

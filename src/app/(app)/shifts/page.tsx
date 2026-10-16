@@ -12,6 +12,7 @@ import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { SavedToast } from "@/components/saved-toast";
 import { ShiftRowActions } from "@/components/shifts/shift-row-actions";
+import { seriesIdOf } from "@/lib/google-sync-plan";
 import { WeekDisclosure } from "@/components/shifts/week-disclosure";
 import { WeekNote } from "@/components/shifts/week-note";
 import { formatCents } from "@/lib/earnings";
@@ -61,6 +62,7 @@ function createdMessage(created: number, skipped: number) {
 /** What a mutation that redirected back here should confirm. */
 function savedMessage(params: SearchParams) {
   if (single(params.saved) === "shift-deleted") return "Shift deleted";
+  if (single(params.saved) === "series-stopped") return "Repeating event removed. Google sync won’t add it again.";
   if (single(params.saved) === "shift-notes") return "Notes saved";
   return createdMessage(Number(params.created ?? 0), Number(params.skipped ?? 0));
 }
@@ -220,6 +222,7 @@ function ShiftListRow({ shift, timeZone, weeks }: { shift: ShiftRow; timeZone: s
       editHref={`/shifts/${shift.id}/edit`}
       duplicateHref={job && !job.archived_at ? duplicateHref(shift, timeZone) : undefined}
       weeks={weeks}
+      repeating={Boolean(shift.google_event_id && seriesIdOf({ id: shift.google_event_id }))}
     />
   </div>;
 }

@@ -82,7 +82,7 @@ export async function listEvents(accessToken: string, calendarIds: string[], ran
       singleEvents: "true",
       orderBy: "startTime",
       maxResults: String(maxResults),
-      fields: "items(id,status,summary,transparency,start,end,attendees(self,responseStatus))",
+      fields: "items(id,recurringEventId,status,summary,transparency,start,end,attendees(self,responseStatus))",
     });
     return (body.items ?? []).map((item) => normalizeGoogleEvent(item, calendarId, timeZone)).filter((event): event is CalendarEvent => event !== null);
   }));
@@ -115,7 +115,7 @@ export async function listEventsForSync(accessToken: string, calendarIds: string
         singleEvents: "true",
         orderBy: "startTime",
         maxResults: "250",
-        fields: "items(id,status,summary,transparency,start,end,attendees(self,responseStatus)),nextPageToken",
+        fields: "items(id,recurringEventId,status,summary,transparency,start,end,attendees(self,responseStatus)),nextPageToken",
         ...(pageToken ? { pageToken } : {}),
       }, budget);
       budget.recordEvents(body.items?.length ?? 0);
@@ -165,7 +165,7 @@ export async function listEventsForSync(accessToken: string, calendarIds: string
  */
 export async function getEvent(accessToken: string, calendarId: string, eventId: string, timeZone: string, budget?: SyncBudget): Promise<CalendarEvent | "gone"> {
   const url = new URL(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
-  url.search = new URLSearchParams({ fields: "id,status,summary,transparency,start,end,attendees(self,responseStatus)" }).toString();
+  url.search = new URLSearchParams({ fields: "id,recurringEventId,status,summary,transparency,start,end,attendees(self,responseStatus)" }).toString();
   const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, signal: budget?.requestSignal() ?? AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   if (response.status === 404 || response.status === 410) return "gone";
   if (response.status === 401) throw new GoogleAuthError("expired");

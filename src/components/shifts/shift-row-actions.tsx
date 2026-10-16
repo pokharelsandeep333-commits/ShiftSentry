@@ -13,6 +13,8 @@ type ShiftRowActionsProps = {
   duplicateHref?: string;
   /** How far back the log is loaded, so a delete returns to the same depth. */
   weeks: number;
+  /** The shift comes from a repeating Google event, so deleting can stop the whole series. */
+  repeating?: boolean;
 };
 
 const linkClass = "rounded-lg px-3 py-2 text-xs font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]";
@@ -24,11 +26,13 @@ const menuItemClass = "flex cursor-pointer items-center gap-3 rounded-xl px-3 py
  * they collapse behind one trigger; above it they stay visible, because there
  * is room and a visible control beats a hidden one.
  */
-export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks }: ShiftRowActionsProps) {
+export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks, repeating = false }: ShiftRowActionsProps) {
   const deleteForm = <form action={deleteShift}>
     <input type="hidden" name="id" value={shiftId} />
     <input type="hidden" name="weeks" value={weeks} />
-    <ConfirmSubmit label="Delete" confirmLabel="Delete shift?" />
+    {repeating
+      ? <ConfirmSubmit label="Delete" confirmLabel="Delete this repeating shift?" detail="It comes from a repeating Google Calendar event. Deleting only this one leaves the other weeks syncing." confirmActionLabel="Delete only this shift" alternative={{ label: "Delete all upcoming and stop syncing", name: "scope", value: "series" }} />
+      : <ConfirmSubmit label="Delete" confirmLabel="Delete shift?" />}
   </form>;
 
   return <>

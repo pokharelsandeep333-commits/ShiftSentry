@@ -6,6 +6,7 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { UNLINKED_SHIFT } from "@/lib/google/unlink";
+import { seriesIdOf, withEventIgnored, withSeriesIgnored } from "@/lib/google-sync-plan";
 import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalDeductionRate, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
 import { deductionSchema, jobSchema, payScheduleFormSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, weekNoteSchema } from "@/lib/validation";
 import { isWeekStart } from "@/lib/week-notes";
@@ -202,14 +203,17 @@ export async function updateShift(_previousState: ShiftActionState, formData: Fo
 export async function deleteShift(formData: FormData) {
   const profile = await requireUser();
   const id = resourceId(formData);
+  const wholeSeries = formData.get("scope") === "series";
   const supabase = await createServerSupabaseClient();
-  // A synced shift the user deletes stays deleted: its event goes on the job's
-  // ignore list so the next Google sync does not add it back.
-  if (!(await forgetGoogleEvent(supabase, profile.id, id))) fail("Unable to delete the shift. Please try again.");
+  // A synced shift the user deletes stays deleted: its event -- or, when they
+  // choose, every occurrence of its repeating event -- goes on the job's ignore
+  // list so the next Google sync does not add it back.
+  const remembered = wholeSeries ? await stopGoogleSeries(supabase, profile.id, id) : await forgetGoogleEvent(supabase, profile.id, id);
+  if (!remembered) fail("Unable to delete the shift. Please try again.");
   const { error } = await supabase.from("shifts").delete().eq("id", id).eq("user_id", profile.id);
   if (error) fail("Unable to delete the shift. Please try again.");
-  revalidatePath("/"); revalidatePath("/shifts");
-  redirect(`/shifts?${new URLSearchParams({ weeks: String(clampWeeks(formData.get("weeks"))), saved: "shift-deleted" })}`);
+  revalidatePath("/"); revalidatePath("/shifts"); revalidatePath("/calendar");
+  redirect(`/shifts?${new URLSearchParams({ weeks: String(clampWeeks(formData.get("weeks"))), saved: wholeSeries ? "series-stopped" : "shift-deleted" })}`);
 }
 
 export async function createJob(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
@@ -365,10 +369,37 @@ export async function saveWeekNote(_previous: SavedFormState, formData: FormData
 async function forgetGoogleEvent(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, shiftId: string) {
   const { data: linked } = await supabase.from("shifts").select("job_id,google_calendar_id,google_event_id,jobs(google_sync_ignored)").eq("id", shiftId).eq("user_id", userId).maybeSingle();
   if (!linked?.google_calendar_id || !linked.google_event_id) return true;
-  const key = `${linked.google_calendar_id}:${linked.google_event_id}`;
-  const ignored = [...new Set([...(linked.jobs?.google_sync_ignored ?? []), key])].slice(-500);
+  const ignored = withEventIgnored(linked.jobs?.google_sync_ignored ?? [], linked.google_calendar_id, linked.google_event_id);
   const { error } = await supabase.from("jobs").update({ google_sync_ignored: ignored }).eq("id", linked.job_id).eq("user_id", userId);
   return !error;
+}
+
+/**
+ * Stops a repeating Google event syncing into its job: the series goes on the
+ * job's ignore list, and its other upcoming shifts go with it. Deleting one
+ * occurrence only ever ignored that occurrence, so a weekly event kept coming
+ * back as sync's eight-week window reached each new week. Occurrences that have
+ * started are history and stay; a hand-typed shift that sync adopted is only
+ * unlinked, never deleted. The shift itself is deleted by the caller.
+ */
+async function stopGoogleSeries(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, shiftId: string) {
+  const { data: linked } = await supabase.from("shifts").select("job_id,google_calendar_id,google_event_id,jobs(google_sync_ignored)").eq("id", shiftId).eq("user_id", userId).maybeSingle();
+  if (!linked?.google_calendar_id || !linked.google_event_id) return true;
+  const seriesId = seriesIdOf({ id: linked.google_event_id });
+  if (!seriesId) return forgetGoogleEvent(supabase, userId, shiftId);
+
+  const ignored = withSeriesIgnored(linked.jobs?.google_sync_ignored ?? [], linked.google_calendar_id, seriesId);
+  const { error } = await supabase.from("jobs").update({ google_sync_ignored: ignored }).eq("id", linked.job_id).eq("user_id", userId);
+  if (error) return false;
+
+  const { data: upcoming, error: listError } = await supabase.from("shifts").select("id,google_event_id,google_adopted").eq("user_id", userId).eq("job_id", linked.job_id).neq("id", shiftId).not("google_event_id", "is", null).gt("starts_at", new Date().toISOString());
+  if (listError) return false;
+  const siblings = (upcoming ?? []).filter((row) => row.google_event_id && seriesIdOf({ id: row.google_event_id }) === seriesId);
+  const removeIds = siblings.filter((row) => !row.google_adopted).map((row) => row.id);
+  const unlinkIds = siblings.filter((row) => row.google_adopted).map((row) => row.id);
+  if (removeIds.length && (await supabase.from("shifts").delete().in("id", removeIds).eq("user_id", userId)).error) return false;
+  if (unlinkIds.length && (await supabase.from("shifts").update(UNLINKED_SHIFT).in("id", unlinkIds).eq("user_id", userId)).error) return false;
+  return true;
 }
 
 /**
