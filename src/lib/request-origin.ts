@@ -19,6 +19,24 @@ export function publicRequestOrigin(request: Request) {
 }
 
 /**
+ * Browsers mark every request with Sec-Fetch-Site, and a cross-site page
+ * cannot forge it. Without it (an older browser), fall back to comparing the
+ * Origin's host with the public host -- hosts, not whole origins, so a port or
+ * scheme Nginx reports differently cannot lock the feature out.
+ */
+export function isSameSiteRequest(request: Request) {
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (fetchSite) return fetchSite === "same-origin";
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).hostname === new URL(publicRequestOrigin(request)).hostname;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Where to send someone after an OAuth or confirm-email round trip, set by the
  * login form and read once by the callback. A cookie rather than a query
  * parameter on `redirectTo` because the allow list matches the whole URL.

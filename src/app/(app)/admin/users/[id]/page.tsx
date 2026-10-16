@@ -1,13 +1,57 @@
-import Link from "next/link";
-import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { notFound } from "next/navigation";
+import { AdminUserView } from "@/components/admin/user-view";
 import { requireAdmin } from "@/lib/auth";
+import { loadAuditRows } from "@/lib/admin-audit-server";
+import { LEGAL_VERSION } from "@/lib/legal";
 import { prisma } from "@/lib/prisma";
-import { sendPasswordReset, setAccountDisabled } from "@/app/actions/admin";
+import { createAdminSupabaseClient } from "@/lib/supabase/server";
+import { resourceIdSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Account administration | ShiftSentry" };
+export const metadata = { title: "Account | ShiftSentry" };
 
-export default async function AdminUserPage({ params }: { params: Promise<{ id: string }> }) { await requireAdmin(); const { id } = await params; const user = await prisma.profile.findUnique({ where: { id }, include: { jobs: { orderBy: { createdAt: "desc" } }, shifts: { take: 10, orderBy: { startsAt: "desc" }, include: { job: { select: { name: true } } } } } }); if (!user) return <><p>User not found.</p></>; return <><PageHeader title={user.displayName ?? user.email} description={user.email} actions={<Link href="/admin/users" className={buttonVariants({ variant: "outline" })}>Back to users</Link>} /><div className="grid gap-6 lg:grid-cols-2"><Card><CardHeader><CardTitle>Account</CardTitle></CardHeader><CardContent className="space-y-3"><p className="flex justify-between text-sm"><span className="text-[var(--muted-foreground)]">Role</span><Badge>{user.role}</Badge></p><p className="flex justify-between text-sm"><span className="text-[var(--muted-foreground)]">Status</span><Badge variant={user.disabledAt ? "danger" : "success"}>{user.disabledAt ? "Disabled" : "Enabled"}</Badge></p><p className="text-sm text-[var(--muted-foreground)]">Joined {user.createdAt.toLocaleDateString()}</p><div className="flex flex-wrap gap-3 pt-3"><form action={setAccountDisabled}><input type="hidden" name="userId" value={user.id} /><input type="hidden" name="disabled" value={String(!user.disabledAt)} /><Button variant={user.disabledAt ? "default" : "danger"}>{user.disabledAt ? "Enable account" : "Disable account"}</Button></form><form action={sendPasswordReset}><input type="hidden" name="userId" value={user.id} /><Button variant="outline">Send password reset</Button></form></div></CardContent></Card><Card><CardHeader><CardTitle>Data summary</CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><p>{user.jobs.length} jobs</p><p>{user.shifts.length} recent shifts</p><div className="mt-4 divide-y">{user.shifts.map((shift) => <div className="py-2" key={shift.id}><b>{shift.job.name}</b><p className="text-[var(--muted-foreground)]">{shift.startsAt.toLocaleString()} – {shift.endsAt.toLocaleTimeString()}</p></div>)}</div></CardContent></Card></div></>; }
+/**
+ * Counts and account facts only (see AdminUserView). The Auth lookup and the
+ * room count use the admin Supabase client because Prisma does not read the
+ * Auth schema or the game tables; either failing leaves its field blank rather
+ * than failing the page.
+ */
+export default async function AdminUserPage({ params }: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin();
+  const { id } = await params;
+  if (!resourceIdSchema.safeParse(id).success) notFound();
+
+  const supabase = createAdminSupabaseClient();
+  const [profile, jobs, shifts, weekNotes, acceptance, google, authUser, rooms, audit, notes] = await Promise.all([
+    prisma.profile.findUnique({ where: { id }, select: { id: true, email: true, displayName: true, role: true, disabledAt: true, deletionPendingAt: true, createdAt: true } }),
+    prisma.job.count({ where: { userId: id } }),
+    prisma.shift.count({ where: { userId: id } }),
+    prisma.weekNote.count({ where: { userId: id } }),
+    prisma.legalAcceptance.findFirst({ where: { userId: id }, orderBy: { acceptedAt: "desc" }, select: { version: true } }),
+    prisma.googleCalendarConnection.findUnique({ where: { userId: id }, select: { status: true } }),
+    supabase.auth.admin.getUserById(id).catch(() => null),
+    Promise.resolve(supabase.from("game_room_players").select("room_id", { count: "exact", head: true }).eq("user_id", id)).catch(() => null),
+    loadAuditRows({ where: { targetUserId: id }, take: 10 }),
+    prisma.adminUserNote.findMany({ where: { userId: id }, orderBy: { createdAt: "desc" }, take: 50, select: { id: true, body: true, createdAt: true, author: { select: { email: true } } } }),
+  ]);
+  if (!profile) notFound();
+
+  const auth = authUser && !authUser.error ? authUser.data.user : null;
+  const providers = auth ? (Array.isArray(auth.app_metadata?.providers) ? auth.app_metadata.providers as string[] : auth.app_metadata?.provider ? [String(auth.app_metadata.provider)] : []) : null;
+
+  return <AdminUserView
+    isSelf={profile.id === admin.id}
+    timeZone={admin.time_zone}
+    audit={audit}
+    notes={notes.map((note) => ({ id: note.id, body: note.body, createdAt: note.createdAt, author: note.author?.email ?? null }))}
+    user={{
+      ...profile,
+      lastSignInAt: auth?.last_sign_in_at ? new Date(auth.last_sign_in_at) : null,
+      providers,
+      acceptedVersion: acceptance?.version ?? null,
+      currentVersion: LEGAL_VERSION,
+      google: google ? (google.status === "needs_reconnect" ? "needs_reconnect" : "active") : null,
+      counts: { jobs, shifts, weekNotes, rooms: rooms && !rooms.error ? rooms.count ?? 0 : null },
+    }}
+  />;
+}

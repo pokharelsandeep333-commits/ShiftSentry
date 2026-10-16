@@ -1,10 +1,22 @@
 export const metadata = { title: "Audit log | ShiftSentry" };
 
-import { PageHeader } from "@/components/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { AuditView } from "@/components/admin/audit-view";
 import { requireAdmin } from "@/lib/auth";
+import { AUDIT_PAGE_SIZE, readAuditFilters } from "@/lib/admin-audit";
+import { auditWhere, loadAuditRows } from "@/lib/admin-audit-server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function AuditPage() { await requireAdmin(); const events = await prisma.auditEvent.findMany({ take: 100, orderBy: { createdAt: "desc" }, include: { actor: { select: { email: true } } } }); return <><PageHeader title="Audit log" description="Every administrative account action is retained here." /><Card><CardContent className="space-y-1 p-2 sm:p-3">{events.length ? events.map((event) => <div className="rounded-2xl p-3.5 transition-colors hover:bg-[var(--surface-subtle)]" key={event.id}><p className="font-medium">{event.action}</p><p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">{event.actor?.email ?? "System"} · {event.createdAt.toLocaleString()} {event.targetUserId ? `· user ${event.targetUserId}` : ""}</p></div>) : <p className="p-10 text-center text-sm text-[var(--muted-foreground)]">No events have been recorded.</p>}</CardContent></Card></>; }
+export default async function AuditPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const admin = await requireAdmin();
+  const params = await searchParams;
+  const filters = readAuditFilters((name) => params[name]);
+  const where = await auditWhere(filters);
+  const [rows, total, admins] = await Promise.all([
+    loadAuditRows({ where, take: AUDIT_PAGE_SIZE, skip: (filters.page - 1) * AUDIT_PAGE_SIZE }),
+    prisma.auditEvent.count({ where }),
+    prisma.profile.findMany({ where: { role: "ADMIN" }, select: { id: true, email: true }, orderBy: { email: "asc" } }),
+  ]);
+  return <AuditView rows={rows} total={total} filters={filters} admins={admins} timeZone={admin.time_zone} />;
+}
