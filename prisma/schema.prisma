@@ -69,6 +69,11 @@ model Job {
   googleCalendarId         String?  @map("google_calendar_id")
   googleSync               Boolean  @default(false) @map("google_sync")
   googleSyncIgnored        String[] @default([]) @map("google_sync_ignored")
+  paySchedule              String   @default("none") @map("pay_schedule")
+  payIntervalWeeks         Int?     @map("pay_interval_weeks") @db.SmallInt
+  payAnchorDate            DateTime? @map("pay_anchor_date") @db.Date
+  payMonthDay              Int?     @map("pay_month_day") @db.SmallInt
+  paydayOffsetDays         Int?     @map("payday_offset_days") @db.SmallInt
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user                     Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)

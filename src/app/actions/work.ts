@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { UNLINKED_SHIFT } from "@/lib/google/unlink";
 import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalDeductionRate, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
-import { deductionSchema, jobSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, weekNoteSchema } from "@/lib/validation";
+import { deductionSchema, jobSchema, payScheduleFormSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, weekNoteSchema } from "@/lib/validation";
 import { isWeekStart } from "@/lib/week-notes";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { clampWeeks } from "@/lib/shift-log";
@@ -23,6 +23,11 @@ function weeklyLimitMinutes(value: FormDataEntryValue | null) {
   const hours = Number(raw);
   if (!Number.isFinite(hours) || hours <= 0 || hours > 168) fail("Enter a weekly limit between 1 and 168 hours, or leave it blank for no cap.");
   return Math.round(hours * 60);
+}
+/** The job form's pay schedule fields as `jobs` columns. A form without them (an older page) means no schedule. */
+function paySchedule(formData: FormData) {
+  const parsed = payScheduleFormSchema.safeParse({ frequency: formData.get("payFrequency") ?? "none", anchorDate: formData.get("payAnchorDate"), monthDay: formData.get("payMonthDay"), paydayOffsetDays: formData.get("paydayOffsetDays") });
+  return parsed.success ? parsed.data : fail(parsed.error.issues[0]?.message ?? "Check the pay schedule.");
 }
 function resourceId(formData: FormData, name = "id") { const parsed = resourceIdSchema.safeParse(formData.get(name)); return parsed.success ? parsed.data : fail("Invalid resource identifier."); }
 
@@ -212,8 +217,9 @@ export async function createJob(_previousState: FormActionState, formData: FormD
   const problem = await attempt(async () => {
     const parsed = jobSchema.safeParse({ name: formData.get("name"), color: formData.get("color"), weeklyLimitMinutes: weeklyLimitMinutes(formData.get("weeklyLimitHours")), hourlyRateCents: cents(formData.get("hourlyRate")), taxRateBasisPoints: basisPoints(formData.get("taxRate"), "tax rate") });
     if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid job.");
+    const schedule = paySchedule(formData);
     const supabase = await createServerSupabaseClient();
-    const { error } = await supabase.from("jobs").insert({ user_id: profile.id, name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints });
+    const { error } = await supabase.from("jobs").insert({ user_id: profile.id, name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints, ...schedule });
     if (error) fail("Unable to create the job. Please try again.");
   });
   if (problem) return { message: problem };
@@ -226,13 +232,14 @@ export async function updateJobDetails(_previousState: FormActionState, formData
     const id = resourceId(formData);
     const parsed = jobSchema.safeParse({ name: formData.get("name"), color: formData.get("color"), weeklyLimitMinutes: weeklyLimitMinutes(formData.get("weeklyLimitHours")), hourlyRateCents: cents(formData.get("hourlyRate")), taxRateBasisPoints: basisPoints(formData.get("taxRate"), "tax rate") });
     if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid job.");
+    const schedule = paySchedule(formData);
     const supabase = await createServerSupabaseClient();
     const { data: deductions, error: deductionError } = await supabase.from("job_deductions").select("name,rate_basis_points,jobs!inner(user_id)").eq("job_id", id).eq("jobs.user_id", profile.id);
     if (deductionError) fail("Unable to validate deductions. Please try again.");
     checkCombinedRate(parsed.data.taxRateBasisPoints, (deductions ?? []).map((item) => ({ name: item.name, rateBasisPoints: item.rate_basis_points })));
     // Renaming is safe: shifts reference the job by id, and each one carries its
     // own pay snapshot, so nothing historical moves.
-    const { error } = await supabase.from("jobs").update({ name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints }).eq("id", id).eq("user_id", profile.id);
+    const { error } = await supabase.from("jobs").update({ name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints, ...schedule }).eq("id", id).eq("user_id", profile.id);
     if (error) fail("Unable to update job details. Please try again.");
   });
   if (problem) return { message: problem };

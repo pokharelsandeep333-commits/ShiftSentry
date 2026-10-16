@@ -1,3 +1,5 @@
+import type { PayPeriodSummary } from "@/lib/pay-period";
+
 export type AppRole = "USER" | "ADMIN";
 
 export type JobSummary = {
@@ -97,5 +99,7 @@ export type DashboardData = {
   alerts: ThresholdAlert[];
   totals: DashboardTotals;
   monthlyJobAllocation: MonthlyJobAllocation;
+  /** One entry per active job with a pay schedule; empty when none has one. */
+  payPeriods: PayPeriodSummary[];
   isDemo?: boolean;
 };

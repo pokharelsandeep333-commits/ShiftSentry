@@ -5,6 +5,8 @@ import { Check } from "lucide-react";
 import { addJobDeduction, createJob, updateJobDetails } from "@/app/actions/work";
 import { emptyFormState } from "@/lib/form-state";
 import { Button, PendingLabel } from "@/components/ui/button";
+import { PayScheduleFields } from "@/components/jobs/pay-schedule-fields";
+import type { PaySchedule } from "@/lib/pay-period";
 import { cn } from "@/lib/utils";
 
 /**
@@ -55,7 +57,7 @@ function ColorField({ defaultValue }: { defaultValue: string }) {
   </div>;
 }
 
-export function CreateJobForm() {
+export function CreateJobForm({ today }: { today: string }) {
   const [state, formAction, pending] = useActionState(createJob, emptyFormState);
 
   return <form action={formAction} className="grid gap-4">
@@ -66,15 +68,16 @@ export function CreateJobForm() {
     </div>
     <ColorField defaultValue={JOB_COLORS[0]} />
     <label className="field-label"><span>Weekly limit (hours)</span><input name="weeklyLimitHours" type="number" min={1} max={168} className="field-control" placeholder="Leave blank for no limit" /></label>
+    <PayScheduleFields schedule={null} today={today} />
     <FormError message={state.message} />
     <p className="rounded-xl bg-[var(--surface-subtle)] px-3 py-2.5 text-xs leading-5 text-[var(--muted-foreground)]">You can add named percentage deductions after creating the job.</p>
     <Button type="submit" disabled={pending}><PendingLabel pending={pending} label="Create job" pendingLabel="Creating…" /></Button>
   </form>;
 }
 
-type JobDetailsFormProps = { id: string; name: string; hourlyRateCents: number; taxRateBasisPoints: number; color: string; weeklyLimitMinutes: number | null };
+type JobDetailsFormProps = { id: string; name: string; hourlyRateCents: number; taxRateBasisPoints: number; color: string; weeklyLimitMinutes: number | null; paySchedule: PaySchedule | null; today: string };
 
-export function JobDetailsForm({ id, name, hourlyRateCents, taxRateBasisPoints, color, weeklyLimitMinutes }: JobDetailsFormProps) {
+export function JobDetailsForm({ id, name, hourlyRateCents, taxRateBasisPoints, color, weeklyLimitMinutes, paySchedule, today }: JobDetailsFormProps) {
   const [state, formAction, pending] = useActionState(updateJobDetails, emptyFormState);
 
   return <form action={formAction} className="grid gap-3">
@@ -86,6 +89,7 @@ export function JobDetailsForm({ id, name, hourlyRateCents, taxRateBasisPoints, 
       <label className="field-label text-xs"><span>Weekly limit (h)</span><input name="weeklyLimitHours" type="number" min={1} max={168} step="0.25" defaultValue={weeklyLimitMinutes ? weeklyLimitMinutes / 60 : ""} placeholder="No cap" className="field-control h-10 text-sm" /></label>
     </div>
     <ColorField defaultValue={color} />
+    <PayScheduleFields schedule={paySchedule} today={today} compact />
     <FormError message={state.message} />
     <div className="flex justify-end">
       <Button size="sm" type="submit" disabled={pending}><PendingLabel pending={pending} label="Save job" pendingLabel="Saving…" /></Button>
