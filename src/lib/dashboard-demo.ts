@@ -63,5 +63,8 @@ export const demoDashboard: DashboardData = {
       { key: "2026-08", label: "Aug", netCents: { "job-job-campus": 10_656, "job-job-cafe": 7_654 }, loggedMinutes: { "job-job-campus": 960, "job-job-cafe": 630 } },
     ],
   },
+  // No pay schedules in the sample: the landing's dashboard captures are taken
+  // from this page, and a new card here would leave them out of date.
+  payPeriods: [],
   isDemo: true,
 };

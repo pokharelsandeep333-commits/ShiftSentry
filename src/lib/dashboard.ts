@@ -5,9 +5,10 @@ import type { DeductionSnapshot } from "@/lib/earnings";
 import { addWorkedMinutes, bucketWorkedShiftsByMonth, createTotals, finalizeTotals, type WorkedShift } from "@/lib/period-totals";
 import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-allocation";
 import { allocateWeekMinutes, buildWeekMeter, type WeekMeter } from "@/lib/week-meter";
+import { JOB_PAY_COLUMNS, payPeriodQueryWindow, payScheduleFromColumns, summarizePayPeriods, type JobPayColumns } from "@/lib/pay-period";
 
 type ShiftRow = { id: string; job_id: string; starts_at: string; ends_at: string; notes: string | null; hourly_rate_cents: number; tax_rate_basis_points: number; deductions_snapshot: DeductionSnapshot[]; jobs: { name: string; color: string } };
-type JobRow = { id: string; name: string; color: string; weekly_limit_minutes: number | null };
+type JobRow = JobPayColumns & { id: string; name: string; color: string; weekly_limit_minutes: number | null };
 type AllTimeRow = Omit<ShiftRow, "id" | "notes">;
 
 const SHIFT_COLUMNS = "job_id,starts_at,ends_at,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,jobs!inner(name,color)";
@@ -119,17 +120,24 @@ export async function getDashboardData(profile: { id: string; email: string; dis
   const weekStart = weekStartFor(now, profile.time_zone, profile.week_starts_on);
   const weekEnd = weekEndFor(now, profile.time_zone, profile.week_starts_on);
   const allocationWindow = monthlyAllocationWindow(now, profile.time_zone);
-  const shiftQueryEnd = weekEnd > allocationWindow.end ? weekEnd : allocationWindow.end;
+  // One windowed query answers the week, the six-month chart and the pay
+  // periods, so it spans whichever reaches furthest. The pay-period window is
+  // wide enough for any schedule's current and previous period (pay-period.ts),
+  // which keeps it independent of the jobs query it runs beside.
+  const payWindow = payPeriodQueryWindow(now, profile.time_zone);
+  const shiftQueryStart = payWindow.start < allocationWindow.start ? payWindow.start : allocationWindow.start;
+  const shiftQueryEnd = [weekEnd, allocationWindow.end, payWindow.end].reduce((latest, bound) => bound > latest ? bound : latest);
   const supabase = await createServerSupabaseClient();
   const [jobsResult, shiftsResult, months] = await Promise.all([
-    supabase.from("jobs").select("id,name,color,weekly_limit_minutes").eq("user_id", profile.id).is("archived_at", null).order("created_at"),
-    supabase.from("shifts").select(`id,notes,${SHIFT_COLUMNS}`).eq("user_id", profile.id).is("jobs.archived_at", null).lt("starts_at", shiftQueryEnd.toISOString()).gt("ends_at", allocationWindow.start.toISOString()).order("starts_at"),
+    supabase.from("jobs").select(`id,name,color,weekly_limit_minutes,${JOB_PAY_COLUMNS}`).eq("user_id", profile.id).is("archived_at", null).order("created_at"),
+    supabase.from("shifts").select(`id,notes,${SHIFT_COLUMNS}`).eq("user_id", profile.id).is("jobs.archived_at", null).lt("starts_at", shiftQueryEnd.toISOString()).gt("ends_at", shiftQueryStart.toISOString()).order("starts_at"),
     fetchMonthTotals(supabase, profile.id, now, profile.time_zone),
   ]);
   if (jobsResult.error) throw jobsResult.error;
   if (shiftsResult.error) throw shiftsResult.error;
 
-  const jobs = (jobsResult.data as JobRow[]).map((job) => ({ ...job, weeklyLimitMinutes: job.weekly_limit_minutes, usedMinutes: 0, scheduledMinutes: 0 }));
+  const jobRows = jobsResult.data as JobRow[];
+  const jobs = jobRows.map((job) => ({ id: job.id, name: job.name, color: job.color, weeklyLimitMinutes: job.weekly_limit_minutes, usedMinutes: 0, scheduledMinutes: 0 }));
   const jobLookup = new Map(jobs.map((job) => [job.id, job]));
   const week = createTotals();
   const upcomingShifts: DashboardData["upcomingShifts"] = [];
@@ -163,20 +171,22 @@ export async function getDashboardData(profile: { id: string; email: string; dis
 
   const loggedMinutes = jobs.reduce((total, job) => total + job.usedMinutes, 0);
   const scheduledMinutes = jobs.reduce((total, job) => total + job.scheduledMinutes, 0);
+  const workedShifts: WorkedShift[] = shifts.map((shift) => ({
+    jobId: shift.job_id,
+    jobName: shift.jobs.name,
+    jobColor: shift.jobs.color,
+    startsAt: new Date(shift.starts_at),
+    endsAt: new Date(shift.ends_at),
+    hourlyRateCents: shift.hourly_rate_cents,
+    taxRateBasisPoints: shift.tax_rate_basis_points,
+    deductions: deductionsOf(shift),
+  }));
   const monthlyJobAllocation = buildMonthlyJobAllocation({
-    shifts: shifts.map((shift) => ({
-      jobId: shift.job_id,
-      jobName: shift.jobs.name,
-      jobColor: shift.jobs.color,
-      startsAt: new Date(shift.starts_at),
-      endsAt: new Date(shift.ends_at),
-      hourlyRateCents: shift.hourly_rate_cents,
-      taxRateBasisPoints: shift.tax_rate_basis_points,
-      deductions: deductionsOf(shift),
-    })),
+    shifts: workedShifts,
     now,
     timeZone: profile.time_zone,
     window: allocationWindow,
   });
-  return { viewer: { email: profile.email, name: profile.display_name, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on }, globalLimitMinutes: profile.global_weekly_limit_minutes, loggedMinutes, scheduledMinutes, jobs, upcomingShifts: upcomingShifts.slice(0, 5), alerts: thresholdAlerts(profile.global_weekly_limit_minutes, loggedMinutes, scheduledMinutes, jobs), totals: { week: finalizeTotals(week), months }, monthlyJobAllocation };
+  const payPeriods = summarizePayPeriods({ jobs: jobRows.map((job) => ({ id: job.id, name: job.name, color: job.color, schedule: payScheduleFromColumns(job) })), shifts: workedShifts, now, timeZone: profile.time_zone });
+  return { viewer: { email: profile.email, name: profile.display_name, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on }, globalLimitMinutes: profile.global_weekly_limit_minutes, loggedMinutes, scheduledMinutes, jobs, upcomingShifts: upcomingShifts.slice(0, 5), alerts: thresholdAlerts(profile.global_weekly_limit_minutes, loggedMinutes, scheduledMinutes, jobs), totals: { week: finalizeTotals(week), months }, monthlyJobAllocation, payPeriods };
 }

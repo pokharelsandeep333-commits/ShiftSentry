@@ -622,6 +622,11 @@ export type Database = {
           hourly_rate_cents: number;
           id: string;
           name: string;
+          pay_anchor_date: string | null;
+          pay_interval_weeks: number | null;
+          pay_month_day: number | null;
+          pay_schedule: string;
+          payday_offset_days: number | null;
           tax_rate_basis_points: number;
           updated_at: string;
           user_id: string;
@@ -638,6 +643,11 @@ export type Database = {
           hourly_rate_cents?: number;
           id?: string;
           name: string;
+          pay_anchor_date?: string | null;
+          pay_interval_weeks?: number | null;
+          pay_month_day?: number | null;
+          pay_schedule?: string;
+          payday_offset_days?: number | null;
           tax_rate_basis_points?: number;
           updated_at?: string;
           user_id: string;
@@ -654,6 +664,11 @@ export type Database = {
           hourly_rate_cents?: number;
           id?: string;
           name?: string;
+          pay_anchor_date?: string | null;
+          pay_interval_weeks?: number | null;
+          pay_month_day?: number | null;
+          pay_schedule?: string;
+          payday_offset_days?: number | null;
           tax_rate_basis_points?: number;
           updated_at?: string;
           user_id?: string;

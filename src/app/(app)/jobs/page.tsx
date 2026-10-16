@@ -16,6 +16,8 @@ import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { formatCents } from "@/lib/earnings";
 import { formatMinutes } from "@/lib/utils";
 import { SavedToast } from "@/components/saved-toast";
+import { formatInTimeZone } from "date-fns-tz";
+import { JOB_PAY_COLUMNS, describePaySchedule, payScheduleFromColumns } from "@/lib/pay-period";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,12 @@ const SAVED_MESSAGES: Record<string, string> = {
  * shifts can be deleted outright; one with shifts is held by the ON DELETE
  * RESTRICT foreign key on shifts.job_id.
  */
+/** The job's pay schedule for its one-line summary, or nothing when it has none. */
+function payScheduleLabel(job: Parameters<typeof payScheduleFromColumns>[0]) {
+  const schedule = payScheduleFromColumns(job);
+  return schedule ? ` · Pay: ${describePaySchedule(schedule)}` : "";
+}
+
 function shiftCount(job: { shifts: { count: number }[] }) {
   return job.shifts[0]?.count ?? 0;
 }
@@ -53,11 +61,12 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   const [googleConnection, googleAccess, { data: allJobs, error: jobsError }] = await Promise.all([
     googleOn ? getConnectionSummary(profile.id) : Promise.resolve(null),
     googleOn ? withCalendarAccess(profile.id, (token) => listCalendars(token)) : Promise.resolve(null),
-    supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_keyword,google_calendar_id,google_sync,job_deductions(id,name,rate_basis_points),shifts(count)").eq("user_id", profile.id).order("name"),
+    supabase.from("jobs").select(`id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,google_keyword,google_calendar_id,google_sync,${JOB_PAY_COLUMNS},job_deductions(id,name,rate_basis_points),shifts(count)`).eq("user_id", profile.id).order("name"),
   ]);
   const googleCalendars = googleConnection ? (googleAccess?.status === "ok" ? googleAccess.value : []) : null;
   const jobs = (allJobs ?? []).filter((job) => !job.archived_at);
   const archivedJobs = (allJobs ?? []).filter((job) => job.archived_at);
+  const today = formatInTimeZone(new Date(), profile.time_zone, "yyyy-MM-dd");
   const savedMessage = SAVED_MESSAGES[Array.isArray(saved) ? saved[0] ?? "" : saved ?? ""];
 
   const header = <PageHeader title="Jobs, pay, and deductions" description="Rates are saved onto each new shift, so changing them never changes past earnings." />;
@@ -70,9 +79,9 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       <Card>
         <CardHeader><CardTitle>Your active jobs</CardTitle></CardHeader>
         <CardContent className="divide-y">{jobs.length ? jobs.map((job) => <div key={job.id} className="py-5 first:pt-0 last:pb-0">
-          <div className="flex items-start gap-3"><span className="mt-1.5 size-3 shrink-0 rounded-full shadow-sm" style={{ background: job.color }} /><div className="min-w-0 flex-1"><p className="font-display text-lg font-semibold">{job.name}</p><p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">{formatCents(job.hourly_rate_cents)}/hr · {job.tax_rate_basis_points / 100}% tax · {job.weekly_limit_minutes ? `${formatMinutes(job.weekly_limit_minutes)} weekly limit` : "No hour limit"}</p></div><form action={archiveJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Archive" confirmLabel="Archive job?" /></form></div>
+          <div className="flex items-start gap-3"><span className="mt-1.5 size-3 shrink-0 rounded-full shadow-sm" style={{ background: job.color }} /><div className="min-w-0 flex-1"><p className="font-display text-lg font-semibold">{job.name}</p><p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">{formatCents(job.hourly_rate_cents)}/hr · {job.tax_rate_basis_points / 100}% tax · {job.weekly_limit_minutes ? `${formatMinutes(job.weekly_limit_minutes)} weekly limit` : "No hour limit"}{payScheduleLabel(job)}</p></div><form action={archiveJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Archive" confirmLabel="Archive job?" /></form></div>
           <details className="group mt-4 border-t pt-4"><summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-1 py-1 text-sm font-semibold text-[var(--primary)] outline-none transition-colors hover:text-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]"><span>Manage job settings, pay, and deductions</span><span className="text-lg transition-transform duration-300 group-open:rotate-45">+</span></summary><div className="mt-4 grid gap-5">
-            <JobDetailsForm id={job.id} name={job.name} hourlyRateCents={job.hourly_rate_cents} taxRateBasisPoints={job.tax_rate_basis_points} color={job.color} weeklyLimitMinutes={job.weekly_limit_minutes} />
+            <JobDetailsForm id={job.id} name={job.name} hourlyRateCents={job.hourly_rate_cents} taxRateBasisPoints={job.tax_rate_basis_points} color={job.color} weeklyLimitMinutes={job.weekly_limit_minutes} paySchedule={payScheduleFromColumns(job)} today={today} />
             {googleCalendars && <JobGoogleForm jobId={job.id} jobName={job.name} keyword={job.google_keyword} calendarId={job.google_calendar_id} sync={job.google_sync} calendars={googleCalendars} />}
             <div><p className="mb-2 text-sm font-semibold">Percentage deductions</p><div className="space-y-2">{job.job_deductions.map((deduction) => <div key={deduction.id} className="flex items-center justify-between rounded-xl bg-[var(--surface-subtle)] px-3 py-2.5 text-sm"><span>{deduction.name} · {deduction.rate_basis_points / 100}%</span><form action={deleteJobDeduction}><input type="hidden" name="id" value={deduction.id} /><Button size="sm" variant="ghost">Remove</Button></form></div>)}</div><AddDeductionForm jobId={job.id} /></div>
           </div></details>
@@ -89,7 +98,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       </Card>}
       <Card className="h-fit">
         <CardHeader><CardTitle>Add a job</CardTitle></CardHeader>
-        <CardContent><CreateJobForm /></CardContent>
+        <CardContent><CreateJobForm today={today} /></CardContent>
       </Card>
     </div>
   </>;

@@ -1,10 +1,10 @@
 "use client";
 
-import { useId, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,44 +17,13 @@ import { greetingForDate } from "@/lib/greeting";
 import { createLocalPreference } from "@/lib/local-preference";
 import { niceAxisTicks } from "@/lib/chart-ticks";
 import { combineMonthTotals } from "@/lib/period-totals";
+import { addDays, daysBetween, formatPayDay, formatPayPeriod, type PayPeriodSummary } from "@/lib/pay-period";
 import { weekEndFor, weekStartFor } from "@/lib/time";
 import { cn, formatMinutes, splitMinutes } from "@/lib/utils";
 import type { DashboardData, DashboardTotals, MonthlyJobAllocation, ThresholdAlert } from "@/lib/types";
 
 function capPercent(used: number, limit: number | null) {
   return limit ? Math.round((used / limit) * 100) : 0;
-}
-
-const PROJECTIONS_DISMISSED_KEY = "shiftsentry:projections-explainer-dismissed";
-const dismissalListeners = new Set<() => void>();
-
-function readDismissed() {
-  try { return window.localStorage.getItem(PROJECTIONS_DISMISSED_KEY) === "1"; } catch { return false; }
-}
-
-function subscribeToDismissal(listener: () => void) {
-  dismissalListeners.add(listener);
-  return () => { dismissalListeners.delete(listener); };
-}
-
-function dismissProjectionsExplainer() {
-  // A blocked store only means the card returns next visit.
-  try { window.localStorage.setItem(PROJECTIONS_DISMISSED_KEY, "1"); } catch { /* ignore */ }
-  for (const listener of dismissalListeners) listener();
-}
-
-/**
- * Whether to show the projections explainer, and how to put it away.
- *
- * localStorage cannot be read while the server renders, so the server snapshot
- * says "not dismissed" and the real value arrives on the first client render.
- * A viewer who dismissed it may see it for one frame; the card sits low on the
- * page, and the alternative -- withholding it from first-time viewers until
- * hydration -- gets the more important case wrong.
- */
-function useProjectionsExplainer(): [boolean, () => void] {
-  const dismissed = useSyncExternalStore(subscribeToDismissal, readDismissed, () => false);
-  return [!dismissed, dismissProjectionsExplainer];
 }
 
 const HOVER_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
@@ -138,7 +107,6 @@ function CapAlerts({ alerts }: { alerts: ThresholdAlert[] }) {
 }
 
 export function DashboardView({ data, calendarSlot }: { data: DashboardData; calendarSlot?: React.ReactNode }) {
-  const [showProjections, dismissProjections] = useProjectionsExplainer();
   const projected = data.loggedMinutes + data.scheduledMinutes;
   // Hours large, leftover minutes small: the hero keeps its typography without
   // rounding a minute away, which at a cap boundary reads as "exactly at the
@@ -187,15 +155,16 @@ export function DashboardView({ data, calendarSlot }: { data: DashboardData; cal
       <Reveal delay={0.06}><MonthlyAllocationChart allocation={data.monthlyJobAllocation} metric="earnings" /></Reveal>
     </section>
 
+    {data.payPeriods.length > 0 && <Reveal><PayPeriodsCard periods={data.payPeriods} /></Reveal>}
+
     <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
       <Reveal><MonthlyAllocationChart allocation={data.monthlyJobAllocation} metric="hours" /></Reveal>
       <Reveal delay={0.06}><Card className="h-full"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <EmptyState message="Add a job to start tracking its limit." href="/jobs" cta="Create your first job" />}</CardContent></Card></Reveal>
     </section>
 
-    <section className={cn("mt-6 grid grid-cols-1 gap-6", (showProjections || calendarSlot) && "xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]")}>
+    <section className={cn("mt-6 grid grid-cols-1 gap-6", calendarSlot && "xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]")}>
       <Reveal><Card className="h-full"><CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>Coming up</CardTitle><CardDescription>Your next scheduled shifts</CardDescription></div><Link href="/shifts" className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-semibold text-[var(--primary)] sm:min-h-0 transition-colors hover:bg-[var(--primary-soft)]">See all</Link></div></CardHeader><CardContent className="space-y-1">{data.upcomingShifts.length ? data.upcomingShifts.map((shift) => <Link key={shift.id} href={`/shifts/${shift.id}/edit`} className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-[var(--surface-subtle)]"><span aria-hidden="true" className="ml-1 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: shift.jobColor }} /><div className="min-w-0 flex-1"><p className="font-semibold">{shift.jobName}</p><p className="truncate text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.startsAt, data.viewer.timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.endsAt, data.viewer.timeZone, "h:mm a")}</p></div><ArrowRight className="size-4 text-[var(--muted-foreground)]" /></Link>) : <EmptyState message="Nothing scheduled this week." href="/shifts/new" cta="Schedule your first shift" />}</CardContent></Card></Reveal>
       {calendarSlot && <Reveal delay={0.06}>{calendarSlot}</Reveal>}
-      {showProjections && <Reveal delay={0.06}><Card className="h-full"><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>How projections work</CardTitle></div><button type="button" onClick={dismissProjections} aria-label="Hide this explainer" className="-mr-1 -mt-1 grid size-11 shrink-0 place-items-center rounded-xl sm:size-8 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]"><X className="size-4" /></button></div></CardHeader><CardContent className="space-y-2 text-sm"><ProjectionStep icon={CheckCircle2} color="var(--success)">Past and current shifts count as logged time.</ProjectionStep><ProjectionStep icon={CalendarClock} color="var(--primary)">Future shifts are included in your projected total.</ProjectionStep><ProjectionStep icon={AlertTriangle} color="var(--warning)">We alert you at 80%, 90%, and 100%.</ProjectionStep></CardContent></Card></Reveal>}
     </section>
   </>;
 }
@@ -335,6 +304,95 @@ function EarningsCard({ totals }: { totals: DashboardTotals }) {
       </div>
     </CardContent>
   </Card>;
+}
+
+const payPeriodsPreference = createLocalPreference<"open" | "closed">("shiftsentry:pay-periods", "open", (value) => (value === "open" || value === "closed" ? value : null));
+
+/**
+ * Whether the pay periods card is open, and whether it may animate yet.
+ *
+ * The server renders it open and the remembered state arrives on the first
+ * client render. Folding shut in front of the viewer on every load would be
+ * worse than the one-frame flash, so the transition is switched on only a frame
+ * after mount: a viewer who keeps it closed sees it closed, and only a click
+ * animates.
+ */
+function usePayPeriodsOpen() {
+  const open = useSyncExternalStore(payPeriodsPreference.subscribe, payPeriodsPreference.read, payPeriodsPreference.serverSnapshot) === "open";
+  const [canAnimate, setCanAnimate] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setCanAnimate(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return { open, canAnimate, toggle: () => payPeriodsPreference.write(open ? "closed" : "open") };
+}
+
+/**
+ * The pay period each scheduled job is in, as its employer counts it. One tile
+ * per job, because two jobs' periods do not line up and a sum of them would
+ * match no paycheck. "So far" is worked time clipped at now, the same rule as
+ * every other earnings figure; scheduled shifts left in the period are shown as
+ * a projection on top, never folded into what has been earned.
+ * Hiding it keeps the header, so it can always be brought back.
+ */
+function PayPeriodsCard({ periods }: { periods: PayPeriodSummary[] }) {
+  const contentId = useId();
+  const { open, canAnimate, toggle } = usePayPeriodsOpen();
+
+  return <Card className="mt-6">
+    <CardHeader>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <CardTitle>Pay periods</CardTitle>
+          <CardDescription className="mt-2">{open ? "Estimated from your rates, on each job’s own pay schedule." : `${periods.length} job${periods.length === 1 ? "" : "s"} with a pay schedule. Show to see each period.`}</CardDescription>
+        </div>
+        <button type="button" onClick={toggle} aria-expanded={open} aria-controls={contentId} aria-label={open ? "Hide pay periods" : "Show pay periods"} className="press -mr-1 -mt-1 grid size-11 shrink-0 place-items-center rounded-xl text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] sm:size-9">
+          <ChevronDown className={cn("size-4 transition-transform duration-[var(--dur-morph)] ease-[var(--ease-out)]", !open && "-rotate-90")} />
+        </button>
+      </div>
+    </CardHeader>
+    <div id={contentId} inert={!open} className={cn("card-collapse", open && "is-open", canAnimate && "can-animate")}>
+      <div>
+        <CardContent className={cn("grid grid-cols-1 gap-4", periods.length > 1 && "md:grid-cols-2", periods.length > 2 && "2xl:grid-cols-3")}>
+          {periods.map((period) => <PayPeriodTile key={period.jobId} period={period} />)}
+        </CardContent>
+      </div>
+    </div>
+  </Card>;
+}
+
+function PayPeriodTile({ period }: { period: PayPeriodSummary }) {
+  const { current, previous } = period;
+  const length = daysBetween(current.start, current.end);
+  // The viewer's local today, recovered from the server's count rather than the
+  // browser clock, so the wording cannot disagree with "days left".
+  const today = addDays(current.end, -current.daysLeft);
+  const elapsedPercent = Math.round(((length - current.daysLeft + 1) / length) * 100);
+  const projected = { minutes: current.worked.minutes + current.scheduled.minutes, netCents: current.worked.netCents + current.scheduled.netCents };
+
+  return <div className="flex min-w-0 flex-col rounded-2xl border p-3.5 sm:p-4">
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="flex min-w-0 items-center gap-2.5 font-semibold"><i className="size-2.5 shrink-0 rounded-full" style={{ background: period.jobColor }} /><span className="truncate" title={period.jobName}>{period.jobName}</span></span>
+      <Badge variant="muted" className="shrink-0 rounded-lg">{current.daysLeft === 1 ? "Last day" : `${current.daysLeft} days left`}</Badge>
+    </div>
+    <p className="mt-1.5 text-sm text-[var(--muted-foreground)]"><span className="font-medium text-[var(--foreground)]">{formatPayPeriod(current)}</span> · {period.scheduleLabel}</p>
+    <Progress value={elapsedPercent} className="mt-3 h-1.5" />
+    <div className="mt-4 grid grid-cols-2 gap-3">
+      <Headline label="Net so far" value={formatCents(current.worked.netCents)} success />
+      <Headline label="Hours so far" value={formatMinutes(current.worked.minutes)} />
+    </div>
+    <dl className="mt-3 space-y-1.5 text-sm">
+      {current.scheduled.minutes > 0 && <div className="flex justify-between gap-3"><dt className="text-[var(--muted-foreground)]">With scheduled shifts</dt><dd className="whitespace-nowrap font-semibold tabular-nums">{formatCents(projected.netCents)} · {formatMinutes(projected.minutes)}</dd></div>}
+      {current.payday && <div className="flex justify-between gap-3"><dt className="text-[var(--muted-foreground)]">Expected payday</dt><dd className="whitespace-nowrap font-semibold">{formatPayDay(current.payday, true)}</dd></div>}
+    </dl>
+    <div className="mt-auto pt-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t pt-3 text-sm">
+        <span className="text-[var(--muted-foreground)]">Last period · {formatPayPeriod(previous)}</span>
+        <span className="whitespace-nowrap font-semibold tabular-nums">{formatCents(previous.worked.netCents)} · {formatMinutes(previous.worked.minutes)}</span>
+      </div>
+      {previous.payday && <p className="mt-1 text-xs text-[var(--muted-foreground)]">{previous.payday >= today ? "Expected" : "Paid around"} {formatPayDay(previous.payday, true)}</p>}
+    </div>
+  </div>;
 }
 
 function EmptyState({ message, href, cta }: { message: string; href: string; cta: string }) {
@@ -510,10 +568,6 @@ function JobLimit({ job }: { job: DashboardData["jobs"][number] }) {
     </div>
     <Progress value={percent} indicatorClassName={indicatorClassName} />
   </div>;
-}
-
-function ProjectionStep({ icon: Icon, color, children }: { icon: typeof CheckCircle2; color: string; children: string }) {
-  return <p className="flex gap-3 p-1 leading-6"><Icon className="mt-1 size-4 shrink-0" style={{ color }} /><span>{children}</span></p>;
 }
 
 /**

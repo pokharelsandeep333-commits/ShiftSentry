@@ -733,6 +733,20 @@ html:active-view-transition-type(to-login)::view-transition-group(sign-in-box) {
   .press:active { scale: 0.96; transition: scale var(--dur-press) var(--ease-out), translate var(--dur-press) var(--ease-out); }
 }
 
+/* A card body that folds away under its header (the dashboard's pay periods).
+   Rows go 1fr -> 0fr so the card shrinks smoothly instead of jumping, the way
+   `.mode-reveal` does on the sign-in form. `can-animate` arrives a frame after
+   mount, so a card remembered as hidden loads hidden rather than folding shut
+   in front of the viewer. */
+.card-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.card-collapse.is-open { grid-template-rows: 1fr; opacity: 1; }
+.card-collapse.can-animate { transition: grid-template-rows var(--dur-morph) var(--ease-out), opacity var(--dur-page) ease; }
+.card-collapse > * { min-height: 0; overflow: hidden; }
+
 /* A button's saving state (`PendingLabel` in button.tsx): the label slides up
    and out, the spinner and busy label slide in from below. Both share one grid
    cell, so the button keeps its width. */

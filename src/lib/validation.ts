@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { WEEK_NOTE_MAX } from "./week-notes";
 import { GAME_SETTINGS_BOUNDS, IMPOSTER_HINTS, WORD_DIFFICULTIES, normalizeGameCode } from "@/lib/game";
+import { PAY_FREQUENCIES, isCalendarDate } from "@/lib/pay-period";
 
 export const resourceIdSchema = z.string().uuid("Invalid resource identifier.");
 
@@ -111,6 +112,37 @@ export const jobGoogleSettingsSchema = z.object({
   keyword: optionalTrimmed(80).refine((value) => value === null || value.length >= 2, "Use a keyword of at least 2 characters."),
   calendarId: optionalTrimmed(255),
   sync: z.preprocess((value) => value === "on", z.boolean()),
+});
+
+const optionalWholeNumber = (min: number, max: number, message: string) => z.preprocess(
+  (value) => (typeof value === "string" && value.trim() ? Number(value.trim()) : null),
+  z.number({ message }).int(message).min(min, message).max(max, message).nullable(),
+);
+
+/**
+ * A job's pay schedule as the job form posts it, turned into the columns
+ * `jobs_pay_schedule_shape` accepts. The form only posts the fields for the
+ * frequency chosen, but anything else is dropped here regardless, so a stale
+ * anchor date can never ride along with a monthly schedule. No schedule clears
+ * the payday too, which the constraint requires.
+ */
+export const payScheduleFormSchema = z.object({
+  frequency: z.enum(PAY_FREQUENCIES, { message: "Choose how often this job pays." }),
+  anchorDate: optionalTrimmed(10),
+  monthDay: optionalWholeNumber(1, 31, "Choose a day of the month between 1 and 31."),
+  paydayOffsetDays: optionalWholeNumber(0, 31, "Enter a payday between 0 and 31 days after the period ends, or leave it blank."),
+}).superRefine((value, context) => {
+  if (value.frequency === "monthly" && value.monthDay === null) {
+    context.addIssue({ code: "custom", path: ["monthDay"], message: "Choose the day of the month a pay period starts." });
+  }
+  const weekly = value.frequency !== "none" && value.frequency !== "monthly";
+  if (weekly && (value.anchorDate === null || !isCalendarDate(value.anchorDate) || value.anchorDate < "2000-01-01" || value.anchorDate > "2100-12-31")) {
+    context.addIssue({ code: "custom", path: ["anchorDate"], message: "Enter a date one of this job's pay periods started, such as the first day on your last paystub." });
+  }
+}).transform((value) => {
+  if (value.frequency === "none") return { pay_schedule: "none", pay_interval_weeks: null, pay_anchor_date: null, pay_month_day: null, payday_offset_days: null };
+  if (value.frequency === "monthly") return { pay_schedule: "monthly_day", pay_interval_weeks: null, pay_anchor_date: null, pay_month_day: value.monthDay, payday_offset_days: value.paydayOffsetDays };
+  return { pay_schedule: "every_n_weeks", pay_interval_weeks: Number(value.frequency.slice(0, -1)), pay_anchor_date: value.anchorDate, pay_month_day: null, payday_offset_days: value.paydayOffsetDays };
 });
 
 
