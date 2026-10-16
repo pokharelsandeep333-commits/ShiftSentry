@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { useFormStatus } from "react-dom";
 import { Button, PendingLabel, type ButtonProps } from "@/components/ui/button";
 
@@ -16,6 +16,14 @@ type ConfirmSubmitProps = {
    * action -- "Back to lobby" is a poor answer to "End this round?".
    */
   confirmActionLabel?: string;
+  /** A sentence under the question, for when the choice needs explaining. */
+  detail?: string;
+  /**
+   * A second way to go ahead, submitted with `name=value` so the action can
+   * tell which was chosen ("delete this one" vs "stop the whole series"). With
+   * one, the choices stack full width so neither label is squeezed.
+   */
+  alternative?: { label: string; name: string; value: string };
   /** Variant for the trigger. The affirmative button is always danger. */
   variant?: ButtonProps["variant"];
   size?: ButtonProps["size"];
@@ -43,10 +51,12 @@ type ConfirmSubmitProps = {
  *
  * Still no dialog dependency -- this is the platform element, not a library.
  */
-export function ConfirmSubmit({ label, confirmLabel, confirmActionLabel, variant = "ghost", size = "sm" }: ConfirmSubmitProps) {
+export function ConfirmSubmit({ label, confirmLabel, confirmActionLabel, detail, alternative, variant = "ghost", size = "sm" }: ConfirmSubmitProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
-  const { pending } = useFormStatus();
+  const { pending, data } = useFormStatus();
+  // Which submit is in flight, so only the one that was pressed says "Working…".
+  const alternativePending = pending && alternative !== undefined && data?.get(alternative.name) === alternative.value;
   const wasPending = useRef(false);
   // The jobs list renders one of these per job, so a fixed id would collide and
   // point every dialog's label at the first question on the page.
@@ -87,20 +97,29 @@ export function ConfirmSubmit({ label, confirmLabel, confirmActionLabel, variant
 
       <dialog
         ref={dialogRef}
+        style={{ "--dialog-width": alternative ? "23rem" : "20rem" } as CSSProperties}
         aria-labelledby={questionId}
         // Clicking the backdrop resolves to the dialog itself, since every real
         // control is nested deeper.
         onClick={(event) => { if (event.target === dialogRef.current) setOpen(false); }}
         // `dialog-pop` (globals.css) animates it and its scrim in and out.
-        className="dialog-pop m-auto w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)] p-0 text-[var(--foreground)] shadow-2xl shadow-black/25"
+        className="dialog-pop m-auto w-[min(var(--dialog-width),calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)] p-0 text-[var(--foreground)] shadow-2xl shadow-black/25"
       >
         <div className="grid gap-4 p-5">
-          <p id={questionId} className="text-base font-semibold leading-6">{confirmLabel}</p>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="grid gap-1.5">
+            <p id={questionId} className="text-base font-semibold leading-6">{confirmLabel}</p>
+            {detail && <p className="text-sm leading-6 text-[var(--muted-foreground)]">{detail}</p>}
+          </div>
+          {alternative ? <div className="grid gap-2">
+            {/* The narrower choice first; Cancel keeps focus, so a stray Enter still does nothing. */}
+            <Button type="submit" variant="danger" size="default" disabled={pending}><PendingLabel pending={pending && !alternativePending} label={confirmActionLabel ?? label} pendingLabel="Working…" /></Button>
+            <Button type="submit" name={alternative.name} value={alternative.value} variant="outline" size="default" disabled={pending} className="border-[color-mix(in_srgb,var(--danger)_40%,var(--border))] text-[var(--danger)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"><PendingLabel pending={alternativePending} label={alternative.label} pendingLabel="Working…" /></Button>
+            <Button type="button" variant="ghost" size="default" autoFocus onClick={() => setOpen(false)}>Cancel</Button>
+          </div> : <div className="flex flex-wrap justify-end gap-2">
             {/* Focused first: the safe way out should be what a stray Enter hits. */}
             <Button type="button" variant="ghost" size={size} autoFocus onClick={() => setOpen(false)}>Cancel</Button>
             <Button type="submit" variant="danger" size={size} disabled={pending}><PendingLabel pending={pending} label={confirmActionLabel ?? label} pendingLabel="Working…" /></Button>
-          </div>
+          </div>}
         </div>
       </dialog>
     </>

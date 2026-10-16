@@ -36,7 +36,12 @@ test("returns clashes in start order", () => {
 
 test("normalises a timed event with an offset to UTC instants", () => {
   const event = normalizeGoogleEvent({ id: "x", summary: "Chem lab", start: { dateTime: "2026-09-28T14:00:00-05:00" }, end: { dateTime: "2026-09-28T15:30:00-05:00" } }, "primary", tz);
-  assert.deepEqual(event, { id: "x", calendarId: "primary", title: "Chem lab", startsAt: "2026-09-28T19:00:00.000Z", endsAt: "2026-09-28T20:30:00.000Z", allDay: false, free: false, declined: false });
+  assert.deepEqual(event, { id: "x", calendarId: "primary", title: "Chem lab", startsAt: "2026-09-28T19:00:00.000Z", endsAt: "2026-09-28T20:30:00.000Z", allDay: false, free: false, declined: false, seriesId: null });
+});
+
+test("keeps the series id of a repeating event's occurrence", () => {
+  const event = normalizeGoogleEvent({ id: "weekly_20260928T190000Z", recurringEventId: "weekly", summary: "Desk", start: { dateTime: "2026-09-28T14:00:00-05:00" }, end: { dateTime: "2026-09-28T15:30:00-05:00" } }, "primary", tz);
+  assert.equal(event?.seriesId, "weekly");
 });
 
 test("normalises an all-day event to local midnights in the viewer's zone", () => {
