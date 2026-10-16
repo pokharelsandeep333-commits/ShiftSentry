@@ -25,7 +25,7 @@ function draftSchedule(frequency: PayFrequency, anchorDate: string, monthDay: st
  * `today` is the viewer's local date from the server, so the preview cannot
  * disagree with the page about which day it is.
  */
-export function PayScheduleFields({ schedule, today, compact = false }: { schedule: PaySchedule | null; today: string; compact?: boolean }) {
+export function PayScheduleFields({ schedule, today, compact = false, framed = true }: { schedule: PaySchedule | null; today: string; compact?: boolean; framed?: boolean }) {
   const id = useId();
   const [frequency, setFrequency] = useState<PayFrequency>(payFrequencyOf(schedule));
   const [anchorDate, setAnchorDate] = useState(schedule?.kind === "every_n_weeks" ? schedule.anchorDate : "");
@@ -36,8 +36,10 @@ export function PayScheduleFields({ schedule, today, compact = false }: { schedu
   const labelClass = cn("field-label", compact && "text-xs");
   const controlClass = cn("field-control", compact && "h-10 text-sm");
 
-  return <fieldset className="grid gap-3 rounded-2xl border border-dashed p-3.5">
-    <legend className="px-1 text-sm font-semibold">Pay period</legend>
+  // Unframed inside a page section, which supplies its own "Pay period" heading.
+  const Frame = framed ? "fieldset" : "div";
+  return <Frame className={cn("grid gap-3", framed && "rounded-2xl border border-dashed p-3.5")}>
+    {framed && <legend className="px-1 text-sm font-semibold">Pay period</legend>}
     <div className="grid gap-3 sm:grid-cols-2">
       <div className={labelClass}>
         <span id={`${id}-frequency`}>How often you are paid</span>
@@ -61,5 +63,5 @@ export function PayScheduleFields({ schedule, today, compact = false }: { schedu
         : current && next ? <>This period: <span className="font-semibold text-[var(--foreground)]">{formatPayPeriod(current)}</span> · Next: {formatPayPeriod(next)}</>
         : "Pick any day a pay period started. The first day on a paystub works."}
     </p>
-  </fieldset>;
+  </Frame>;
 }

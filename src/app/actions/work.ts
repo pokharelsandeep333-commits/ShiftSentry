@@ -218,22 +218,26 @@ export async function deleteShift(formData: FormData) {
 
 export async function createJob(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
   const profile = await requireUser();
+  let createdId = "";
   const problem = await attempt(async () => {
     const parsed = jobSchema.safeParse({ name: formData.get("name"), color: formData.get("color"), weeklyLimitMinutes: weeklyLimitMinutes(formData.get("weeklyLimitHours")), hourlyRateCents: cents(formData.get("hourlyRate")), taxRateBasisPoints: basisPoints(formData.get("taxRate"), "tax rate") });
     if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid job.");
     const schedule = paySchedule(formData);
     const supabase = await createServerSupabaseClient();
-    const { error } = await supabase.from("jobs").insert({ user_id: profile.id, name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints, ...schedule });
-    if (error) fail("Unable to create the job. Please try again.");
+    const { data: created, error } = await supabase.from("jobs").insert({ user_id: profile.id, name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints, ...schedule }).select("id").single();
+    if (error || !created) fail("Unable to create the job. Please try again.");
+    createdId = created.id;
   });
   if (problem) return { message: problem };
-  revalidatePath("/"); revalidatePath("/jobs"); redirect("/jobs?saved=job-created");
+  // Land on the new job's page: deductions and Google settings are added there.
+  revalidatePath("/"); revalidatePath("/jobs"); redirect(`/jobs/${createdId}?saved=job-created`);
 }
 
 export async function updateJobDetails(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
   const profile = await requireUser();
+  let id = "";
   const problem = await attempt(async () => {
-    const id = resourceId(formData);
+    id = resourceId(formData);
     const parsed = jobSchema.safeParse({ name: formData.get("name"), color: formData.get("color"), weeklyLimitMinutes: weeklyLimitMinutes(formData.get("weeklyLimitHours")), hourlyRateCents: cents(formData.get("hourlyRate")), taxRateBasisPoints: basisPoints(formData.get("taxRate"), "tax rate") });
     if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid job.");
     const schedule = paySchedule(formData);
@@ -247,11 +251,12 @@ export async function updateJobDetails(_previousState: FormActionState, formData
     if (error) fail("Unable to update job details. Please try again.");
   });
   if (problem) return { message: problem };
-  revalidatePath("/"); revalidatePath("/jobs"); redirect("/jobs?saved=job-updated");
+  revalidatePath("/"); revalidatePath("/jobs"); revalidatePath(`/jobs/${id}`); redirect(`/jobs/${id}?saved=job-updated`);
 }
 
 export async function addJobDeduction(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
   const profile = await requireUser();
+  let jobId = "";
   const problem = await attempt(async () => {
     const rateBasisPoints = basisPoints(formData.get("rate"), "deduction rate");
     const parsed = deductionSchema.safeParse({ jobId: formData.get("jobId"), name: formData.get("name"), rateBasisPoints });
@@ -262,9 +267,10 @@ export async function addJobDeduction(_previousState: FormActionState, formData:
     checkCombinedRate(job.tax_rate_basis_points, [...(job.job_deductions ?? []).map((item) => ({ name: item.name, rateBasisPoints: item.rate_basis_points })), { name: parsed.data.name, rateBasisPoints: parsed.data.rateBasisPoints }]);
     const { error } = await supabase.from("job_deductions").insert({ job_id: parsed.data.jobId, name: parsed.data.name, rate_basis_points: parsed.data.rateBasisPoints });
     if (error) fail("Unable to add the deduction. Please try again.");
+    jobId = parsed.data.jobId;
   });
   if (problem) return { message: problem };
-  revalidatePath("/jobs"); redirect("/jobs?saved=deduction-added");
+  revalidatePath("/jobs"); revalidatePath(`/jobs/${jobId}`); redirect(`/jobs/${jobId}?saved=deduction-added`);
 }
 
 /**
@@ -281,14 +287,14 @@ export async function deleteJobDeduction(formData: FormData) {
   const profile = await requireUser();
   const id = resourceId(formData);
   const supabase = await createServerSupabaseClient();
-  const { data: owned, error: lookupError } = await supabase.from("job_deductions").select("id,jobs!inner(user_id)").eq("id", id).eq("jobs.user_id", profile.id).maybeSingle();
+  const { data: owned, error: lookupError } = await supabase.from("job_deductions").select("id,job_id,jobs!inner(user_id)").eq("id", id).eq("jobs.user_id", profile.id).maybeSingle();
   if (lookupError || !owned) fail("This deduction could not be found.");
   const { error } = await supabase.from("job_deductions").delete().eq("id", owned.id);
   if (error) fail("Unable to delete the deduction. Please try again.");
-  revalidatePath("/jobs"); redirect("/jobs?saved=deduction-removed");
+  revalidatePath("/jobs"); revalidatePath(`/jobs/${owned.job_id}`); redirect(`/jobs/${owned.job_id}?saved=deduction-removed`);
 }
 
-export async function archiveJob(formData: FormData) { const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("jobs").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", profile.id); if (error) fail("Unable to archive the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); redirect("/jobs?saved=job-archived"); }
+export async function archiveJob(formData: FormData) { const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("jobs").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", profile.id); if (error) fail("Unable to archive the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); revalidatePath(`/jobs/${id}`); redirect("/jobs?saved=job-archived"); }
 
 export async function deleteJob(formData: FormData) {
   const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient();
@@ -307,7 +313,7 @@ export async function deleteJob(formData: FormData) {
   revalidatePath("/"); revalidatePath("/jobs"); redirect("/jobs?saved=job-deleted");
 }
 
-export async function unarchiveJob(formData: FormData) { const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("jobs").update({ archived_at: null }).eq("id", id).eq("user_id", profile.id); if (error) fail("Unable to restore the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); redirect("/jobs?saved=job-restored"); }
+export async function unarchiveJob(formData: FormData) { const profile = await requireUser(); const id = resourceId(formData); const supabase = await createServerSupabaseClient(); const { error } = await supabase.from("jobs").update({ archived_at: null }).eq("id", id).eq("user_id", profile.id); if (error) fail("Unable to restore the job. Please try again."); revalidatePath("/"); revalidatePath("/jobs"); revalidatePath(`/jobs/${id}`); redirect("/jobs?saved=job-restored"); }
 
 export async function updateSettings(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
   const profile = await requireUser();

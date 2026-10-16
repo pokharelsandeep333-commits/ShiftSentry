@@ -1,11 +1,14 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
+import Link from "next/link";
 import { Check } from "lucide-react";
 import { addJobDeduction, createJob, updateJobDetails } from "@/app/actions/work";
 import { emptyFormState } from "@/lib/form-state";
 import { Button, PendingLabel } from "@/components/ui/button";
+import { JOB_COLORS } from "@/components/jobs/job-colors";
 import { PayScheduleFields } from "@/components/jobs/pay-schedule-fields";
+import { SettingsGroup } from "@/components/settings/settings-section";
 import type { PaySchedule } from "@/lib/pay-period";
 import { cn } from "@/lib/utils";
 
@@ -19,22 +22,23 @@ function FormError({ message }: { message: string }) {
   return <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{message}</p>;
 }
 
-/**
- * Job colours are not decoration: they key the stacked bars, the legend, the
- * dots beside every total, and the icon tint on each shift row. A free colour
- * well happily returns something that vanishes against the card in one theme or
- * the other, so offer a palette that stays legible in both and keep the native
- * picker as the deliberate way out.
- */
-const JOB_COLORS = ["#6d5ce7", "#0ea5e9", "#12b76a", "#f79009", "#f04438", "#ec4899", "#8b5cf6", "#14b8a6"];
+/** Helper text under a field. A `small`, not a span: `.field-label > span` is unlayered CSS and would recolour it. */
+function Hint({ children }: { children: React.ReactNode }) {
+  return <small className="block text-xs font-normal leading-5 text-[var(--muted-foreground)]">{children}</small>;
+}
+
+const linkClass = "font-semibold text-[var(--primary)] underline-offset-4 hover:underline";
 
 function ColorField({ defaultValue }: { defaultValue: string }) {
   const [color, setColor] = useState(defaultValue);
+  // One per form: a fixed id here was shared by every job on the old list page,
+  // so each group announced the first one's label.
+  const labelId = useId();
 
   return <div className="field-label">
-    <span id="job-color-label">Color</span>
+    <span id={labelId}>Color</span>
     <input type="hidden" name="color" value={color} />
-    <div className="flex flex-wrap items-center gap-2" role="group" aria-labelledby="job-color-label">
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-labelledby={labelId}>
       {JOB_COLORS.map((swatch) => {
         const selected = swatch.toLowerCase() === color.toLowerCase();
         return <button
@@ -57,21 +61,52 @@ function ColorField({ defaultValue }: { defaultValue: string }) {
   </div>;
 }
 
-export function CreateJobForm({ today }: { today: string }) {
+type JobFieldValues = { name: string; color: string; hourlyRate: string; taxRate: string; weeklyLimitHours: string; paySchedule: PaySchedule | null };
+
+/**
+ * The fields both job forms share, in labelled groups. One form and one Save
+ * either way: `createJob` and `updateJobDetails` validate these together (the
+ * tax rate is checked against the deductions), so the groups only split them
+ * for reading. The input names are the actions' contract.
+ */
+function JobFields({ prefix, values, today, isNew }: { prefix: string; values: JobFieldValues; today: string; isNew: boolean }) {
+  return <>
+    <SettingsGroup id={`${prefix}-basics`} title="Basics">
+      <label className="field-label"><span>Job name</span><input name="name" defaultValue={values.name} required maxLength={80} className="field-control" placeholder="e.g. Campus desk" /></label>
+      <ColorField defaultValue={values.color} />
+    </SettingsGroup>
+
+    <SettingsGroup id={`${prefix}-pay`} title="Pay" description={isNew ? "Copied onto every shift you log for this job." : "Changes apply to shifts you add from now on. Shifts already logged keep the pay they were saved with."}>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="field-label"><span>Hourly rate ($)</span><input name="hourlyRate" required inputMode="decimal" defaultValue={values.hourlyRate} placeholder="18.50" className="field-control" /></label>
+        <label className="field-label"><span>Tax rate (%)</span><input name="taxRate" required inputMode="decimal" defaultValue={values.taxRate} className="field-control" /></label>
+      </div>
+    </SettingsGroup>
+
+    <SettingsGroup id={`${prefix}-limit`} title="Weekly limit">
+      <label className="field-label">
+        <span>Most hours you can work for this job in a week</span>
+        <input name="weeklyLimitHours" type="number" min={1} max={168} step="0.25" defaultValue={values.weeklyLimitHours} placeholder="No limit" className="field-control sm:max-w-56" />
+        <Hint>Leave blank for no limit. Your limit across all jobs is in <Link href="/settings#week" className={linkClass}>Settings</Link>.</Hint>
+      </label>
+    </SettingsGroup>
+
+    <SettingsGroup id={`${prefix}-pay-period`} title="Pay period" description="Optional. Shows each pay period's hours and pay on your dashboard.">
+      <PayScheduleFields schedule={values.paySchedule} today={today} framed={false} />
+    </SettingsGroup>
+  </>;
+}
+
+export function CreateJobForm({ today, defaultColor = JOB_COLORS[0] }: { today: string; defaultColor?: string }) {
   const [state, formAction, pending] = useActionState(createJob, emptyFormState);
 
-  return <form action={formAction} className="grid gap-4">
-    <label className="field-label"><span>Job name</span><input name="name" required maxLength={80} className="field-control" placeholder="e.g. Campus desk" /></label>
-    <div className="grid grid-cols-2 gap-3">
-      <label className="field-label"><span>Hourly rate ($)</span><input name="hourlyRate" required inputMode="decimal" placeholder="18.50" className="field-control" /></label>
-      <label className="field-label"><span>Tax rate (%)</span><input name="taxRate" required inputMode="decimal" defaultValue="0" className="field-control" /></label>
-    </div>
-    <ColorField defaultValue={JOB_COLORS[0]} />
-    <label className="field-label"><span>Weekly limit (hours)</span><input name="weeklyLimitHours" type="number" min={1} max={168} className="field-control" placeholder="Leave blank for no limit" /></label>
-    <PayScheduleFields schedule={null} today={today} />
+  return <form action={formAction} className="grid gap-5">
+    <JobFields prefix="new-job" today={today} isNew values={{ name: "", color: defaultColor, hourlyRate: "", taxRate: "0", weeklyLimitHours: "", paySchedule: null }} />
     <FormError message={state.message} />
-    <p className="rounded-xl bg-[var(--surface-subtle)] px-3 py-2.5 text-xs leading-5 text-[var(--muted-foreground)]">You can add named percentage deductions after creating the job.</p>
-    <Button type="submit" disabled={pending}><PendingLabel pending={pending} label="Create job" pendingLabel="Creating…" /></Button>
+    <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs leading-5 text-[var(--muted-foreground)]">Next, you can add deductions and calendar settings on the job&apos;s page.</p>
+      <Button type="submit" disabled={pending}><PendingLabel pending={pending} label="Create job" pendingLabel="Creating…" /></Button>
+    </div>
   </form>;
 }
 
@@ -80,19 +115,12 @@ type JobDetailsFormProps = { id: string; name: string; hourlyRateCents: number; 
 export function JobDetailsForm({ id, name, hourlyRateCents, taxRateBasisPoints, color, weeklyLimitMinutes, paySchedule, today }: JobDetailsFormProps) {
   const [state, formAction, pending] = useActionState(updateJobDetails, emptyFormState);
 
-  return <form action={formAction} className="grid gap-3">
+  return <form action={formAction} className="grid gap-5">
     <input type="hidden" name="id" value={id} />
-    <label className="field-label text-xs"><span>Job name</span><input name="name" defaultValue={name} required maxLength={80} className="field-control h-10 text-sm" /></label>
-    <div className="grid gap-3 sm:grid-cols-3">
-      <label className="field-label text-xs"><span>Hourly rate ($)</span><input name="hourlyRate" type="text" inputMode="decimal" defaultValue={(hourlyRateCents / 100).toFixed(2)} className="field-control h-10 text-sm" /></label>
-      <label className="field-label text-xs"><span>Tax (%)</span><input name="taxRate" type="text" inputMode="decimal" defaultValue={(taxRateBasisPoints / 100).toFixed(2)} className="field-control h-10 text-sm" /></label>
-      <label className="field-label text-xs"><span>Weekly limit (h)</span><input name="weeklyLimitHours" type="number" min={1} max={168} step="0.25" defaultValue={weeklyLimitMinutes ? weeklyLimitMinutes / 60 : ""} placeholder="No cap" className="field-control h-10 text-sm" /></label>
-    </div>
-    <ColorField defaultValue={color} />
-    <PayScheduleFields schedule={paySchedule} today={today} compact />
+    <JobFields prefix={`job-${id}`} today={today} isNew={false} values={{ name, color, hourlyRate: (hourlyRateCents / 100).toFixed(2), taxRate: (taxRateBasisPoints / 100).toFixed(2), weeklyLimitHours: weeklyLimitMinutes ? String(weeklyLimitMinutes / 60) : "", paySchedule }} />
     <FormError message={state.message} />
-    <div className="flex justify-end">
-      <Button size="sm" type="submit" disabled={pending}><PendingLabel pending={pending} label="Save job" pendingLabel="Saving…" /></Button>
+    <div className="flex justify-end border-t pt-5">
+      <Button type="submit" disabled={pending}><PendingLabel pending={pending} label="Save changes" pendingLabel="Saving…" /></Button>
     </div>
   </form>;
 }
@@ -100,12 +128,12 @@ export function JobDetailsForm({ id, name, hourlyRateCents, taxRateBasisPoints, 
 export function AddDeductionForm({ jobId }: { jobId: string }) {
   const [state, formAction, pending] = useActionState(addJobDeduction, emptyFormState);
 
-  return <form action={formAction} className="mt-3 grid gap-2">
+  return <form action={formAction} className="grid gap-3">
     <input type="hidden" name="jobId" value={jobId} />
-    <div className="grid gap-2 sm:grid-cols-[1fr_110px_auto]">
-      <input name="name" required maxLength={80} placeholder="e.g. Retirement" className="field-control h-10 text-sm" />
-      <input name="rate" required placeholder="3.00" inputMode="decimal" className="field-control h-10 text-sm" />
-      <Button size="sm" type="submit" disabled={pending}><PendingLabel pending={pending} label="Add" pendingLabel="Adding…" /></Button>
+    <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto] sm:items-end">
+      <label className="field-label"><span>Deduction name</span><input name="name" required maxLength={80} placeholder="e.g. Retirement" className="field-control" /></label>
+      <label className="field-label"><span>Rate (%)</span><input name="rate" required placeholder="3.00" inputMode="decimal" className="field-control" /></label>
+      <Button type="submit" variant="outline" disabled={pending}><PendingLabel pending={pending} label="Add deduction" pendingLabel="Adding…" /></Button>
     </div>
     <FormError message={state.message} />
   </form>;
