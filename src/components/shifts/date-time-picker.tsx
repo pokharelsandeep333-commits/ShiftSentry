@@ -6,7 +6,6 @@ import { DateField, formatDateLabel, shiftCalendarDays } from "@/components/shif
 import { TimeField } from "@/components/shifts/time-field";
 import { formatDurationMinutes, parseDurationToMinutes } from "@/components/shifts/time-parsing";
 import { combineShiftDateAndTime } from "@/lib/shift-date-time";
-import { Clock3 } from "lucide-react";
 
 export type ShiftDateTimeParts = { date: string; time: string };
 export type ShiftSchedule = { startsAt: ShiftDateTimeParts; endsAt: ShiftDateTimeParts };
@@ -157,11 +156,11 @@ export function ShiftScheduleFields({ startsAt, endsAt, timeZone, onChange, star
     <input type="hidden" name="endsAt" value={combineShiftDateAndTime(endsAt.date, endsAt.time)} />
     <fieldset className="min-w-0"><legend className="sr-only">Start</legend><div className="shift-schedule-row">
       <div><FieldLabel htmlFor="startsAt-date">Start date</FieldLabel><DateField id="startsAt-date" value={startsAt.date} onChange={(date) => applyStart({ ...startsAt, date })} today={now.date} ariaLabel="Start date" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} compactLabel /></div>
-      <div><FieldLabel htmlFor="startsAt-time">Start time</FieldLabel><div className="shift-time-field"><Clock3 size={15} aria-hidden="true" /><TimeField id="startsAt-time" value={startsAt.time} onChange={handleStartTime} fallback={now.time} ariaLabel="Start time" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} /></div></div>
+      <div><FieldLabel htmlFor="startsAt-time">Start time</FieldLabel><TimeField id="startsAt-time" value={startsAt.time} onChange={handleStartTime} fallback={now.time} ariaLabel="Start time" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} /></div>
     </div>{startProblem && <p id="startsAt-help" role="alert" className="mt-3 text-sm font-medium text-[var(--danger)]">{startProblem}</p>}</fieldset>
     <fieldset className="min-w-0"><legend className="sr-only">End</legend><div className="shift-schedule-row">
       <div><FieldLabel htmlFor="endsAt-date">End date</FieldLabel><DateField id="endsAt-date" value={endsAt.date} onChange={applyEndDate} today={now.date} ariaLabel="End date" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} compactLabel /></div>
-      <div><FieldLabel htmlFor="endsAt-time">End time</FieldLabel><div className="shift-time-field"><Clock3 size={15} aria-hidden="true" /><TimeField id="endsAt-time" value={endsAt.time} onChange={handleEndTime} fallback={startsAt.time || now.time} ariaLabel="End time" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} /></div></div>
+      <div><FieldLabel htmlFor="endsAt-time">End time</FieldLabel><TimeField id="endsAt-time" value={endsAt.time} onChange={handleEndTime} fallback={startsAt.time || now.time} ariaLabel="End time" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} /></div>
     </div>
     {offsetLabel && <p className="shift-date-meta"><span className="font-semibold text-[var(--primary)]">{offsetLabel}</span> · {followsStart ? "Follows the start date" : formatDateLabel(endsAt.date)}</p>}
     <details className="shift-duration-shortcut"><summary>Set duration instead</summary><label htmlFor="endsAt-duration" className="sr-only">Length</label><input id="endsAt-duration" value={durationDisplay} placeholder="8h 30m" autoComplete="off" inputMode="text" aria-invalid={Boolean(endProblem) || undefined} aria-describedby={endProblem ? "endsAt-help" : undefined} className="field-control text-sm" onChange={(event) => setDurationDraft(event.target.value)} onBlur={commitDuration} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitDuration(); } }} /></details>

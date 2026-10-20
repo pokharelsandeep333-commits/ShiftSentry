@@ -134,14 +134,20 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
   // Rotating the phone changes how much room is left of the panel.
   useEffect(() => {
     if (!open) return;
-    const reclamp = () => clampToViewport(panelRef.current, align);
+    const reclamp = () => {
+      clampToViewport(panelRef.current, align);
+      panelRef.current?.scrollIntoView({ block: "nearest" });
+    };
     window.addEventListener("resize", reclamp);
     return () => window.removeEventListener("resize", reclamp);
   }, [align, open]);
 
   useEffect(() => {
     if (!open) return;
-    gridRef.current?.querySelector<HTMLElement>("[data-focused]")?.focus();
+    // Reveal the complete calendar before focusing its selected day. Focusing
+    // only the day can scroll the panel's header under a drawer's fixed header.
+    panelRef.current?.scrollIntoView({ block: "nearest" });
+    gridRef.current?.querySelector<HTMLElement>("[data-focused]")?.focus({ preventScroll: true });
   }, [focusedDate, open]);
 
   function openCalendar() {
@@ -194,7 +200,7 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
       ref={attachPanel}
       role="dialog"
       aria-label={ariaLabel}
-      className={cn("absolute z-50 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_24%,var(--border))] bg-[var(--card)] p-3 shadow-2xl shadow-black/20", align === "right" ? "right-0" : "left-0")}
+      className={cn("shift-date-calendar absolute z-50 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-2xl border border-[color-mix(in_srgb,var(--primary)_24%,var(--border))] bg-[var(--card)] p-3 shadow-2xl shadow-black/20", align === "right" ? "right-0" : "left-0")}
     >
       <div className="flex flex-wrap gap-1.5 pb-3">
         {QUICK_DATES.map((chip) => {
