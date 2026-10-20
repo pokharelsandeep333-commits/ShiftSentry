@@ -6,7 +6,7 @@ import { DateField, formatDateLabel, shiftCalendarDays } from "@/components/shif
 import { TimeField } from "@/components/shifts/time-field";
 import { formatDurationMinutes, parseDurationToMinutes } from "@/components/shifts/time-parsing";
 import { combineShiftDateAndTime } from "@/lib/shift-date-time";
-import { cn } from "@/lib/utils";
+import { Clock3 } from "lucide-react";
 
 export type ShiftDateTimeParts = { date: string; time: string };
 export type ShiftSchedule = { startsAt: ShiftDateTimeParts; endsAt: ShiftDateTimeParts };
@@ -52,15 +52,6 @@ function autoEndParts(startsAt: ShiftDateTimeParts, endTime: string): ShiftDateT
   if (!endTime || !startsAt.time) return { date: startsAt.date, time: endTime };
   return { date: endTime > startsAt.time ? startsAt.date : shiftCalendarDays(startsAt.date, 1), time: endTime };
 }
-
-/**
- * Each control sits in a flex column that may shrink to its own minimum and then
- * wraps. A fixed grid track cannot: the two fieldsets sit side by side, leaving
- * roughly 269px of content width, and a grid item never shrinks below its own
- * content -- the date button overflowed its 88px track by 38px and landed on
- * top of the time field.
- */
-const FIELD_COLUMN = "grid min-w-[9rem] flex-1 content-start gap-2";
 
 function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return <label className="field-label text-xs" htmlFor={htmlFor}><span>{children}</span></label>;
@@ -161,64 +152,20 @@ export function ShiftScheduleFields({ startsAt, endsAt, timeZone, onChange, star
   }, [endsAt.date, startsAt.date]);
   const offsetLabel = dayOffset === 1 ? "Next day" : dayOffset ? `${dayOffset > 0 ? "+" : "−"}${Math.abs(dayOffset)} days` : "";
 
-  return <div className="grid gap-5 lg:grid-cols-2 lg:gap-8">
+  return <div className="shift-schedule-fields">
     <input type="hidden" name="startsAt" value={combineShiftDateAndTime(startsAt.date, startsAt.time)} />
     <input type="hidden" name="endsAt" value={combineShiftDateAndTime(endsAt.date, endsAt.time)} />
-
-    <fieldset className="min-w-0">
-      <legend className="text-sm font-semibold">Start</legend>
-      <div className="mt-2 flex flex-wrap gap-3">
-        <div className={FIELD_COLUMN}>
-          <FieldLabel htmlFor="startsAt-date">Date</FieldLabel>
-          <DateField id="startsAt-date" value={startsAt.date} onChange={(date) => applyStart({ ...startsAt, date })} today={now.date} ariaLabel="Start date" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} />
-        </div>
-        <div className={FIELD_COLUMN}>
-          <FieldLabel htmlFor="startsAt-time">Time</FieldLabel>
-          <TimeField id="startsAt-time" value={startsAt.time} onChange={handleStartTime} fallback={now.time} ariaLabel="Start time" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} />
-        </div>
-      </div>
-      {startProblem && <p id="startsAt-help" role="alert" className="mt-3 text-sm font-medium text-[var(--danger)]">{startProblem}</p>}
-    </fieldset>
-
-    <fieldset className="min-w-0">
-      <legend className="text-sm font-semibold">End</legend>
-      <div className="mt-2 flex flex-wrap gap-3">
-        <div className={FIELD_COLUMN}>
-          <FieldLabel htmlFor="endsAt-date">Date</FieldLabel>
-          <DateField id="endsAt-date" value={endsAt.date} onChange={applyEndDate} today={now.date} ariaLabel="End date" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} />
-        </div>
-        <div className={FIELD_COLUMN}>
-          <FieldLabel htmlFor="endsAt-time">Time</FieldLabel>
-          <TimeField id="endsAt-time" value={endsAt.time} onChange={handleEndTime} fallback={startsAt.time || now.time} ariaLabel="End time" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} />
-        </div>
-      </div>
-      <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2">
-        <div className={cn(FIELD_COLUMN, "max-w-[12rem]")}>
-          <FieldLabel htmlFor="endsAt-duration">Length</FieldLabel>
-          <input
-            id="endsAt-duration"
-            value={durationDisplay}
-            placeholder="8h 30m"
-            autoComplete="off"
-            inputMode="text"
-            aria-invalid={Boolean(endProblem) || undefined}
-            aria-describedby={endProblem ? "endsAt-help" : undefined}
-            className="field-control text-sm"
-            onChange={(event) => setDurationDraft(event.target.value)}
-            onBlur={commitDuration}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              commitDuration();
-            }}
-          />
-        </div>
-        <p className="flex flex-wrap items-center gap-2 pb-3 text-xs font-medium text-[var(--muted-foreground)]">
-          {offsetLabel && <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 font-semibold text-[var(--primary)]">{offsetLabel}</span>}
-          <span>{endsAt.date ? (followsStart ? "Follows the start date" : formatDateLabel(endsAt.date)) : "Pick the start date first."}</span>
-        </p>
-      </div>
-      {endProblem && <p id="endsAt-help" role="alert" className="mt-2 text-sm font-medium text-[var(--danger)]">{endProblem}</p>}
+    <fieldset className="min-w-0"><legend className="sr-only">Start</legend><div className="shift-schedule-row">
+      <div><FieldLabel htmlFor="startsAt-date">Start date</FieldLabel><DateField id="startsAt-date" value={startsAt.date} onChange={(date) => applyStart({ ...startsAt, date })} today={now.date} ariaLabel="Start date" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} compactLabel /></div>
+      <div><FieldLabel htmlFor="startsAt-time">Start time</FieldLabel><div className="shift-time-field"><Clock3 size={15} aria-hidden="true" /><TimeField id="startsAt-time" value={startsAt.time} onChange={handleStartTime} fallback={now.time} ariaLabel="Start time" describedBy={startProblem ? "startsAt-help" : undefined} invalid={Boolean(startProblem)} /></div></div>
+    </div>{startProblem && <p id="startsAt-help" role="alert" className="mt-3 text-sm font-medium text-[var(--danger)]">{startProblem}</p>}</fieldset>
+    <fieldset className="min-w-0"><legend className="sr-only">End</legend><div className="shift-schedule-row">
+      <div><FieldLabel htmlFor="endsAt-date">End date</FieldLabel><DateField id="endsAt-date" value={endsAt.date} onChange={applyEndDate} today={now.date} ariaLabel="End date" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} compactLabel /></div>
+      <div><FieldLabel htmlFor="endsAt-time">End time</FieldLabel><div className="shift-time-field"><Clock3 size={15} aria-hidden="true" /><TimeField id="endsAt-time" value={endsAt.time} onChange={handleEndTime} fallback={startsAt.time || now.time} ariaLabel="End time" describedBy={endProblem ? "endsAt-help" : undefined} invalid={Boolean(endProblem)} /></div></div>
+    </div>
+    {offsetLabel && <p className="shift-date-meta"><span className="font-semibold text-[var(--primary)]">{offsetLabel}</span> · {followsStart ? "Follows the start date" : formatDateLabel(endsAt.date)}</p>}
+    <details className="shift-duration-shortcut"><summary>Set duration instead</summary><label htmlFor="endsAt-duration" className="sr-only">Length</label><input id="endsAt-duration" value={durationDisplay} placeholder="8h 30m" autoComplete="off" inputMode="text" aria-invalid={Boolean(endProblem) || undefined} aria-describedby={endProblem ? "endsAt-help" : undefined} className="field-control text-sm" onChange={(event) => setDurationDraft(event.target.value)} onBlur={commitDuration} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commitDuration(); } }} /></details>
+    {endProblem && <p id="endsAt-help" role="alert" className="mt-2 text-sm font-medium text-[var(--danger)]">{endProblem}</p>}
     </fieldset>
   </div>;
 }

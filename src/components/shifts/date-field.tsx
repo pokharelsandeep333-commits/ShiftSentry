@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useDismissable } from "@/components/ui/use-dismissable";
@@ -16,10 +16,12 @@ type DateFieldProps = {
   describedBy?: string;
   invalid?: boolean;
   align?: "left" | "right";
+  compactLabel?: boolean;
 };
 
 const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 const triggerFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+const compactTriggerFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 const dayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const QUICK_DATES = [{ label: "Today", days: 0 }, { label: "Yesterday", days: -1 }, { label: "Tomorrow", days: 1 }];
@@ -106,7 +108,7 @@ function sameDayInMonth(month: Date, amount: number, day: number) {
   return dateValue(target);
 }
 
-export function DateField({ id, value, onChange, today, ariaLabel, describedBy, invalid, align = "left" }: DateFieldProps) {
+export function DateField({ id, value, onChange, today, ariaLabel, describedBy, invalid, align = "left", compactLabel = false }: DateFieldProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -169,7 +171,8 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
     }
   }
 
-  const label = formatDateLabel(value);
+  const compactDate = compactLabel ? parseDate(value) : null;
+  const label = compactDate ? compactTriggerFormatter.format(compactDate) : formatDateLabel(value);
 
   return <div ref={rootRef} className="relative">
     <button
@@ -183,8 +186,9 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
       className={cn("field-control flex items-center justify-between gap-2 text-left text-sm font-medium", !label && "text-[var(--muted-foreground)]", invalid && "border-[var(--danger)]")}
       onClick={() => (open ? dismiss(false) : openCalendar())}
     >
+      {compactLabel && <CalendarDays className="size-3.5 shrink-0 text-[var(--muted-foreground)]" aria-hidden="true" />}
       <span className="truncate">{label || "Select a date"}</span>
-      <CalendarDays className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+      {compactLabel ? <ChevronDown className="size-3.5 shrink-0 text-[var(--primary)]" aria-hidden="true" /> : <CalendarDays className="size-4 shrink-0 text-[var(--muted-foreground)]" aria-hidden="true" />}
     </button>
     {open && <div
       ref={attachPanel}

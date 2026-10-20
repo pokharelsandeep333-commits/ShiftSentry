@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { NotebookPen } from "lucide-react";
+import { NotebookPen, Pencil } from "lucide-react";
 import { saveWeekNote } from "@/app/actions/work";
 import { Button, PendingLabel } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast-provider";
@@ -62,15 +62,9 @@ export function WeekNote({ weekStart, label, note }: { weekStart: string; label:
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
   }
 
-  if (!editing) {
-    return note
-      ? <div className="flex items-start gap-2.5 rounded-2xl bg-[var(--surface-subtle)] px-3.5 py-3 sm:px-4">
-        <NotebookPen aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--primary)]" />
-        <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm leading-6"><span className="sr-only">Note for {label}: </span>{note.body}</p>
-        <Button ref={trigger} type="button" variant="ghost" size="sm" className="-my-1 shrink-0" onClick={open} aria-label={`Edit the note for ${label}`}>Edit</Button>
-      </div>
-      : <Button ref={trigger} type="button" variant="ghost" size="sm" className="text-[var(--muted-foreground)]" onClick={open} aria-label={`Add a note for ${label}`}><NotebookPen aria-hidden="true" className="size-4" />Add a note</Button>;
-  }
+  if (!editing) return <button ref={trigger} type="button" className="shift-note" onClick={open} aria-label={`${note ? "Edit the note" : "Add a note"} for ${label}`}>
+    <NotebookPen size={20} aria-hidden="true" /><span><strong>Week note</strong><span>{note?.body || "Add a note for this week"}</span></span><Pencil className="note-pencil" size={15} aria-hidden="true" />
+  </button>;
 
   const over = draft.length > WEEK_NOTE_MAX;
   return <form action={formAction} className="space-y-2 rounded-2xl bg-[var(--surface-subtle)] p-3 sm:p-3.5">

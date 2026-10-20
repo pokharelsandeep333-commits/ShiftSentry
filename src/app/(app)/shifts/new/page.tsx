@@ -1,9 +1,9 @@
 export const metadata = { title: "New shift | ShiftSentry" };
 
 import Link from "next/link";
-import { PageHeader } from "@/components/page-header";
+import { ShiftLog } from "@/components/shifts/shift-log";
+import { ShiftPanel } from "@/components/shifts/shift-panel";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShiftForm, type ShiftFormJob } from "@/components/shifts/shift-form";
 import { requireUser } from "@/lib/auth";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
@@ -44,11 +44,7 @@ export default async function NewShiftPage({ searchParams }: { searchParams: Pro
   const selectableJobs: ShiftFormJob[] = (jobs ?? []).map((job) => ({ id: job.id, name: job.name, color: job.color, hourlyRateCents: job.hourly_rate_cents, taxRateBasisPoints: job.tax_rate_basis_points, deductions: (job.job_deductions ?? []).map((deduction) => ({ name: deduction.name, rateBasisPoints: deduction.rate_basis_points })) }));
   const initialShift = prefillFromQuery(params, selectableJobs);
 
-  return <>
-    <PageHeader title="Add a shift" description="Scheduled future shifts count toward projected weekly hours." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />
-    <Card className="max-w-4xl">
-      <CardHeader><CardTitle>Shift details</CardTitle></CardHeader>
-      <CardContent>{selectableJobs.length ? <ShiftForm calendarCheck={calendarCheck} mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="space-y-4 rounded-2xl border border-dashed p-5"><p className="text-sm leading-6 text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs/new" className={buttonVariants()}>Create a job</Link></div>}</CardContent>
-    </Card>
-  </>;
+  return <div className="shift-workspace"><ShiftLog searchParams={Promise.resolve({ weeks: params.weeks })} /><ShiftPanel title="Add shift">
+    {selectableJobs.length ? <ShiftForm calendarCheck={calendarCheck} mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="shift-google-editor"><p className="mb-4 text-sm text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs/new" className={buttonVariants()}>Create a job</Link></div>}
+  </ShiftPanel></div>;
 }

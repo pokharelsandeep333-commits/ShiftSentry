@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { createLocalPreference, keepNewestKeys } from "@/lib/local-preference";
 
 type OpenWeeks = Record<string, boolean>;
@@ -48,14 +48,11 @@ function useWeekOpen(weekKey: string, defaultOpen: boolean): [boolean, (open: bo
  * lifted into React, and the shift rows are still passed in already rendered by
  * the server -- this component adds no client JS to the list itself.
  */
-export function WeekDisclosure({ weekKey, defaultOpen, summary, children }: { weekKey: string; defaultOpen: boolean; summary: ReactNode; children: ReactNode }) {
+export function WeekDisclosure({ weekKey, defaultOpen, summary, children, current = false }: { weekKey: string; defaultOpen: boolean; summary: ReactNode; children: ReactNode; current?: boolean }) {
   const [open, setOpen] = useWeekOpen(weekKey, defaultOpen);
 
-  return <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className="group">
-    <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl p-3 transition-colors hover:bg-[var(--surface-subtle)] [&::-webkit-details-marker]:hidden">
-      <ChevronRight className="size-4 shrink-0 text-[var(--muted-foreground)] transition-transform duration-200 group-open:rotate-90" />
-      {summary}
-    </summary>
-    <div className="mt-1 space-y-1">{children}</div>
+  return <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className={`shift-week group ${current ? "current-week" : ""}`}>
+    <summary>{summary}<ChevronDown className="week-chevron" size={19} aria-hidden="true" /></summary>
+    {children}
   </details>;
 }

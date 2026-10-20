@@ -87,10 +87,6 @@ function previewMinutes(startsAt: ShiftDateTimeParts, endsAt: ShiftDateTimeParts
   return minutes > 0 ? minutes : null;
 }
 
-function PreviewFigure({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
-  return <div><dt className="text-xs font-medium text-[var(--muted-foreground)]">{label}</dt><dd className={accent ? "mt-1 font-display text-lg font-semibold text-[var(--success)]" : "mt-1 font-display text-lg font-semibold"}>{value}</dd></div>;
-}
-
 export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = false }: ShiftFormProps) {
   const initialStart = partsFromValue(initialShift?.startsAt);
   const initialEnd = partsFromValue(initialShift?.endsAt);
@@ -165,21 +161,26 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
   const startError = fieldMessage(activeProblem, state, dismissServerMessage, "startsAt");
   const endError = fieldMessage(activeProblem, state, dismissServerMessage, "endsAt");
 
-  return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="grid gap-5">
+  const selectedJob = jobs.find((job) => job.id === jobId);
+  return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="shift-form">
     {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id ?? ""} />}
-    <div className="field-label"><span id="job-label">Job</span><PremiumSelect name="jobId" defaultValue={jobId} options={jobs.map((job) => ({ value: job.id, label: job.archived ? `${job.name} (archived)` : job.name }))} labelledBy="job-label" onValueChange={(value) => { markEdited(); setJobId(value); }} required /></div>
-    <ShiftScheduleFields startsAt={startsAt} endsAt={endsAt} timeZone={timeZone} onChange={updateSchedule} startError={startError} endError={endError} />
-    {preview && <dl className="grid grid-cols-2 gap-4 rounded-2xl bg-[var(--surface-subtle)] p-4 sm:grid-cols-4">
-      <PreviewFigure label="Duration" value={formatMinutes(preview.minutes)} />
-      <PreviewFigure label="Gross" value={formatCents(preview.pay.grossCents)} />
-      <PreviewFigure label="Tax + deductions" value={`−${formatCents(preview.pay.taxCents + preview.pay.deductionCents)}`} />
-      <PreviewFigure label="Net" value={formatCents(preview.pay.netCents)} accent />
-    </dl>}
-    {calendarCheck && <CalendarClashNotice startsAt={span?.startsAt ?? null} endsAt={span?.endsAt ?? null} jobId={jobId} timeZone={timeZone} repeatWeeks={repeatWeeks} />}
-    {preview && repeatWeeks > 1 && <p className="-mt-2 text-sm text-[var(--muted-foreground)]">{repeatWeeks} shifts · {formatMinutes(preview.minutes * repeatWeeks)} · {formatCents(preview.pay.netCents * repeatWeeks)} net, if every week fits your caps.</p>}
-    {mode === "create" && <div className="field-label"><span id="repeat-label">Repeat</span><PremiumSelect name="repeatWeeks" defaultValue="1" options={REPEAT_OPTIONS} labelledBy="repeat-label" onValueChange={(value) => setRepeatWeeks(Number(value))} /></div>}
-    {generalMessage && <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{generalMessage}</p>}
-    <label className="field-label"><span>Notes</span><textarea name="notes" defaultValue={initialShift?.notes ?? ""} maxLength={500} onInput={markEdited} className="field-textarea text-sm" placeholder="Optional notes" /></label>
-    <div><Button type="submit" disabled={pending}><PendingLabel pending={pending} label={mode === "create" ? "Save shift" : "Save changes"} pendingLabel="Saving…" /></Button></div>
+    <div className="shift-form-fields">
+      <div className="shift-job-field"><label id="job-label">Job</label><div className="shift-job-select"><PremiumSelect name="jobId" defaultValue={jobId} options={jobs.map((job) => ({ value: job.id, label: job.archived ? `${job.name} (archived)` : job.name }))} labelledBy="job-label" onValueChange={(value) => { markEdited(); setJobId(value); }} required /><span className="shift-job-dot" style={{ backgroundColor: selectedJob?.color }} aria-hidden="true" /></div></div>
+      <ShiftScheduleFields startsAt={startsAt} endsAt={endsAt} timeZone={timeZone} onChange={updateSchedule} startError={startError} endError={endError} />
+      <div className="shift-pay-preview" aria-live="polite"><h2>Pay preview</h2><dl>
+        <div><dt>Duration</dt><dd>{preview ? formatMinutes(preview.minutes) : "—"}</dd></div>
+        <div><dt>Gross</dt><dd>{preview ? formatCents(preview.pay.grossCents) : "—"}</dd></div>
+        <div><dt>Tax + deductions</dt><dd>{preview ? `−${formatCents(preview.pay.taxCents + preview.pay.deductionCents)}` : "—"}</dd></div>
+        <div className="receipt-net"><dt>Net</dt><dd>{preview ? formatCents(preview.pay.netCents) : "—"}</dd></div>
+      </dl></div>
+      {mode === "create" && <div><label id="repeat-label">Repeat</label><PremiumSelect name="repeatWeeks" defaultValue="1" options={REPEAT_OPTIONS} labelledBy="repeat-label" onValueChange={(value) => setRepeatWeeks(Number(value))} /></div>}
+      <div><label htmlFor="shift-notes">Notes</label><textarea id="shift-notes" name="notes" defaultValue={initialShift?.notes ?? ""} maxLength={500} onInput={markEdited} rows={2} placeholder="Optional notes" /></div>
+      <div className="shift-form-notices">
+        {calendarCheck && <CalendarClashNotice startsAt={span?.startsAt ?? null} endsAt={span?.endsAt ?? null} jobId={jobId} timeZone={timeZone} repeatWeeks={repeatWeeks} />}
+        {preview && repeatWeeks > 1 && <p className="text-sm text-[var(--muted-foreground)]">{repeatWeeks} shifts · {formatMinutes(preview.minutes * repeatWeeks)} · {formatCents(preview.pay.netCents * repeatWeeks)} net, if every week fits your caps.</p>}
+        {generalMessage && <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{generalMessage}</p>}
+      </div>
+    </div>
+    <div className="shift-editor-footer"><Button type="submit" className="shift-button save-shift" disabled={pending}><PendingLabel pending={pending} label={mode === "create" ? "Save shift" : "Save changes"} pendingLabel="Saving…" /></Button></div>
   </form>;
 }

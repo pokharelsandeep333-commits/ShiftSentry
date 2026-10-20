@@ -1,12 +1,10 @@
 export const metadata = { title: "Edit shift | ShiftSentry" };
 
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatInTimeZone } from "date-fns-tz";
-import { PageHeader } from "@/components/page-header";
+import { ShiftLog } from "@/components/shifts/shift-log";
+import { ShiftPanel } from "@/components/shifts/shift-panel";
 import { ShiftForm } from "@/components/shifts/shift-form";
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { getConnectionSummary } from "@/lib/google/connection";
@@ -45,11 +43,8 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
     const description = started
       ? "This shift has started, so changes in Google Calendar no longer move it. To correct it, stop following Google and edit it here."
       : "This shift follows its event in Google Calendar: change the time there and it updates here on the next sync. Or stop following Google and edit it here.";
-    return <>
-      <PageHeader title="Shift from Google Calendar" description={description} actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Back</Link>} />
-      <Card className="max-w-2xl">
-        <CardHeader><CardTitle>{job?.name ?? "Shift"}</CardTitle></CardHeader>
-        <CardContent className="grid gap-5">
+    return <div className="shift-workspace"><ShiftLog searchParams={Promise.resolve({})} /><ShiftPanel title="Shift from Google Calendar"><div className="shift-google-editor grid content-start gap-5">
+          <p className="text-sm leading-6 text-[var(--muted-foreground)]">{description}</p><h2 className="font-semibold">{job?.name ?? "Shift"}</h2>
           <p className="text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.starts_at, profile.time_zone, "EEEE, MMM d · h:mm a")} – {formatInTimeZone(shift.ends_at, profile.time_zone, "h:mm a")}</p>
           <form action={updateShiftNotes} className="grid gap-3">
             <input type="hidden" name="id" value={shift.id} />
@@ -61,16 +56,10 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
             <p className="mb-3 text-sm text-[var(--muted-foreground)]">Stop following Google to change the job or times here. Google Calendar will no longer update this shift, and its event won&apos;t be added again.</p>
             <SubmitButton label="Stop following Google and edit here" pendingLabel="Updating…" variant="outline" />
           </form>
-        </CardContent>
-      </Card>
-    </>;
+        </div></ShiftPanel></div>;
   }
 
-  return <>
-    <PageHeader title="Edit shift" description="Update the job, schedule, or notes for this shift." actions={<Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link>} />
-    <Card className="max-w-4xl">
-      <CardHeader><CardTitle>Shift details</CardTitle></CardHeader>
-      <CardContent><ShiftForm calendarCheck={calendarCheck} mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} /></CardContent>
-    </Card>
-  </>;
+  return <div className="shift-workspace"><ShiftLog searchParams={Promise.resolve({})} /><ShiftPanel title="Edit shift">
+    <ShiftForm calendarCheck={calendarCheck} mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} />
+  </ShiftPanel></div>;
 }
