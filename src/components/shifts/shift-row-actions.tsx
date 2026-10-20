@@ -17,15 +17,9 @@ type ShiftRowActionsProps = {
   repeating?: boolean;
 };
 
-const linkClass = "rounded-lg px-3 py-2 text-xs font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]";
 const menuItemClass = "flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--foreground)] outline-none transition-colors hover:bg-[var(--primary-soft)] focus:bg-[var(--primary-soft)]";
 
-/**
- * Three actions per row read fine on a desktop table and badly on a phone,
- * where they wrapped onto a line of their own under every shift. Below `sm`
- * they collapse behind one trigger; above it they stay visible, because there
- * is room and a visible control beats a hidden one.
- */
+/** One action menu on every row; destructive actions retain their confirmation. */
 export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks, repeating = false }: ShiftRowActionsProps) {
   const deleteForm = <form action={deleteShift}>
     <input type="hidden" name="id" value={shiftId} />
@@ -36,23 +30,17 @@ export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks, repea
   </form>;
 
   return <>
-    <div className="hidden items-center gap-1 sm:flex">
-      <Link href={editHref} className={linkClass}>Edit</Link>
-      {duplicateHref && <Link href={duplicateHref} className={linkClass}>Duplicate</Link>}
-      {deleteForm}
-    </div>
-
-    <div className="sm:hidden">
+    <div>
       {/* Non-modal for the reason account-menu.tsx gives: the scroll lock
           pads <body> for a scrollbar that never goes away. */}
       <DropdownMenu.Root modal={false}>
         <DropdownMenu.Trigger asChild>
-          <button type="button" aria-label="Shift actions" className="grid size-11 place-items-center rounded-xl text-[var(--muted-foreground)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
+          <button type="button" aria-label="Shift actions" className="shift-icon-button">
             <MoreHorizontal className="size-4" />
           </button>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="end" sideOffset={8} className="z-50 w-52 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)]/96 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-2xl outline-none menu-pop">
+          <DropdownMenu.Content align="end" sideOffset={8} className="shift-row-menu z-50 w-52 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)]/96 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-2xl outline-none menu-pop">
             <DropdownMenu.Item asChild>
               <Link href={editHref} className={menuItemClass}><Pencil className="size-4 text-[var(--primary)]" />Edit</Link>
             </DropdownMenu.Item>
