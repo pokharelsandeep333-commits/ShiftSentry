@@ -271,10 +271,11 @@ html:has(.shift-drawer[open]) { overflow:hidden; }
 .shift-schedule-fields [aria-haspopup=dialog] { justify-content:flex-start; padding-inline:10px; gap:6px; }
 .shift-schedule-fields [aria-haspopup=dialog] > span { flex:1; }
 .shift-schedule-fields [aria-haspopup=dialog] > svg { flex-shrink:0; }
+.shift-drawer .shift-date-calendar { position:relative; width:min(21rem,calc(100cqw - 44px)); }
 .shift-time-field { position:relative; }
-.shift-time-field > svg { position:absolute; z-index:1; top:50%; left:10px; transform:translateY(-50%); color:var(--shift-copy); pointer-events:none; }
+.shift-time-control > svg { position:absolute; z-index:1; top:50%; left:10px; transform:translateY(-50%); color:var(--shift-copy); pointer-events:none; }
 .shift-time-field input { padding-left:30px; padding-right:28px; }
-.shift-time-field button { right:0; width:28px; color:var(--primary); }
+.shift-time-control > button { right:0; width:28px; color:var(--primary); }
 .shift-form-notices { grid-column:1 / -1; display:grid; gap:14px; }
 .shift-google-editor { flex:1; min-height:0; overflow-y:auto; padding:22px; }
 .shift-workspace > .shift-log { container-type:inline-size; }
@@ -282,7 +283,7 @@ html:has(.shift-drawer[open]) { overflow:hidden; }
 @container (min-width:800px) { .shift-drawer.is-expanded .shift-schedule-fields { grid-area:schedule; align-content:start; } }
 @media (max-width:639px) {
   .shift-time-field input { letter-spacing:-.025em; }
-  .shift-time-field button { width:28px; }
+  .shift-time-control > button { width:28px; }
   .shift-duration-shortcut summary { min-height:44px; display:flex; align-items:center; }
 }
 @media (max-width:349px) { .shift-schedule-row { grid-template-columns:minmax(0,1fr); } }

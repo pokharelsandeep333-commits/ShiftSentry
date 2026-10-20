@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Clock3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDismissable } from "@/components/ui/use-dismissable";
 import { TimeWheel } from "@/components/shifts/time-wheel";
@@ -52,8 +52,9 @@ export function TimeField({ id, value, onChange, fallback, ariaLabel, describedB
     if (parsed) setDraft(null);
   }
 
-  return <div ref={rootRef}>
-    <div className="relative">
+  return <div ref={rootRef} className="shift-time-field">
+    <div className="shift-time-control relative">
+      <Clock3 size={15} aria-hidden="true" />
       <input
         ref={inputRef}
         id={id}
