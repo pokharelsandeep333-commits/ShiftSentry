@@ -707,6 +707,13 @@ html:active-view-transition-type(to-login)::view-transition-group(sign-in-box) {
    browser moves it from the old tab to the new one. */
 ::view-transition-group(.nav-pill) { animation-duration: var(--dur-morph); animation-timing-function: var(--ease-out); }
 
+/* The phone's bottom bar is a layer of its own. Without a name it was part of
+   the root snapshot, under the page body's group, so a sliding page was drawn
+   over the bar and its icons for the length of the slide. Named, it stacks
+   above the page (it comes later in paint order) and the bar pill above it. */
+.app-bottom-bar { view-transition-name: app-bottom-bar; }
+::view-transition-old(app-bottom-bar), ::view-transition-new(app-bottom-bar) { animation-duration: var(--dur-quick); }
+
 @keyframes page-out-start { to { opacity: 0; transform: translateX(-20px); } }
 @keyframes page-out-end { to { opacity: 0; transform: translateX(20px); } }
 @keyframes page-in-end { from { opacity: 0; transform: translateX(24px); } }
