@@ -38,16 +38,16 @@ export function CalendarClashNotice({ startsAt, endsAt, jobId, timeZone, repeatW
   }, [startsAt, endsAt, jobId, span]);
 
   if (!startsAt || !endsAt || state.span !== span || state.status === "idle") return null;
-  if (state.status === "needs_reconnect") return <p className="-mt-2 text-sm text-[var(--muted-foreground)]">Google Calendar needs reconnecting. Clash check is off. <Link href="/settings#google-calendar" className="font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Settings</Link></p>;
-  if (state.status === "unavailable") return <p className="-mt-2 text-sm text-[var(--muted-foreground)]">Couldn&apos;t check Google Calendar right now.</p>;
-  const matchNote = state.matches.length > 0 && <p className="-mt-2 flex items-center gap-2 text-sm text-[var(--muted-foreground)]"><CalendarCheck2 className="size-4 shrink-0 text-[var(--success)]" />Matches <b className="font-semibold text-[var(--foreground)]">{state.matches[0].title}</b> in your Google Calendar.</p>;
+  if (state.status === "needs_reconnect") return <p className="text-sm text-[var(--muted-foreground)]">Google Calendar needs reconnecting. Clash check is off. <Link href="/settings#google-calendar" className="font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Settings</Link></p>;
+  if (state.status === "unavailable") return <p className="text-sm text-[var(--muted-foreground)]">Couldn&apos;t check Google Calendar right now.</p>;
+  const matchNote = state.matches.length > 0 && <p className="shift-check shift-check-quiet"><CalendarCheck2 aria-hidden="true" /><span className="min-w-0">Matches <b className="font-semibold text-[var(--foreground)]">{state.matches[0].title}</b> in your Google Calendar.</span></p>;
   if (state.clashes.length === 0) return matchNote || null;
 
   const time = (iso: string) => formatInTimeZone(iso, timeZone, "h:mm a");
-  return <>{matchNote}<div role="status" className="-mt-2 flex gap-2.5 rounded-2xl bg-[color-mix(in_srgb,var(--warning)_13%,transparent)] px-3.5 py-3 text-sm leading-6 text-[color-mix(in_srgb,var(--warning)_62%,var(--foreground))]">
-    <TriangleAlert className="mt-1 size-4 shrink-0" />
-    <div>
-      <p className="font-medium">Overlaps {state.clashes.length === 1 ? "an event" : `${state.clashes.length} events`} in your Google Calendar{repeatWeeks > 1 ? " (checked for the first week)" : ""}:</p>
+  return <>{matchNote}<div role="status" className="shift-check shift-check-warn">
+    <TriangleAlert aria-hidden="true" />
+    <div className="min-w-0">
+      <p className="font-semibold">Overlaps {state.clashes.length === 1 ? "an event" : `${state.clashes.length} events`} in your Google Calendar{repeatWeeks > 1 ? " (checked for the first week)" : ""}:</p>
       <ul className="mt-1">{state.clashes.map((clash) => <li key={clash.id}><b>{clash.title}</b> {time(clash.startsAt)}–{time(clash.endsAt)}</li>)}</ul>
     </div>
   </div></>;

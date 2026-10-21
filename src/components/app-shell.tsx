@@ -161,7 +161,7 @@ function BottomNavigationLink({ item, active, transitionTypes }: { item: Navigat
  * Admin stays in the drawer; these five are the everyday destinations.
  */
 function BottomNavigation({ pathname }: { pathname: string }) {
-  return <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t bg-[var(--background)]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+  return <nav aria-label="Primary" className="app-bottom-bar fixed inset-x-0 bottom-0 z-30 border-t bg-[var(--background)]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
     <div className="mx-auto flex max-w-md items-stretch gap-1 px-2 py-1">
       {navigation.map((item, index) => <BottomNavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(navigation, pathname, index)} />)}
     </div>

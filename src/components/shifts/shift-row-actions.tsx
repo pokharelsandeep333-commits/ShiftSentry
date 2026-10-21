@@ -5,6 +5,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Copy, MoreHorizontal, Pencil } from "lucide-react";
 import { deleteShift } from "@/app/actions/work";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
+import type { ShiftFilters } from "@/lib/shift-log";
 
 type ShiftRowActionsProps = {
   shiftId: string;
@@ -15,15 +16,19 @@ type ShiftRowActionsProps = {
   weeks: number;
   /** The shift comes from a repeating Google event, so deleting can stop the whole series. */
   repeating?: boolean;
+  /** The log's filters, so a delete returns to the same filtered view. */
+  filters?: ShiftFilters;
 };
 
 const menuItemClass = "flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--foreground)] outline-none transition-colors hover:bg-[var(--primary-soft)] focus:bg-[var(--primary-soft)]";
 
 /** One action menu on every row; destructive actions retain their confirmation. */
-export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks, repeating = false }: ShiftRowActionsProps) {
+export function ShiftRowActions({ shiftId, editHref, duplicateHref, weeks, repeating = false, filters }: ShiftRowActionsProps) {
   const deleteForm = <form action={deleteShift}>
     <input type="hidden" name="id" value={shiftId} />
     <input type="hidden" name="weeks" value={weeks} />
+    {filters && filters.show !== "all" && <input type="hidden" name="show" value={filters.show} />}
+    {filters?.job && <input type="hidden" name="job" value={filters.job} />}
     {repeating
       ? <ConfirmSubmit label="Delete" confirmLabel="Delete this repeating shift?" detail="It comes from a repeating Google Calendar event. Deleting only this one leaves the other weeks syncing." confirmActionLabel="Delete only this shift" alternative={{ label: "Delete all upcoming and stop syncing", name: "scope", value: "series" }} />
       : <ConfirmSubmit label="Delete" confirmLabel="Delete shift?" />}

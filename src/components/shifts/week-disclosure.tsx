@@ -56,3 +56,23 @@ export function WeekDisclosure({ weekKey, defaultOpen, summary, children, curren
     {children}
   </details>;
 }
+
+/**
+ * Opens or closes every week on the page at once. It writes the same
+ * remembered store each week reads, so the weeks follow without being told.
+ * Reads as "Collapse all" only when every listed week is open.
+ */
+export function ExpandAllWeeks({ weeks }: { weeks: { key: string; defaultOpen: boolean }[] }) {
+  const stored = useSyncExternalStore(openWeeks.subscribe, openWeeks.read, openWeeks.serverSnapshot);
+  if (weeks.length < 2) return null;
+  const allOpen = weeks.every((week) => stored[week.key] ?? week.defaultOpen);
+  function setAll(open: boolean) {
+    const next = { ...stored };
+    for (const week of weeks) next[week.key] = open;
+    openWeeks.write(keepNewestKeys(next, REMEMBERED_WEEKS));
+  }
+  return <button type="button" onClick={() => setAll(!allOpen)} className="press inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-[var(--muted-foreground)] outline-none hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
+    <ChevronDown className={allOpen ? "size-3.5 rotate-180" : "size-3.5"} aria-hidden="true" />
+    {allOpen ? "Collapse all" : "Expand all"}
+  </button>;
+}

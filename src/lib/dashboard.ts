@@ -4,7 +4,7 @@ import type { DashboardData, JobSummary, MonthTotals, ThresholdAlert } from "@/l
 import type { DeductionSnapshot } from "@/lib/earnings";
 import { addWorkedMinutes, bucketWorkedShiftsByMonth, createTotals, finalizeTotals, type WorkedShift } from "@/lib/period-totals";
 import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-allocation";
-import { allocateWeekMinutes, buildWeekMeter, type WeekMeter } from "@/lib/week-meter";
+import { allocateWeekMinutes, buildJobLimitRows, buildWeekMeter, type JobLimitRow, type WeekMeter } from "@/lib/week-meter";
 import { JOB_PAY_COLUMNS, payPeriodQueryWindow, payScheduleFromColumns, summarizePayPeriods, type JobPayColumns } from "@/lib/pay-period";
 
 type ShiftRow = { id: string; job_id: string; starts_at: string; ends_at: string; notes: string | null; hourly_rate_cents: number; tax_rate_basis_points: number; deductions_snapshot: DeductionSnapshot[]; jobs: { name: string; color: string } };
@@ -96,20 +96,41 @@ async function fetchMonthTotals(supabase: Awaited<ReturnType<typeof createServer
  * resolves to null and the header simply draws no meter: the chrome must never
  * take a page down with it.
  */
-export async function getWeekMeter(profile: { id: string; time_zone: string; week_starts_on: number; global_weekly_limit_minutes: number | null }): Promise<WeekMeter | null> {
+export async function getWeekMeter(profile: WeekProfile): Promise<WeekMeter | null> {
+  const jobs = await loadCurrentWeek(profile);
+  return jobs ? buildWeekMeter(jobs, profile.global_weekly_limit_minutes) : null;
+}
+
+/**
+ * The shift log's current-week card: the header meter's numbers plus a row per
+ * job against its own weekly limit. The same query path as the header, so the
+ * two can never disagree. Null on any failure; the log then shows no card.
+ */
+export async function getWeekLimits(profile: WeekProfile): Promise<{ meter: WeekMeter; jobs: JobLimitRow[] } | null> {
+  const jobs = await loadCurrentWeek(profile);
+  if (!jobs) return null;
+  return {
+    meter: buildWeekMeter(jobs, profile.global_weekly_limit_minutes),
+    jobs: buildJobLimitRows(jobs.map((job) => ({ ...job, limitMinutes: job.weekly_limit_minutes }))),
+  };
+}
+
+type WeekProfile = { id: string; time_zone: string; week_starts_on: number; global_weekly_limit_minutes: number | null };
+
+/** Active jobs with this week's worked and scheduled minutes, archived jobs excluded as everywhere. */
+async function loadCurrentWeek(profile: WeekProfile) {
   try {
     const now = new Date();
     const weekStart = weekStartFor(now, profile.time_zone, profile.week_starts_on);
     const weekEnd = weekEndFor(now, profile.time_zone, profile.week_starts_on);
     const supabase = await createServerSupabaseClient();
     const [jobsResult, shiftsResult] = await Promise.all([
-      supabase.from("jobs").select("id,name,color").eq("user_id", profile.id).is("archived_at", null).order("created_at"),
+      supabase.from("jobs").select("id,name,color,weekly_limit_minutes").eq("user_id", profile.id).is("archived_at", null).order("created_at"),
       supabase.from("shifts").select("job_id,starts_at,ends_at,jobs!inner(archived_at)").eq("user_id", profile.id).is("jobs.archived_at", null).lt("starts_at", weekEnd.toISOString()).gt("ends_at", weekStart.toISOString()),
     ]);
     if (jobsResult.error || shiftsResult.error) return null;
     const shifts = (shiftsResult.data as unknown as { job_id: string; starts_at: string; ends_at: string }[]).map((row) => ({ jobId: row.job_id, startsAt: new Date(row.starts_at), endsAt: new Date(row.ends_at) }));
-    const jobs = allocateWeekMinutes(jobsResult.data as { id: string; name: string; color: string }[], shifts, now, profile.time_zone, profile.week_starts_on);
-    return buildWeekMeter(jobs, profile.global_weekly_limit_minutes);
+    return allocateWeekMinutes(jobsResult.data as { id: string; name: string; color: string; weekly_limit_minutes: number | null }[], shifts, now, profile.time_zone, profile.week_starts_on);
   } catch {
     return null;
   }

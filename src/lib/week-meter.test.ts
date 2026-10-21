@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { allocateWeekMinutes, buildWeekMeter, limitPosition } from "./week-meter";
+import { allocateWeekMinutes, buildJobLimitRows, buildWeekMeter, limitPosition } from "./week-meter";
 import { demoDashboard } from "./dashboard-demo";
 
 const CAMPUS = { id: "job-a", name: "Campus desk", color: "#9486ff" };
@@ -52,4 +52,23 @@ test("allocateWeekMinutes counts only this week's side of an overnight shift and
     { jobId: "job-archived", startsAt: new Date("2026-10-12T14:00:00Z"), endsAt: new Date("2026-10-12T17:00:00Z") },
   ], now, "America/Chicago", 0);
   assert.deepEqual(jobs.map((job) => [job.id, job.usedMinutes, job.scheduledMinutes]), [["job-a", 120, 0], ["job-b", 0, 180]]);
+});
+
+test("job limit rows use the header meter's ladder and leave out idle jobs without a limit", () => {
+  const rows = buildJobLimitRows([
+    { ...CAMPUS, usedMinutes: 300, scheduledMinutes: 180, limitMinutes: 480 },
+    { ...CAFE, usedMinutes: 60, scheduledMinutes: 0, limitMinutes: null },
+    { id: "job-c", name: "Idle", color: "#000000", usedMinutes: 0, scheduledMinutes: 0, limitMinutes: null },
+    { id: "job-d", name: "Capped, idle", color: "#111111", usedMinutes: 0, scheduledMinutes: 0, limitMinutes: 600 },
+  ]);
+  assert.deepEqual(rows.map((row) => [row.id, row.percent, row.tone]), [["job-a", 100, "danger"], ["job-b", 0, "calm"], ["job-d", 0, "calm"]]);
+  assert.equal(rows[0].loggedWidth + rows[0].scheduledWidth, 100);
+  assert.equal(rows[1].loggedWidth, 100);
+});
+
+test("a job past its limit draws against its total", () => {
+  const [row] = buildJobLimitRows([{ ...CAMPUS, usedMinutes: 500, scheduledMinutes: 100, limitMinutes: 480 }]);
+  assert.equal(row.tone, "danger");
+  assert.equal(Math.round(row.loggedWidth + row.scheduledWidth), 100);
+  assert.equal(row.percent, 125);
 });

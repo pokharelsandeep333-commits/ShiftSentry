@@ -52,7 +52,13 @@ export function TimeField({ id, value, onChange, fallback, ariaLabel, describedB
     if (parsed) setDraft(null);
   }
 
-  return <div ref={rootRef} className="shift-time-field">
+  // Commit when focus leaves the whole field, not just the input: tabbing from
+  // the input lands on the picker button first, and a typed time must not be
+  // left on screen while the form still holds the old one.
+  return <div ref={rootRef} className="shift-time-field" onBlur={() => requestAnimationFrame(() => {
+    if (rootRef.current?.contains(document.activeElement)) return;
+    commitTypedValue();
+  })}>
     <div className="shift-time-control relative">
       <Clock3 size={15} aria-hidden="true" />
       <input
@@ -68,10 +74,6 @@ export function TimeField({ id, value, onChange, fallback, ariaLabel, describedB
         className="field-control pr-11 text-sm"
         onChange={(event) => setDraft(event.target.value)}
         onFocus={(event) => event.currentTarget.select()}
-        onBlur={() => requestAnimationFrame(() => {
-          if (rootRef.current?.contains(document.activeElement)) return;
-          commitTypedValue();
-        })}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" && !open) {
             event.preventDefault();
