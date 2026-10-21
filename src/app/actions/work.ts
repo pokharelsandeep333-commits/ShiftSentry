@@ -11,7 +11,7 @@ import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalD
 import { deductionSchema, jobSchema, payScheduleFormSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, weekNoteSchema } from "@/lib/validation";
 import { isWeekStart } from "@/lib/week-notes";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
-import { clampWeeks } from "@/lib/shift-log";
+import { clampWeeks, readShiftFilters, shiftLogHref } from "@/lib/shift-log";
 import type { FormActionState, SavedFormState } from "@/lib/form-state";
 
 function fail(message: string): never { throw new Error(message); }
@@ -213,7 +213,8 @@ export async function deleteShift(formData: FormData) {
   const { error } = await supabase.from("shifts").delete().eq("id", id).eq("user_id", profile.id);
   if (error) fail("Unable to delete the shift. Please try again.");
   revalidatePath("/"); revalidatePath("/shifts"); revalidatePath("/calendar");
-  redirect(`/shifts?${new URLSearchParams({ weeks: String(clampWeeks(formData.get("weeks"))), saved: wholeSeries ? "series-stopped" : "shift-deleted" })}`);
+  // Back to the same depth and filters the delete was made from.
+  redirect(shiftLogHref(clampWeeks(formData.get("weeks")), readShiftFilters((name) => formData.get(name)), { saved: wholeSeries ? "series-stopped" : "shift-deleted" }));
 }
 
 export async function createJob(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {

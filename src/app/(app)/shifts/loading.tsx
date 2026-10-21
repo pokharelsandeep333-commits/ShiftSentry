@@ -9,12 +9,12 @@ export default function Loading() {
     <span className="sr-only">Loading shifts</span>
     <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <Skeleton className="mb-2 h-3 w-24" />
-        <Skeleton className="h-10 w-56 rounded-2xl" />
+        <Skeleton className="h-10 w-40 rounded-2xl" />
         <Skeleton className="mt-3 h-4 w-[28rem] max-w-full" />
       </div>
-      <Skeleton className="h-10 w-32 shrink-0 rounded-xl" />
+      <Skeleton className="h-11 w-32 shrink-0 rounded-xl" />
     </div>
+    <div className="mb-5 flex flex-wrap gap-2">{[16, 20, 16].map((width, chip) => <Skeleton key={chip} className="h-9 rounded-full" style={{ width: `${width * 4}px` }} />)}</div>
 
     <div className="space-y-3">{[0, 1, 2, 3].map((week) => <Card key={week}>
       <CardContent className="p-2 sm:p-3">

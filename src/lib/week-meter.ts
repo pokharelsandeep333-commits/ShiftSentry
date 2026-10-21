@@ -70,3 +70,47 @@ export function limitPosition(meter: WeekMeter) {
   if (!meter.limitMinutes) return null;
   return (meter.limitMinutes / Math.max(meter.limitMinutes, meter.plannedMinutes)) * 100;
 }
+
+export type JobLimitRow = {
+  id: string;
+  name: string;
+  color: string;
+  loggedMinutes: number;
+  plannedMinutes: number;
+  limitMinutes: number | null;
+  percent: number;
+  tone: WeekMeter["tone"];
+  /** Worked and planned, as percentages of the bar (the limit, or the total once past it). */
+  loggedWidth: number;
+  scheduledWidth: number;
+};
+
+/**
+ * One row per job for the shift log's current-week card: this week's worked
+ * and planned minutes against that job's own weekly limit, on the same ladder
+ * as the header meter (amber from 80%, coral at the limit). A job with no
+ * limit and no time this week is left out; one with time but no limit is kept,
+ * without a percentage, so its hours are still visible.
+ */
+export function buildJobLimitRows(jobs: (WeekMeterJob & { limitMinutes: number | null })[]): JobLimitRow[] {
+  return jobs
+    .filter((job) => job.limitMinutes !== null || job.usedMinutes + job.scheduledMinutes > 0)
+    .map((job) => {
+      const plannedMinutes = job.usedMinutes + job.scheduledMinutes;
+      const percent = percentage(plannedMinutes, job.limitMinutes);
+      const scale = Math.max(job.limitMinutes ?? 0, plannedMinutes);
+      const width = (minutes: number) => (scale ? (minutes / scale) * 100 : 0);
+      return {
+        id: job.id,
+        name: job.name,
+        color: job.color,
+        loggedMinutes: job.usedMinutes,
+        plannedMinutes,
+        limitMinutes: job.limitMinutes,
+        percent,
+        tone: !job.limitMinutes ? "calm" : percent >= 100 ? "danger" : percent >= 80 ? "warning" : "calm",
+        loggedWidth: width(job.usedMinutes),
+        scheduledWidth: width(job.scheduledMinutes),
+      };
+    });
+}
