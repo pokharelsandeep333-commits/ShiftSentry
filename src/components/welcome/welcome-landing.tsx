@@ -34,8 +34,8 @@ import { cn } from "@/lib/utils";
  * Images in `public/welcome/`:
  * - `hero-3d.webp`, `cta-3d.webp`: rendered by `scripts/render-welcome-3d.mjs`
  *   from `scripts/welcome-3d/scene.html`. Re-render there, never edit the webp.
- * - `dashboard-*.webp`: the demo dashboard (what `demoDashboard` renders with no
- *   Supabase configured) captured at 2x in both themes, shown through the
+ * - `dashboard-*.webp`: the demo dashboard (what `demoDashboardFor` renders with no
+ *   Supabase configured) captured in both themes, shown through the
  *   `.theme-light-only` / `.theme-dark-only` pair. Recapture when its look changes.
  * All are pre-compressed at display size, so `next/image` serves them
  * unoptimized and nothing depends on the image optimizer in the container.
@@ -119,7 +119,7 @@ export function WelcomeLanding() {
             </div>
             <figure className="relative pb-10 lg:col-span-8 lg:pb-12">
               <div className="rv rv-rise welcome-frame rounded-[1.25rem] p-1.5 sm:p-2">
-                <Screenshot name="dashboard-desktop" width={1440} height={900} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned, warnings at 80% of the weekly limit and 92% of one job's cap, and $136.40 earned after tax." className="rounded-[0.9rem]" sizes="(min-width: 1024px) 45rem, 92vw" />
+                <Screenshot name="dashboard-desktop" width={1440} height={900} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax." className="rounded-[0.9rem]" sizes="(min-width: 1024px) 45rem, 92vw" />
               </div>
               <div className="rv rv-rise welcome-phone absolute -bottom-2 right-[-2%] w-[26%] min-w-28 rounded-[1.5rem]">
                 <Screenshot name="dashboard-mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" sizes="12rem" />

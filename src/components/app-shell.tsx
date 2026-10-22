@@ -321,14 +321,14 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
           down so its top lines up with the sidebar card's. The calendar page's
           `100dvh - 6.5rem` counts this: change both together. */}
       <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-4"><div className="premium-card mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border bg-[var(--card)]/82 px-2.5">
-        <div className="flex min-w-0 flex-1 basis-0 items-center gap-1 sm:gap-2">
+        <div className="flex min-w-0 flex-auto items-center gap-1 sm:gap-2 md:flex-1 md:basis-0">
           <SidebarToggle />
           <MobileNavigation pathname={pathname} isAdmin={isAdmin} />
-          <Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2" /></Link>
+          <Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2 max-[379px]:[&>span:last-child]:hidden" /></Link>
           {section && <p className="hidden truncate font-display text-[15px] font-semibold tracking-[-0.02em] lg:block">{section.label}</p>}
         </div>
         {weekMeter && <div className="hidden min-w-0 md:block"><Suspense fallback={<WeekMeterPlaceholder />}><WeekMeterLink weekMeter={weekMeter} /></Suspense></div>}
-        <div className="flex min-w-0 flex-1 basis-0 items-center justify-end gap-1 sm:gap-2">
+        <div className="flex min-w-0 flex-none items-center justify-end gap-1 sm:gap-2 md:flex-1 md:basis-0">
           <ThemeToggle />
           <Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants(), "size-11 rounded-full p-0 shadow-none hover:shadow-none sm:w-auto sm:px-4 md:h-9")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>
           {!isDemo && <AccountMenu email={userEmail} name={userName} />}

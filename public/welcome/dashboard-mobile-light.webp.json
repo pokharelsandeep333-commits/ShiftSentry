@@ -1,4 +1,4 @@
 {
-  "prompt": "Screenshot, not generated. The ShiftSentry demo dashboard (src/lib/dashboard-demo.ts sample data: the landing example week, 16 of 20 hours, rendered with no Supabase configured) captured from the dev-demo server in headless Edge at 2x device scale, compressed to webp with sharp. Theme set through localStorage; the preview-mode sidebar card and the Next.js dev badge removed before capture.\n",
-  "createdAt": "2026-10-03T20:21:41.000Z"
+  "prompt": "Browser screenshot, not generated art. Final release design of ShiftSentry's standalone production demo using src/lib/dashboard-demo.ts and synthetic sample records, including proportional Outfit numerals and aligned financial cards. Captured through the in-app Chromium browser at 375x812 pixels in light theme, selected through the app's theme control. Encoded as WebP at quality 82. Preview mode and sample-data labels are retained. No personal workspace data.",
+  "createdAt": "2026-10-22T01:22:10.979Z"
 }

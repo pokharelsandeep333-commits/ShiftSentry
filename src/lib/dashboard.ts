@@ -1,15 +1,16 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { allocateShiftMinutes, percentage, weekEndFor, weekStartFor } from "@/lib/time";
-import type { DashboardData, JobSummary, MonthTotals, ThresholdAlert } from "@/lib/types";
+import { allocateShiftMinutes, weekEndFor, weekStartFor } from "@/lib/time";
+import type { DashboardData, MonthTotals } from "@/lib/types";
 import type { DeductionSnapshot } from "@/lib/earnings";
-import { addWorkedMinutes, bucketWorkedShiftsByMonth, createTotals, finalizeTotals, type WorkedShift } from "@/lib/period-totals";
+import { addWorkedMinutes, bucketWorkedShiftsByMonth, createTotals, finalizeTotals } from "@/lib/period-totals";
 import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-allocation";
 import { allocateWeekMinutes, buildJobLimitRows, buildWeekMeter, type JobLimitRow, type WeekMeter } from "@/lib/week-meter";
 import { JOB_PAY_COLUMNS, payPeriodQueryWindow, payScheduleFromColumns, summarizePayPeriods, type JobPayColumns } from "@/lib/pay-period";
+import { buildDashboardInsights, recentCompletedShifts, type DashboardShift, type RecentCompletedShift } from "@/lib/dashboard-insights";
 
 type ShiftRow = { id: string; job_id: string; starts_at: string; ends_at: string; notes: string | null; hourly_rate_cents: number; tax_rate_basis_points: number; deductions_snapshot: DeductionSnapshot[]; jobs: { name: string; color: string } };
 type JobRow = JobPayColumns & { id: string; name: string; color: string; weekly_limit_minutes: number | null };
-type AllTimeRow = Omit<ShiftRow, "id" | "notes">;
+type AllTimeRow = Omit<ShiftRow, "notes">;
 
 const SHIFT_COLUMNS = "job_id,starts_at,ends_at,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,jobs!inner(name,color)";
 
@@ -24,30 +25,6 @@ function deductionsOf(row: { deductions_snapshot: DeductionSnapshot[] }) {
   return Array.isArray(row.deductions_snapshot) ? row.deductions_snapshot : [];
 }
 
-/** The tier a cap has crossed, or null while it is still comfortably under. */
-function alertLevel(percent: number): ThresholdAlert["level"] | null {
-  return percent >= 100 ? 100 : percent >= 90 ? 90 : percent >= 80 ? 80 : null;
-}
-
-function thresholdAlerts(globalLimit: number | null, logged: number, scheduled: number, jobs: JobSummary[]): ThresholdAlert[] {
-  const alerts: ThresholdAlert[] = [];
-  const globalPercent = percentage(logged + scheduled, globalLimit);
-  const globalLevel = alertLevel(globalPercent);
-  if (globalLevel) alerts.push({ level: globalLevel, title: globalLevel === 100 ? "Weekly cap reached" : "Approaching your weekly cap", detail: `Your planned hours reach ${globalPercent}% of your global cap.`, severity: globalLevel === 100 ? "danger" : "warning" });
-
-  // Per-job caps warn on the same 80/90/100 ladder as the global one. They used
-  // to fire only at 100%, which meant the dashboard could warn about the cap a
-  // user was comfortably under while saying nothing about the job they were
-  // minutes from breaching -- under a card promising alerts at all three tiers.
-  jobs.forEach((job) => {
-    const jobPercent = percentage(job.usedMinutes + job.scheduledMinutes, job.weeklyLimitMinutes);
-    const level = alertLevel(jobPercent);
-    if (!level) return;
-    alerts.push({ level, title: level === 100 ? `${job.name} limit reached` : `Approaching your ${job.name} limit`, detail: `Planned hours reach ${jobPercent}% of this job's weekly cap.`, severity: level === 100 ? "danger" : "warning" });
-  });
-  return alerts;
-}
-
 /**
  * Every shift the user has ever started, bucketed by calendar month in their
  * own zone. The card sums whichever months a range covers on the client, so one
@@ -56,16 +33,16 @@ function thresholdAlerts(globalLimit: number | null, logged: number, scheduled: 
  * Deliberately a second query rather than an extension of the dashboard window:
  * a shift straddling the six-month boundary belongs to both ranges, so bolting a
  * "before the window" query onto the windowed one would either double it or drop
- * it. Only the pay snapshot is selected, and archived jobs stay excluded here
- * exactly as they are everywhere else.
+ * it. The pay snapshot and shift id also supply the latest completed shifts,
+ * and archived jobs stay excluded exactly as they are everywhere else.
  */
-async function fetchMonthTotals(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, now: Date, timeZone: string): Promise<MonthTotals[]> {
-  const shifts: WorkedShift[] = [];
+async function fetchHistory(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, now: Date, timeZone: string): Promise<{ months: MonthTotals[]; recentShifts: RecentCompletedShift[] }> {
+  const shifts: DashboardShift[] = [];
 
   for (let page = 0; ; page += 1) {
     const { data, error } = await supabase
       .from("shifts")
-      .select(SHIFT_COLUMNS)
+      .select(`id,${SHIFT_COLUMNS}`)
       .eq("user_id", userId)
       .is("jobs.archived_at", null)
       .lt("starts_at", now.toISOString())
@@ -76,6 +53,7 @@ async function fetchMonthTotals(supabase: Awaited<ReturnType<typeof createServer
 
     const rows = (data ?? []) as unknown as AllTimeRow[];
     rows.forEach((row) => shifts.push({
+      id: row.id,
       jobId: row.job_id,
       jobName: row.jobs.name,
       jobColor: row.jobs.color,
@@ -87,7 +65,7 @@ async function fetchMonthTotals(supabase: Awaited<ReturnType<typeof createServer
     }));
     if (rows.length < ALL_TIME_PAGE_SIZE) break;
   }
-  return bucketWorkedShiftsByMonth(shifts, now, timeZone);
+  return { months: bucketWorkedShiftsByMonth(shifts, now, timeZone), recentShifts: recentCompletedShifts(shifts, now, timeZone) };
 }
 
 /**
@@ -149,10 +127,10 @@ export async function getDashboardData(profile: { id: string; email: string; dis
   const shiftQueryStart = payWindow.start < allocationWindow.start ? payWindow.start : allocationWindow.start;
   const shiftQueryEnd = [weekEnd, allocationWindow.end, payWindow.end].reduce((latest, bound) => bound > latest ? bound : latest);
   const supabase = await createServerSupabaseClient();
-  const [jobsResult, shiftsResult, months] = await Promise.all([
+  const [jobsResult, shiftsResult, history] = await Promise.all([
     supabase.from("jobs").select(`id,name,color,weekly_limit_minutes,${JOB_PAY_COLUMNS}`).eq("user_id", profile.id).is("archived_at", null).order("created_at"),
     supabase.from("shifts").select(`id,notes,${SHIFT_COLUMNS}`).eq("user_id", profile.id).is("jobs.archived_at", null).lt("starts_at", shiftQueryEnd.toISOString()).gt("ends_at", shiftQueryStart.toISOString()).order("starts_at"),
-    fetchMonthTotals(supabase, profile.id, now, profile.time_zone),
+    fetchHistory(supabase, profile.id, now, profile.time_zone),
   ]);
   if (jobsResult.error) throw jobsResult.error;
   if (shiftsResult.error) throw shiftsResult.error;
@@ -162,6 +140,7 @@ export async function getDashboardData(profile: { id: string; email: string; dis
   const jobLookup = new Map(jobs.map((job) => [job.id, job]));
   const week = createTotals();
   const upcomingShifts: DashboardData["upcomingShifts"] = [];
+  let currentShift: DashboardData["currentShift"] = null;
   const shifts = shiftsResult.data as unknown as ShiftRow[];
 
   shifts.forEach((shift) => {
@@ -187,12 +166,17 @@ export async function getDashboardData(profile: { id: string; email: string; dis
         if (allocationWeekStart.getTime() === weekStart.getTime()) addWorkedMinutes(week, allocation.minutes, jobRef, snapshot);
       }
     }
-    if (startsAt > now && startsAt < weekEnd) upcomingShifts.push({ id: shift.id, jobId: shift.job_id, jobName: shift.jobs.name, jobColor: shift.jobs.color, startsAt: shift.starts_at, endsAt: shift.ends_at, notes: shift.notes });
+    // The query runs past this week (the pay-period lookahead), so "next" can
+    // reach into next week rather than going blank on a Saturday night.
+    const summary = { id: shift.id, jobId: shift.job_id, jobName: shift.jobs.name, jobColor: shift.jobs.color, startsAt: shift.starts_at, endsAt: shift.ends_at, notes: shift.notes };
+    if (startsAt > now) upcomingShifts.push(summary);
+    else if (endsAt > now) currentShift = summary;
   });
 
   const loggedMinutes = jobs.reduce((total, job) => total + job.usedMinutes, 0);
   const scheduledMinutes = jobs.reduce((total, job) => total + job.scheduledMinutes, 0);
-  const workedShifts: WorkedShift[] = shifts.map((shift) => ({
+  const workedShifts = shifts.map((shift) => ({
+    id: shift.id,
     jobId: shift.job_id,
     jobName: shift.jobs.name,
     jobColor: shift.jobs.color,
@@ -209,5 +193,5 @@ export async function getDashboardData(profile: { id: string; email: string; dis
     window: allocationWindow,
   });
   const payPeriods = summarizePayPeriods({ jobs: jobRows.map((job) => ({ id: job.id, name: job.name, color: job.color, schedule: payScheduleFromColumns(job) })), shifts: workedShifts, now, timeZone: profile.time_zone });
-  return { viewer: { email: profile.email, name: profile.display_name, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on }, globalLimitMinutes: profile.global_weekly_limit_minutes, loggedMinutes, scheduledMinutes, jobs, upcomingShifts: upcomingShifts.slice(0, 5), alerts: thresholdAlerts(profile.global_weekly_limit_minutes, loggedMinutes, scheduledMinutes, jobs), totals: { week: finalizeTotals(week), months }, monthlyJobAllocation, payPeriods };
+  return { ...buildDashboardInsights(workedShifts, now, profile.time_zone, profile.week_starts_on), recentShifts: history.recentShifts, viewer: { email: profile.email, name: profile.display_name, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on }, globalLimitMinutes: profile.global_weekly_limit_minutes, loggedMinutes, scheduledMinutes, jobs, currentShift, upcomingShifts: upcomingShifts.slice(0, 4), totals: { week: finalizeTotals(week), months: history.months }, monthlyJobAllocation, payPeriods };
 }
