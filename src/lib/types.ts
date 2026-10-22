@@ -1,4 +1,5 @@
 import type { PayPeriodSummary } from "@/lib/pay-period";
+import type { RecentCompletedShift, WorkDay } from "@/lib/dashboard-insights";
 
 export type AppRole = "USER" | "ADMIN";
 
@@ -82,21 +83,22 @@ export type ShiftSummary = {
   notes?: string | null;
 };
 
-export type ThresholdAlert = {
-  level: 80 | 90 | 100;
-  title: string;
-  detail: string;
-  severity: "warning" | "danger";
-};
 
 export type DashboardData = {
+  snapshotAt: string;
+  weekDays: WorkDay[];
+  weekForecast: { remainingMinutes: number; remainingNetCents: number; remainingShiftCount: number };
+  recentShifts: RecentCompletedShift[];
+  weekComparison: { previous: PeriodTotals; throughLabel: string };
   viewer: { email: string; name: string | null; timeZone: string; weekStartsOn: number };
   globalLimitMinutes: number | null;
   loggedMinutes: number;
   scheduledMinutes: number;
   jobs: JobSummary[];
+  /** A shift under way right now, if any. */
+  currentShift: ShiftSummary | null;
+  /** The next few shifts that have not started, within the windowed query (about a month ahead). */
   upcomingShifts: ShiftSummary[];
-  alerts: ThresholdAlert[];
   totals: DashboardTotals;
   monthlyJobAllocation: MonthlyJobAllocation;
   /** One entry per active job with a pay schedule; empty when none has one. */

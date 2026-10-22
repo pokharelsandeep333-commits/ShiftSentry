@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getWeekMeter } from "@/lib/dashboard";
-import { demoDashboard } from "@/lib/dashboard-demo";
+import { demoDashboardFor } from "@/lib/dashboard-demo";
 import { buildWeekMeter } from "@/lib/week-meter";
 
 /**
@@ -18,7 +18,10 @@ import { buildWeekMeter } from "@/lib/week-meter";
  * they must render without a session.
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  if (!isSupabaseConfigured()) return <AppShell isDemo weekMeter={Promise.resolve(buildWeekMeter(demoDashboard.jobs, demoDashboard.globalLimitMinutes))}>{children}</AppShell>;
+  if (!isSupabaseConfigured()) {
+    const demo = demoDashboardFor(new Date());
+    return <AppShell isDemo weekMeter={Promise.resolve(buildWeekMeter(demo.jobs, demo.globalLimitMinutes))}>{children}</AppShell>;
+  }
   const profile = await requireUser();
 
   // Not awaited: the header meter streams in behind its own Suspense boundary,

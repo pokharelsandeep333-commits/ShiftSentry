@@ -4,12 +4,17 @@ import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { NextShiftCard } from "@/components/dashboard/next-shift-card";
+import { WeekCard, WeekJobLimits } from "@/components/dashboard/week-card";
+import { WorkWeek } from "@/components/dashboard/work-week";
+import { PaydaySummary } from "@/components/dashboard/payday-summary";
+import { WeeklyPayForecast } from "@/components/dashboard/weekly-pay-forecast";
+import { RecentShifts } from "@/components/dashboard/recent-shifts";
 import { PremiumSelect } from "@/components/ui/premium-select";
-import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
 import { formatCents } from "@/lib/earnings";
 import { EARNINGS_RANGE_PRESETS, monthKeyLabel, monthRangeForPreset, monthSpanLabel, selectMonths, type EarningsRangePreset } from "@/lib/earnings-range";
@@ -19,12 +24,9 @@ import { niceAxisTicks } from "@/lib/chart-ticks";
 import { combineMonthTotals } from "@/lib/period-totals";
 import { addDays, daysBetween, formatPayDay, formatPayPeriod, type PayPeriodSummary } from "@/lib/pay-period";
 import { weekEndFor, weekStartFor } from "@/lib/time";
-import { cn, formatMinutes, splitMinutes } from "@/lib/utils";
-import type { DashboardData, DashboardTotals, MonthlyJobAllocation, ThresholdAlert } from "@/lib/types";
-
-function capPercent(used: number, limit: number | null) {
-  return limit ? Math.round((used / limit) * 100) : 0;
-}
+import { cn, formatMinutes } from "@/lib/utils";
+import type { DashboardData, DashboardTotals, MonthlyJobAllocation, PeriodJobTotal } from "@/lib/types";
+import styles from "./dashboard.module.css";
 
 const HOVER_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 
@@ -80,93 +82,41 @@ function useHoverPointer() {
   return useSyncExternalStore(subscribeToPointer, readHoverPointer, () => true);
 }
 
-/** Beyond this many, cap warnings stack past the fold and stop being read. */
-const ALERT_PREVIEW_COUNT = 2;
-
-function CapAlerts({ alerts }: { alerts: ThresholdAlert[] }) {
-  const [expanded, setExpanded] = useState(false);
-  // Most urgent first, so a cap already reached is never pushed below one at 80%.
-  const ordered = useMemo(() => [...alerts].sort((a, b) => b.level - a.level), [alerts]);
-  const visible = expanded ? ordered : ordered.slice(0, ALERT_PREVIEW_COUNT);
-  const hidden = ordered.length - visible.length;
-
-  return <>
-    {visible.map((alert, index) => {
-      // Severity picks the token: a cap already reached used to render in the
-      // same amber as one merely approaching.
-      const tone = alert.severity === "danger" ? "var(--danger)" : "var(--warning)";
-      return <Reveal key={`${alert.title}-${alert.level}`} delay={0.08 + index * 0.04}>
-        <div className="mb-4 flex items-start gap-3 rounded-2xl border p-4" style={{ borderColor: `color-mix(in srgb, ${tone} 35%, var(--border))`, background: `color-mix(in srgb, ${tone} 9%, transparent)` }}>
-          <AlertTriangle className="mt-0.5 size-5 shrink-0" style={{ color: tone }} />
-          <div><p className="font-semibold">{alert.title}</p><p className="mt-0.5 text-sm leading-6 text-[var(--muted-foreground)]">{alert.detail}</p></div>
-        </div>
-      </Reveal>;
-    })}
-    {hidden > 0 && <button type="button" onClick={() => setExpanded(true)} className="mb-4 w-full rounded-2xl border border-dashed px-4 py-2.5 text-sm font-semibold text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]">Show {hidden} more cap warning{hidden === 1 ? "" : "s"}</button>}
-  </>;
-}
-
-export function DashboardView({ data, calendarSlot }: { data: DashboardData; calendarSlot?: React.ReactNode }) {
-  const projected = data.loggedMinutes + data.scheduledMinutes;
-  // Hours large, leftover minutes small: the hero keeps its typography without
-  // rounding a minute away, which at a cap boundary reads as "exactly at the
-  // limit" when the viewer is actually over it.
-  const projectedParts = splitMinutes(projected);
-  const globalPercent = capPercent(projected, data.globalLimitMinutes);
-  const remaining = data.globalLimitMinutes === null ? null : Math.max(0, data.globalLimitMinutes - projected);
-  const capVariant = globalPercent >= 100 ? "danger" : globalPercent >= 80 ? "warning" : "success";
-  const capColor = globalPercent >= 100 ? "bg-[var(--danger)]" : globalPercent >= 80 ? "bg-[var(--warning)]" : "bg-[var(--success)]";
-
+export function DashboardView({ data }: { data: DashboardData }) {
   // Nothing has been set up yet, so there is nothing to total. The full
   // dashboard here is a wall of zeros -- an empty hero, four $0.00 metrics, two
   // blank charts and three separate empty states -- which says what is missing
   // without saying what to do about it.
-  if (!data.isDemo && data.jobs.length === 0) return <><DashboardHeading data={data} /><FirstRun /></>;
+  if (!data.isDemo && data.jobs.length === 0) return <div className={styles.root}><DashboardHeading data={data} /><FirstRun /></div>;
 
-  return <>
+  return <div className={styles.root}>
     <DashboardHeading data={data} />
+    <WeekCard jobs={data.jobs} workedMinutes={data.totals.week.minutes} limitMinutes={data.globalLimitMinutes} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
 
-    <Reveal delay={0.05}>
-      <Card className="mb-6 border-[color-mix(in_srgb,var(--primary)_28%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--primary)_15%,var(--card)),var(--card)_58%)]">
-        <CardContent className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <div>
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div><p className="text-sm font-semibold">Global weekly cap</p><p className="mt-1 text-sm text-[var(--muted-foreground)]">Logged plus scheduled hours.</p></div>
-              <Badge variant={capVariant} className="rounded-xl px-3 py-1.5">{data.globalLimitMinutes ? `${globalPercent}% planned` : "No cap"}</Badge>
-            </div>
-            <div className="mb-4 flex items-baseline gap-2"><span className="font-display text-5xl font-semibold sm:text-6xl">{projectedParts.hours}<span className="ml-1 text-2xl text-[var(--muted-foreground)] sm:text-3xl">h{projectedParts.minutes ? ` ${projectedParts.minutes}m` : ""}</span></span><span className="text-sm text-[var(--muted-foreground)]">of {data.globalLimitMinutes ? formatMinutes(data.globalLimitMinutes) : "unlimited"}</span></div>
-            <Progress value={globalPercent} indicatorClassName={capColor} />
-            <div className="mt-3 flex justify-between text-xs font-medium text-[var(--muted-foreground)]"><span>{formatMinutes(data.loggedMinutes)} logged</span><span>{formatMinutes(data.scheduledMinutes)} scheduled</span></div>
-          </div>
-          {/* Two figures beside the hero, set apart by a rule rather than boxed:
-              tiles inside this card were a card inside a card. */}
-          <dl className="grid grid-cols-2 gap-6 border-t pt-5 lg:min-w-56 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-            <div><dt className="text-sm font-medium text-[var(--muted-foreground)]">Remaining</dt><dd className="mt-1.5 font-display text-2xl font-semibold tabular-nums">{remaining === null ? "—" : formatMinutes(remaining)}</dd></div>
-            <div><dt className="text-sm font-medium text-[var(--muted-foreground)]">Upcoming</dt><dd className="mt-1.5 font-display text-2xl font-semibold tabular-nums">{data.upcomingShifts.length}</dd></div>
-          </dl>
-        </CardContent>
-      </Card>
-    </Reveal>
+    {/* Daily work stays with weekly capacity; upcoming work and pay share
+        a compact rail without stretching either surface. */}
+    <section className={styles.topGrid}>
+      <Reveal className="min-w-0" delay={0.05}><Card className="flex h-full min-w-0 flex-col p-5 sm:p-6">
+        <WorkWeek days={data.weekDays} timeZone={data.viewer.timeZone} />
+        <WeekJobLimits jobs={data.jobs} />
+      </Card></Reveal>
+      <aside className={cn("premium-card", styles.rail)} aria-label="Upcoming work and pay">
+        <NextShiftCard current={data.currentShift} upcoming={data.upcomingShifts} timeZone={data.viewer.timeZone} snapshotAt={data.snapshotAt} />
+        <PaydaySummary periods={data.payPeriods} snapshotAt={data.snapshotAt} timeZone={data.viewer.timeZone} onShowDetails={() => payPeriodsPreference.write("open")} />
+      </aside>
+    </section>
+    <WeeklyPayForecast earnedNetCents={data.totals.week.earnings.netCents} forecast={data.weekForecast} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} />
 
-    <CapAlerts alerts={data.alerts} />
-
-    <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-      <Reveal><EarningsCard totals={data.totals} /></Reveal>
-      <Reveal delay={0.06}><MonthlyAllocationChart allocation={data.monthlyJobAllocation} metric="earnings" /></Reveal>
+    {/* Then money: what this period came to, beside how it compares with the
+        months before. Pay periods, when a job has a schedule, close the page. */}
+    <section className="mt-5 grid grid-cols-1 items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <Reveal className="min-w-0"><EarningsCard totals={data.totals} comparison={data.weekComparison} /></Reveal>
+      <Reveal className="min-w-0" delay={0.06}><HistoryChart allocation={data.monthlyJobAllocation} /></Reveal>
     </section>
 
+    <RecentShifts shifts={data.recentShifts} timeZone={data.viewer.timeZone} />
     {data.payPeriods.length > 0 && <Reveal><PayPeriodsCard periods={data.payPeriods} /></Reveal>}
-
-    <section className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-      <Reveal><MonthlyAllocationChart allocation={data.monthlyJobAllocation} metric="hours" /></Reveal>
-      <Reveal delay={0.06}><Card className="h-full"><CardHeader><CardTitle>Hours by job</CardTitle><CardDescription>Includes future shifts in this week.</CardDescription></CardHeader><CardContent className="space-y-5">{data.jobs.length ? data.jobs.map((job) => <JobLimit key={job.id} job={job} />) : <EmptyState message="Add a job to start tracking its limit." href="/jobs/new" cta="Create your first job" />}</CardContent></Card></Reveal>
-    </section>
-
-    <section className={cn("mt-6 grid grid-cols-1 gap-6", calendarSlot && "xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]")}>
-      <Reveal><Card className="h-full"><CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle>Coming up</CardTitle><CardDescription>Your next scheduled shifts</CardDescription></div><Link href="/shifts" className="inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-semibold text-[var(--primary)] sm:min-h-0 transition-colors hover:bg-[var(--primary-soft)]">See all</Link></div></CardHeader><CardContent className="space-y-1">{data.upcomingShifts.length ? data.upcomingShifts.map((shift) => <Link key={shift.id} href={`/shifts/${shift.id}/edit`} className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-[var(--surface-subtle)]"><span aria-hidden="true" className="ml-1 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: shift.jobColor }} /><div className="min-w-0 flex-1"><p className="font-semibold">{shift.jobName}</p><p className="truncate text-sm text-[var(--muted-foreground)]">{formatInTimeZone(shift.startsAt, data.viewer.timeZone, "EEE, MMM d · h:mm a")} – {formatInTimeZone(shift.endsAt, data.viewer.timeZone, "h:mm a")}</p></div><ArrowRight className="size-4 text-[var(--muted-foreground)]" /></Link>) : <EmptyState message="Nothing scheduled this week." href="/shifts/new" cta="Schedule your first shift" />}</CardContent></Card></Reveal>
-      {calendarSlot && <Reveal delay={0.06}>{calendarSlot}</Reveal>}
-    </section>
-  </>;
+  </div>;
 }
 
 /** A job with no deductions configured was reading "−$0.00", which announces a
@@ -204,7 +154,7 @@ function useStoredEarningsRange() {
   return { range, hydrated, setRange: earningsRange.write };
 }
 
-function EarningsCard({ totals }: { totals: DashboardTotals }) {
+function EarningsCard({ totals, comparison }: { totals: DashboardTotals; comparison: DashboardData["weekComparison"] }) {
   const pickerId = useId();
   const months = totals.months;
   const { range: stored, hydrated, setRange } = useStoredEarningsRange();
@@ -248,7 +198,7 @@ function EarningsCard({ totals }: { totals: DashboardTotals }) {
       label: entry.key === "custom" && preset === "custom" && span ? monthSpanLabel(span.from, span.to) : entry.label,
     })), [months.length, preset, span]);
 
-  const description = preset === "week" ? "Completed work plus time elapsed on any active shift."
+  const description = preset === "week" ? "Worked so far, including a shift under way."
     : !span ? "Nothing has been logged yet."
     : span.from === span.to ? `Everything you worked in ${monthKeyLabel(span.from)}.`
     : `Everything you worked from ${monthKeyLabel(span.from)} to ${monthKeyLabel(span.to)}.`;
@@ -261,14 +211,14 @@ function EarningsCard({ totals }: { totals: DashboardTotals }) {
     setRange({ preset: next, custom: next === "custom" ? custom ?? monthRangeForPreset("last3", months) : custom });
   }
 
-  return <Card className="h-full">
+  return <Card className="@container min-w-0 h-full">
     <CardHeader>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 basis-48">
           <CardTitle>Earnings</CardTitle>
           <CardDescription className="mt-2">{description}</CardDescription>
         </div>
-        <div className="w-full sm:w-56 sm:shrink-0">
+        <div className="w-full @min-[28rem]:w-44 @min-[28rem]:shrink-0">
           <span id={`${pickerId}-range`} className="sr-only">Earnings period</span>
           <PremiumSelect key={hydrated ? "hydrated" : "initial"} name="earnings-range" labelledBy={`${pickerId}-range`} defaultValue={preset} options={rangeOptions} onValueChange={(value) => choosePreset(value as EarningsRangePreset)} />
         </div>
@@ -285,37 +235,50 @@ function EarningsCard({ totals }: { totals: DashboardTotals }) {
           <PremiumSelect name="earnings-range-to" labelledBy={`${pickerId}-to`} defaultValue={custom.to} options={monthOptions} onValueChange={(value) => setRange({ preset, custom: { from: custom.from, to: value } })} />
         </div>
       </div>}
-      {/* Net and hours are the answer; gross, tax and deductions explain it. Equal
-          tiles for all five made the two numbers anyone actually came for
-          indistinguishable from their own footnotes. */}
-      <div className="grid grid-cols-2 gap-3">
-        <Headline label="Net earned" value={formatCents(summary.earnings.netCents)} success />
-        <Headline label="Hours worked" value={formatMinutes(summary.minutes)} />
+      {/* Net is the answer, so it is the one large figure; hours sit beside it.
+          Gross, tax and deductions explain it, so they read as one receipt line
+          under it rather than three boxes as loud as the answer. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">Net earned</p>
+          <p className="mt-1 whitespace-nowrap font-display text-[2.5rem] font-semibold leading-none tracking-[-0.035em] tabular-nums text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))] sm:text-[3.1rem]">{formatCents(summary.earnings.netCents)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">Hours worked</p>
+          <p className="mt-1 whitespace-nowrap font-display text-2xl font-semibold tabular-nums">{formatMinutes(summary.minutes)}</p>
+        </div>
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        <Metric label="Gross" value={formatCents(summary.earnings.grossCents)} />
-        <Metric label="Tax" value={withheld(summary.earnings.taxCents)} />
-        <Metric label="Deductions" value={withheld(summary.earnings.deductionCents)} />
-      </div>
-      <div className="mt-5 space-y-1.5">
-        {summary.jobs.length
-          ? summary.jobs.map((job) => <div key={job.id} className="flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-sm transition-colors hover:bg-[var(--surface-subtle)]"><span className="flex min-w-0 items-center gap-2.5 font-medium"><i className="size-2.5 shrink-0 rounded-full shadow-sm" style={{ background: job.color }} /><span className="truncate" title={job.name}>{job.name}</span></span><span className="shrink-0 font-semibold">{formatCents(job.netCents)}</span></div>)
-          : <p className="rounded-xl px-2.5 py-2 text-sm text-[var(--muted-foreground)]">No worked shifts in this period.</p>}
-      </div>
+      {preset === "week" && <WeeklyComparison current={totals.week} comparison={comparison} />}
+      <dl className="mt-5 grid grid-cols-1 gap-3 border-y py-3 text-sm @min-[22rem]:grid-cols-3 @min-[22rem]:gap-0 @min-[22rem]:divide-x">
+        <ReceiptItem label="Gross" value={formatCents(summary.earnings.grossCents)} />
+        <ReceiptItem label="Tax" value={withheld(summary.earnings.taxCents)} />
+        <ReceiptItem label="Deductions" value={withheld(summary.earnings.deductionCents)} />
+      </dl>
+      <JobSplit jobs={summary.jobs} total={summary.earnings.netCents} />
     </CardContent>
   </Card>;
 }
 
-const payPeriodsPreference = createLocalPreference<"open" | "closed">("shiftsentry:pay-periods", "open", (value) => (value === "open" || value === "closed" ? value : null));
+function WeeklyComparison({ current, comparison }: { current: DashboardTotals["week"]; comparison: DashboardData["weekComparison"] }) {
+  const netChange = current.earnings.netCents - comparison.previous.earnings.netCents;
+  const hoursChange = current.minutes - comparison.previous.minutes;
+  const signed = (value: number, format: (value: number) => string) => value === 0 ? "No change" : `${value > 0 ? "+" : "−"}${format(Math.abs(value))}`;
+  return <div className={styles.comparison}>
+    <p className="text-xs font-medium text-[var(--muted-foreground)]">Compared with last week through {comparison.throughLabel}</p>
+    <dl>
+      <div><dt className="text-xs text-[var(--muted-foreground)]">Net pay</dt><dd className="mt-1 text-sm font-semibold tabular-nums">{signed(netChange, formatCents)}</dd><dd className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">{formatCents(comparison.previous.earnings.netCents)} last week</dd></div>
+      <div><dt className="text-xs text-[var(--muted-foreground)]">Hours worked</dt><dd className="mt-1 text-sm font-semibold tabular-nums">{signed(hoursChange, formatMinutes)}</dd><dd className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">{formatMinutes(comparison.previous.minutes)} last week</dd></div>
+    </dl>
+  </div>;
+}
+
+const payPeriodsPreference = createLocalPreference<"open" | "closed">("shiftsentry:pay-periods", "closed", (value) => (value === "open" || value === "closed" ? value : null));
 
 /**
  * Whether the pay periods card is open, and whether it may animate yet.
  *
- * The server renders it open and the remembered state arrives on the first
- * client render. Folding shut in front of the viewer on every load would be
- * worse than the one-frame flash, so the transition is switched on only a frame
- * after mount: a viewer who keeps it closed sees it closed, and only a click
- * animates.
+ * Closed on first use, then remembered per device. Only user interaction
+ * animates; hydration restores the preference without a folding animation.
  */
 function usePayPeriodsOpen() {
   const open = useSyncExternalStore(payPeriodsPreference.subscribe, payPeriodsPreference.read, payPeriodsPreference.serverSnapshot) === "open";
@@ -339,7 +302,7 @@ function PayPeriodsCard({ periods }: { periods: PayPeriodSummary[] }) {
   const contentId = useId();
   const { open, canAnimate, toggle } = usePayPeriodsOpen();
 
-  return <Card className="mt-6">
+  return <Card id="pay-periods" className="mt-5 scroll-mt-5">
     <CardHeader>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -370,23 +333,25 @@ function PayPeriodTile({ period }: { period: PayPeriodSummary }) {
   const elapsedPercent = Math.round(((length - current.daysLeft + 1) / length) * 100);
   const projected = { minutes: current.worked.minutes + current.scheduled.minutes, netCents: current.worked.netCents + current.scheduled.netCents };
 
-  return <div className="flex min-w-0 flex-col rounded-2xl border p-3.5 sm:p-4">
+  // One tile per job, no boxes inside it: the period, how far through it is,
+  // what it has come to so far, and the last period as a footnote.
+  return <div className="flex min-w-0 flex-col border-t pt-4">
     <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="flex min-w-0 items-center gap-2.5 font-semibold"><i className="size-2.5 shrink-0 rounded-full" style={{ background: period.jobColor }} /><span className="truncate" title={period.jobName}>{period.jobName}</span></span>
-      <Badge variant="muted" className="shrink-0 rounded-lg">{current.daysLeft === 1 ? "Last day" : `${current.daysLeft} days left`}</Badge>
+      <span className="flex min-w-0 items-center gap-2.5 font-semibold"><span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: period.jobColor }} /><span className="truncate" title={period.jobName}>{period.jobName}</span></span>
+      <span className="shrink-0 text-xs font-semibold text-[var(--muted-foreground)]">{current.daysLeft === 1 ? "Last day" : `${current.daysLeft} days left`}</span>
     </div>
-    <p className="mt-1.5 text-sm text-[var(--muted-foreground)]"><span className="font-medium text-[var(--foreground)]">{formatPayPeriod(current)}</span> · {period.scheduleLabel}</p>
-    <Progress value={elapsedPercent} className="mt-3 h-1.5" />
-    <div className="mt-4 grid grid-cols-2 gap-3">
-      <Headline label="Net so far" value={formatCents(current.worked.netCents)} success />
-      <Headline label="Hours so far" value={formatMinutes(current.worked.minutes)} />
+    <p className="mt-1 text-sm text-[var(--muted-foreground)]"><span className="font-medium text-[var(--foreground)]">{formatPayPeriod(current)}</span> · {period.scheduleLabel}</p>
+    <span aria-hidden="true" className="mt-3 flex h-1.5 rounded-full bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)]"><span className="h-full rounded-full" style={{ width: `${elapsedPercent}%`, background: period.jobColor }} /></span>
+    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <p><span className="font-display text-2xl font-semibold tabular-nums text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]">{formatCents(current.worked.netCents)}</span> <span className="text-sm text-[var(--muted-foreground)]">net so far</span></p>
+      <p className="text-sm tabular-nums"><span className="font-semibold">{formatMinutes(current.worked.minutes)}</span> <span className="text-[var(--muted-foreground)]">worked</span></p>
     </div>
     <dl className="mt-3 space-y-1.5 text-sm">
       {current.scheduled.minutes > 0 && <div className="flex justify-between gap-3"><dt className="text-[var(--muted-foreground)]">With scheduled shifts</dt><dd className="whitespace-nowrap font-semibold tabular-nums">{formatCents(projected.netCents)} · {formatMinutes(projected.minutes)}</dd></div>}
       {current.payday && <div className="flex justify-between gap-3"><dt className="text-[var(--muted-foreground)]">Expected payday</dt><dd className="whitespace-nowrap font-semibold">{formatPayDay(current.payday, true)}</dd></div>}
     </dl>
     <div className="mt-auto pt-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t pt-3 text-sm">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-[color-mix(in_srgb,var(--foreground)_8%,transparent)] pt-3 text-sm">
         <span className="text-[var(--muted-foreground)]">Last period · {formatPayPeriod(previous)}</span>
         <span className="whitespace-nowrap font-semibold tabular-nums">{formatCents(previous.worked.netCents)} · {formatMinutes(previous.worked.minutes)}</span>
       </div>
@@ -395,21 +360,34 @@ function PayPeriodTile({ period }: { period: PayPeriodSummary }) {
   </div>;
 }
 
-function EmptyState({ message, href, cta }: { message: string; href: string; cta: string }) {
-  return <div className="rounded-2xl border border-dashed px-5 py-8 text-center"><p className="text-sm leading-6 text-[var(--muted-foreground)]">{message}</p><Link href={href} className={cn(buttonVariants({ size: "sm" }), "mt-4")}>{cta}</Link></div>;
-}
-
-function Headline({ label, value, success = false }: { label: string; value: string; success?: boolean }) {
-  return <div className={cn("rounded-2xl p-3.5 sm:p-4", success ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)]" : "bg-[var(--surface-subtle)]")}>
-    <p className="text-xs font-medium text-[var(--muted-foreground)]">{label}</p>
-    <p className={cn("mt-1.5 font-display text-2xl font-semibold tabular-nums sm:text-[1.75rem]", success && "text-[var(--success)]")}>{value}</p>
+// The value never wraps: an all-time figure broke across lines at 390px and left
+// the minus sign stranded above the amount, which reads as a positive number.
+function ReceiptItem({ label, value }: { label: string; value: string }) {
+  return <div className="flex min-w-0 items-baseline justify-between gap-2 @min-[22rem]:block @min-[22rem]:px-3 first:pl-0 last:pr-0">
+    <dt className="text-xs font-medium text-[var(--muted-foreground)]">{label}</dt>
+    <dd className="mt-1 whitespace-nowrap font-semibold tabular-nums">{value}</dd>
   </div>;
 }
 
-// The value never wraps: an all-time figure broke across lines at 390px and left
-// the minus sign stranded above the amount, which reads as a positive number.
-function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl bg-[var(--surface-subtle)] p-3.5"><p className="text-xs font-medium text-[var(--muted-foreground)]">{label}</p><p className="mt-1.5 whitespace-nowrap font-display text-base font-semibold tabular-nums sm:text-lg">{value}</p></div>;
+/** Each job's share of the period's net: one bar, then the jobs largest first. */
+function JobSplit({ jobs, total }: { jobs: PeriodJobTotal[]; total: number }) {
+  if (!jobs.length) return <p className="mt-5 text-sm text-[var(--muted-foreground)]">No worked shifts in this period.</p>;
+  const ordered = [...jobs].sort((left, right) => right.netCents - left.netCents);
+  return <div className="mt-5">
+    <h4 className="mb-3 text-sm font-semibold">By job</h4>
+    {total > 0 && <div aria-hidden="true" className="flex h-2 gap-[3px]">
+      {ordered.filter((job) => job.netCents > 0).map((job) => <span key={job.id} className="h-full rounded-full" style={{ width: `${(job.netCents / total) * 100}%`, background: job.color }} />)}
+    </div>}
+    <ul className="mt-3 grid gap-0.5">
+      {ordered.map((job) => <li key={job.id} className={styles.jobEarning}>
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: job.color }} />
+          <span className="min-w-0 break-words text-sm font-medium [overflow-wrap:anywhere]">{job.name}</span>
+        </span>
+        <span className="whitespace-nowrap text-right text-sm font-semibold tabular-nums">{formatCents(job.netCents)}</span>
+      </li>)}
+    </ul>
+  </div>;
 }
 
 const BAR_CAP_RADIUS = 8;
@@ -485,13 +463,32 @@ function MonthBreakdown({ label, rows, total, isEarnings, className }: MonthBrea
   </div>;
 }
 
-function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJobAllocation; metric: "earnings" | "hours" }) {
+type HistoryMetric = "earnings" | "hours";
+const historyMetric = createLocalPreference<HistoryMetric>("shiftsentry:history-metric", "earnings", (value) => (value === "earnings" || value === "hours" ? value : null));
+
+/** Two buttons in a track: pressed is the one showing. */
+function MetricSwitch({ value, onChange }: { value: HistoryMetric; onChange: (next: HistoryMetric) => void }) {
+  return <div role="group" aria-label="Show" className="inline-flex shrink-0 rounded-full bg-[var(--surface-subtle)] p-1">
+    {(["earnings", "hours"] as const).map((option) => <button key={option} type="button" aria-pressed={value === option} onClick={() => onChange(option)} className={cn(
+      "press min-h-11 rounded-full px-3.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] sm:min-h-9",
+      value === option ? "bg-[var(--card)] text-[var(--foreground)] shadow-[0_2px_8px_-4px_rgb(16_24_40/0.25)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
+    )}>{option === "earnings" ? "Earnings" : "Hours"}</button>)}
+  </div>;
+}
+
+/**
+ * The last six months by job, as earnings or as hours: one chart with a
+ * switch, where there used to be two identical charts a screen apart. The
+ * choice is remembered per device; the first paint is earnings.
+ */
+function HistoryChart({ allocation }: { allocation: MonthlyJobAllocation }) {
+  const metric = useSyncExternalStore(historyMetric.subscribe, historyMetric.read, historyMetric.serverSnapshot);
   const isEarnings = metric === "earnings";
   const coarsePointer = !useHoverPointer();
   const [pinnedMonthKey, setPinnedMonthKey] = useState<string | null>(null);
   const chartData = allocation.months.map((month) => ({ label: month.label, monthKey: month.key, ...(isEarnings ? month.netCents : month.loggedMinutes) }));
   const seriesKeys = allocation.series.map((series) => series.key);
-  const title = isEarnings ? "Net earnings by job" : "Logged hours by job";
+  const title = "Last six months";
   const latestMonthKey = allocation.months[allocation.months.length - 1]?.key ?? null;
   // The tallest stack, so the axis can end on a round value above it.
   const stackMax = Math.max(0, ...allocation.months.map((month) => Object.values(isEarnings ? month.netCents : month.loggedMinutes).reduce((total, value) => total + value, 0)));
@@ -506,17 +503,26 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
     setPinnedMonthKey((current) => current === monthKey ? null : monthKey);
   }
 
-  return <Card className="h-full">
-    <CardHeader><CardTitle>{title}</CardTitle><CardDescription>Actual monthly allocation for the last six months. {coarsePointer ? "Tap a month for its breakdown." : "Hover a month for its breakdown."}</CardDescription></CardHeader>
-    <CardContent>{allocation.series.length ? <>
+  return <Card className="flex h-full min-w-0 flex-col">
+    <CardHeader className="shrink-0">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <CardTitle>{title}</CardTitle>
+          <CardDescription className="mt-2">{isEarnings ? "Net pay" : "Hours worked"} by job. {coarsePointer ? "Tap" : "Hover"} a month for its breakdown.</CardDescription>
+        </div>
+        <MetricSwitch value={metric} onChange={historyMetric.write} />
+      </div>
+    </CardHeader>
+    <CardContent className="flex min-h-0 flex-1 flex-col">{allocation.series.length ? <>
       {/* Each entry wraps as a unit rather than mid-name, so a legend that needs
           two lines still reads as a list of jobs. */}
-      <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2" aria-label={`${title} legend`}>{allocation.series.map((series) => <span key={series.key} className="flex items-center gap-2 whitespace-nowrap text-xs font-medium text-[var(--muted-foreground)]"><i className="size-2.5 shrink-0 rounded-full" style={{ background: series.color }} />{series.name}</span>)}</div>
+      <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2" aria-label={`${title} legend`}>{allocation.series.map((series) => <span key={series.key} className="flex min-w-0 max-w-full items-center gap-2 text-xs font-medium text-[var(--muted-foreground)]"><i className="size-2.5 shrink-0 rounded-full" style={{ background: series.color }} /><span className="truncate" title={series.name}>{series.name}</span></span>)}</div>
       {/* A container so the tooltip can size itself against this chart's
           width rather than the viewport's. */}
-      <div className="@container h-64">
+      <div className="@container relative min-h-64 flex-1">
+        <div className="absolute inset-0">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ left: 0, right: 8, top: 4 }} onClick={coarsePointer ? (state: { activeTooltipIndex?: unknown }) => pinMonthAt(state?.activeTooltipIndex) : undefined}>
+          <BarChart data={chartData} margin={{ left: 0, right: 8, top: 16 }} onClick={coarsePointer ? (state: { activeTooltipIndex?: unknown }) => pinMonthAt(state?.activeTooltipIndex) : undefined}>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
             {/* Round ticks from `niceAxisTicks` (whole hours, whole dollars), with
@@ -540,6 +546,7 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
             {allocation.series.map((series) => <Bar key={series.key} dataKey={series.key} name={series.name} stackId="allocation" fill={series.color} maxBarSize={44} isAnimationActive animationDuration={700} shape={<StackedBarShape seriesKey={series.key} seriesKeys={seriesKeys} pinnedMonthKey={coarsePointer ? pinnedMonthKey : null} />} />)}
           </BarChart>
         </ResponsiveContainer>
+        </div>
       </div>
       {/* Sitting inside the card rather than floating over it, so it drops the
           tooltip's lift shadow. */}
@@ -548,51 +555,36 @@ function MonthlyAllocationChart({ allocation, metric }: { allocation: MonthlyJob
   </Card>;
 }
 
-function JobLimit({ job }: { job: DashboardData["jobs"][number] }) {
-  const planned = job.usedMinutes + job.scheduledMinutes;
-  const percent = capPercent(planned, job.weeklyLimitMinutes);
-  const indicatorClassName = percent >= 100 ? "bg-[var(--danger)]" : percent >= 80 ? "bg-[var(--warning)]" : undefined;
-
-  // One line each. This card sits in the narrow column, where a name like
-  // "Multimedia Streaming Technician" wrapped to two lines and then broke the
-  // figure beside it across two more -- "5h" above "45m", which reads as two
-  // numbers rather than one duration. The name truncates and carries its full
-  // text in a tooltip; the duration never breaks.
-  return <div className="rounded-2xl p-1.5 transition-colors hover:bg-[var(--surface-subtle)]">
-    <div className="mb-2.5 flex items-center justify-between gap-3 px-1 text-sm">
-      <span className="flex min-w-0 items-center gap-2.5 font-semibold">
-        <i className="size-2.5 shrink-0 rounded-full" style={{ background: job.color }} />
-        <span className="truncate" title={job.name}>{job.name}</span>
-      </span>
-      <span className="shrink-0 whitespace-nowrap tabular-nums text-[var(--muted-foreground)]">{formatMinutes(planned)}{job.weeklyLimitMinutes ? ` / ${formatMinutes(job.weeklyLimitMinutes)}` : ""}</span>
-    </div>
-    <Progress value={percent} indicatorClassName={indicatorClassName} />
-  </div>;
+/** The week every figure is measured in: the viewer's zone and week-start day,
+ *  the same `weekStartFor` the totals use, the last day being the instant
+ *  before `weekEndFor`'s midnight. */
+function weekRangeLabel({ timeZone, weekStartsOn }: DashboardData["viewer"], snapshotAt: string) {
+  const now = new Date(snapshotAt);
+  const first = weekStartFor(now, timeZone, weekStartsOn);
+  const last = new Date(weekEndFor(now, timeZone, weekStartsOn).getTime() - 1);
+  const sameMonth = formatInTimeZone(first, timeZone, "yyyy-MM") === formatInTimeZone(last, timeZone, "yyyy-MM");
+  return `${formatInTimeZone(first, timeZone, "MMM d")} – ${formatInTimeZone(last, timeZone, sameMonth ? "d" : "MMM d")}`;
 }
 
 /**
  * A greeting by first name in the viewer's own zone ("Good afternoon,
- * Sandeep."), then the week every figure below is measured against, in that
- * zone and week-start day (the same `weekStartFor` the totals use). The last
- * day is the instant before `weekEndFor`'s midnight. With no name (the demo),
- * the greeting stands alone.
+ * Sandeep."), then today's date there. The week's range moved into the week
+ * card, beside the figures it bounds. With no name (the demo), the greeting
+ * stands alone.
  */
 function DashboardHeading({ data }: { data: DashboardData }) {
-  const { timeZone, weekStartsOn } = data.viewer;
-  const now = new Date();
+  const { timeZone } = data.viewer;
+  const now = new Date(data.snapshotAt);
   const firstName = data.viewer.name?.trim().split(/\s+/)[0];
   const greeting = greetingForDate(now, timeZone);
-  const first = weekStartFor(now, timeZone, weekStartsOn);
-  const last = new Date(weekEndFor(now, timeZone, weekStartsOn).getTime() - 1);
-  const startDay = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date(2026, 7, 16 + weekStartsOn));
 
   return <Reveal>
-    <div className="mb-7 flex flex-col justify-between gap-4 sm:mb-8 sm:flex-row sm:items-end">
-      <div>
-        <h1 className="font-display text-3xl font-semibold sm:text-4xl">{firstName ? `${greeting}, ${firstName}.` : `${greeting}.`}</h1>
-        <p className="mt-2.5 text-sm leading-6 text-[var(--muted-foreground)]">{formatInTimeZone(first, timeZone, "MMM d")} – {formatInTimeZone(last, timeZone, "MMM d")} · Week starts {startDay} · {timeZone}</p>
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3 sm:items-end">
+      <div className="min-w-0">
+        <h1 className="font-display text-2xl font-semibold tracking-[-0.025em] sm:text-[1.75rem]">{firstName ? `${greeting}, ${firstName}.` : `${greeting}.`}</h1>
+        <p className="mt-1 text-xs leading-6 text-[var(--muted-foreground)]" title={`Times shown in ${timeZone}`}>{formatInTimeZone(now, timeZone, "EEEE, MMMM d")}</p>
       </div>
-      {data.isDemo && <Badge variant="muted" className="rounded-xl px-3 py-1.5">Sample data</Badge>}
+      {data.isDemo && <Badge variant="muted" className="mt-1.5 shrink-0 rounded-xl px-3 py-1.5 sm:mt-0">Sample data</Badge>}
     </div>
   </Reveal>;
 }
