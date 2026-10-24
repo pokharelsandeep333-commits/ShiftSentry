@@ -4,11 +4,19 @@
   background: var(--card);
   box-shadow: none;
 }
-.root :global([aria-labelledby="week-card-title"]) {
+.root .cap {
+  --muted-foreground: var(--muted-strong);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--border));
   border-radius: 24px;
-  background: linear-gradient(110deg, color-mix(in srgb, var(--primary) 10%, var(--card)), var(--card) 75%);
+  background: color-mix(in srgb, var(--primary) 4%, var(--card));
+  box-shadow: none;
 }
-.cap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-bottom: 20px; padding: 20px; }
+:global(.dark) .root .cap {
+  border: 0;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--primary) 12%, var(--card)), var(--card) 78%);
+  box-shadow: 0 12px 30px -18px rgb(0 0 0 / 0.4);
+}
+.cap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-bottom: 20px; padding: 24px 20px; }
 .capHeader { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; }
 .capHeader > :nth-child(2) { grid-column: 2; grid-row: 1; }
 .capDescription { grid-column: 1 / -1; }
@@ -21,6 +29,7 @@
   align-items: stretch;
   gap: 20px;
 }
+.workPanel { min-width: 0; }
 .rail { display: flex; min-width: 0; flex-direction: column; border: 1px solid var(--border); }
 .rail :global([aria-labelledby="next-shift-title"]) {
   padding: 20px;
@@ -46,7 +55,7 @@
   transition: background 160ms, border-color 160ms;
 }
 .day:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
-.selectedDay { background: var(--card); border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.selectedDay { background: var(--background); border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
 .day:focus-visible, .dayShift:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .dayChart { display: flex; width: 100%; height: 24px; align-items: end; justify-content: center; padding-bottom: 2px; }
 .dayBar { display: flex; width: 16px; flex-direction: column; overflow: hidden; border-radius: 3px 3px 0 0; }
@@ -91,12 +100,14 @@
 }
 @media (min-width: 64rem) {
   .cap { grid-template-columns: minmax(0, 1fr) auto; gap: 24px; padding: 28px; }
-  .capFacts { align-self: end; min-width: 220px; border-top: 0; border-left: 1px solid var(--border); padding: 0 0 0 28px; }
+  .capFacts { align-self: end; min-width: 180px; gap: 24px; border-top: 0; padding: 0; }
   .root .forecast { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: center; gap: 0 24px; }
   .forecastFigures { margin-top: 0; }
   .forecastFootnote { grid-column: 1 / -1; }
 }
 @media (min-width: 80rem) {
   .topGrid { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+  .workPanel { grid-column: 1; grid-row: 1; }
+  .rail { grid-column: 2; grid-row: 1; }
   .days { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 }

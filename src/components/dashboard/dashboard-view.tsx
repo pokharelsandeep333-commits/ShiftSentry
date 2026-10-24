@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { NextShiftCard } from "@/components/dashboard/next-shift-card";
 import { WeekCard, WeekJobLimits } from "@/components/dashboard/week-card";
 import { WorkWeek } from "@/components/dashboard/work-week";
+import { WorkGrid } from "@/components/dashboard/work-grid";
 import { PaydaySummary } from "@/components/dashboard/payday-summary";
 import { WeeklyPayForecast } from "@/components/dashboard/weekly-pay-forecast";
 import { RecentShifts } from "@/components/dashboard/recent-shifts";
@@ -93,18 +94,19 @@ export function DashboardView({ data }: { data: DashboardData }) {
     <DashboardHeading data={data} />
     <WeekCard jobs={data.jobs} workedMinutes={data.totals.week.minutes} limitMinutes={data.globalLimitMinutes} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
 
-    {/* Daily work stays with weekly capacity; upcoming work and pay share
-        a compact rail without stretching either surface. */}
-    <section className={styles.topGrid}>
-      <Reveal className="min-w-0" delay={0.05}><Card className="flex h-full min-w-0 flex-col p-5 sm:p-6">
+    {/* The next shift leads the stacked view; days and job limits stay beside
+        it on wide screens, with keyboard order following the visible panels. */}
+    <WorkGrid work={
+      <Reveal className={styles.workPanel} delay={0.05}><Card className="flex h-full min-w-0 flex-col p-5 sm:p-6">
         <WorkWeek days={data.weekDays} timeZone={data.viewer.timeZone} />
         <WeekJobLimits jobs={data.jobs} />
       </Card></Reveal>
+    } upcoming={
       <aside className={cn("premium-card", styles.rail)} aria-label="Upcoming work and pay">
         <NextShiftCard current={data.currentShift} upcoming={data.upcomingShifts} timeZone={data.viewer.timeZone} snapshotAt={data.snapshotAt} />
         <PaydaySummary periods={data.payPeriods} snapshotAt={data.snapshotAt} timeZone={data.viewer.timeZone} onShowDetails={() => payPeriodsPreference.write("open")} />
       </aside>
-    </section>
+    } />
     <WeeklyPayForecast earnedNetCents={data.totals.week.earnings.netCents} forecast={data.weekForecast} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} />
 
     {/* Then money: what this period came to, beside how it compares with the
