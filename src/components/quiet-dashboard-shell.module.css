@@ -1,0 +1,72 @@
+.quiet {
+  background:
+    radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 36rem),
+    var(--background);
+}
+
+.quiet :global(.app-sidebar > .premium-card),
+.quiet :global(header > .premium-card) {
+  border-color: var(--border);
+  background: var(--card);
+  box-shadow: none;
+}
+
+.quiet :global(.app-sidebar .app-nav-icon) {
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.quiet :global(.app-sidebar .app-nav-link[aria-current="page"]) {
+  color: color-mix(in srgb, var(--primary) 85%, var(--foreground));
+}
+
+.quiet :global(.app-sidebar .app-nav-highlight) {
+  background: color-mix(in srgb, var(--primary) 10%, var(--card));
+}
+
+.quiet :global(.app-sidebar .app-nav-dot) {
+  display: none;
+}
+
+.sidebarCard {
+  height: calc(100dvh - 2rem);
+  border-radius: 18px;
+}
+
+.sidebar :global(.app-sidebar-brand),
+.sidebar :global(.app-sidebar-note) {
+  flex-shrink: 0;
+}
+
+.sidebarNavigation {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.sidebarNavigation::-webkit-scrollbar {
+  display: none;
+}
+
+.sidebarUtilities {
+  margin-top: 4px;
+}
+
+@media (min-width: 64rem) {
+  .quiet:global(.app-frame) {
+    grid-template-columns: 256px minmax(0, 1fr);
+  }
+
+  :global(:root[data-sidebar="collapsed"]) .sidebar :global(.app-nav-label) {
+    display: none;
+  }
+}
+
+@media (max-height: 42rem) {
+  .sidebar :global(.app-sidebar-brand) { margin-bottom: 16px; }
+  .sidebar :global(.app-sidebar-note) { display: none; }
+}

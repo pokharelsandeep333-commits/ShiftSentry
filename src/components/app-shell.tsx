@@ -12,6 +12,7 @@ import { limitPosition, type WeekMeter } from "@/lib/week-meter";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
 import { Brand } from "@/components/brand";
+import dashboardShell from "./quiet-dashboard-shell.module.css";
 
 /**
  * The work the app is for. These five are the bottom tab bar on a phone, where
@@ -38,6 +39,12 @@ const navigation = [
 const menuNavigation = [
   ...navigation,
   { href: "/game", label: "Imposter", icon: Drama },
+];
+
+const desktopMainNavigation = navigation.filter((item) => item.href !== "/settings");
+const desktopUtilityNavigation = [
+  ...menuNavigation.filter((item) => item.href === "/game"),
+  ...navigation.filter((item) => item.href === "/settings"),
 ];
 
 type NavigationItem = typeof navigation[number];
@@ -75,7 +82,7 @@ function navDirection(items: NavigationItem[], pathname: string, index: number) 
  * name at once abort the whole transition.
  */
 function NavPill({ name, className }: { name?: string; className: string }) {
-  const pill = <span aria-hidden="true" className={cn("absolute inset-0 -z-10", className)} />;
+  const pill = <span aria-hidden="true" className={cn("app-nav-highlight absolute inset-0 -z-10", className)} />;
   return name ? <ViewTransition name={name} share="nav-pill" default="none">{pill}</ViewTransition> : pill;
 }
 
@@ -123,18 +130,38 @@ function SidebarToggle() {
 
 function NavigationLink({ item, active, transitionTypes, pillName, onNavigate }: { item: NavigationItem; active: boolean; transitionTypes?: string[]; pillName?: string; onNavigate?: () => void }) {
   const Icon = item.icon;
+  const linkRef = useRef<HTMLAnchorElement>(null);
+  // Portal the collapsed label so short-window navigation scrolling cannot clip it.
+  const [tooltip, setTooltip] = useState<{ left: number; top: number } | null>(null);
 
-  return <Link href={item.href} transitionTypes={transitionTypes} onClick={onNavigate} className={cn(
+  function showTooltip() {
+    if (!pillName || document.documentElement.dataset.sidebar !== "collapsed" || !window.matchMedia("(min-width: 64rem)").matches) return;
+    const bounds = linkRef.current?.getBoundingClientRect();
+    if (bounds) setTooltip({ left: bounds.right + 16, top: bounds.top + bounds.height / 2 });
+  }
+
+  useEffect(() => {
+    if (!tooltip) return;
+    const hide = () => setTooltip(null);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+    };
+  }, [tooltip]);
+
+  return <><Link ref={linkRef} href={item.href} transitionTypes={transitionTypes} onClick={() => { setTooltip(null); onNavigate?.(); }} onMouseEnter={showTooltip} onMouseLeave={() => setTooltip(null)} onFocus={showTooltip} onBlur={() => setTooltip(null)} aria-label={item.label} aria-current={active ? "page" : undefined} className={cn(
     "press app-nav-link group relative isolate flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold hover:translate-x-0.5",
     active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
   )}>
     {active && <NavPill name={pillName} className="rounded-2xl bg-[var(--primary-soft)]" />}
-    <span className={cn("grid size-8 place-items-center rounded-xl transition-colors", active ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-glow)]" : "bg-[var(--surface-subtle)] text-[var(--muted-foreground)] group-hover:bg-[var(--primary-soft)] group-hover:text-[var(--primary)]")}>
+    <span className={cn("app-nav-icon grid size-8 place-items-center rounded-xl transition-colors", active ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-glow)]" : "bg-[var(--surface-subtle)] text-[var(--muted-foreground)] group-hover:bg-[var(--primary-soft)] group-hover:text-[var(--primary)]")}>
       <Icon className="size-4" />
     </span>
     <span className="app-nav-label">{item.label}</span>
     {active && <span className="app-nav-dot absolute right-2 size-1.5 rounded-full bg-[var(--primary)]" />}
-  </Link>;
+  </Link>{tooltip && createPortal(<span aria-hidden="true" className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[var(--foreground)] px-3 py-2 text-xs font-medium text-[var(--background)] shadow-lg" style={tooltip}>{item.label}</span>, document.body)}</>;
 }
 
 function BottomNavigationLink({ item, active, transitionTypes }: { item: NavigationItem; active: boolean; transitionTypes?: string[] }) {
@@ -291,10 +318,11 @@ function WeekMeterPlaceholder() {
 
 export function AppShell({ children, isAdmin = false, isDemo = false, userEmail, userName, weekMeter }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string; userName?: string | null; weekMeter?: Promise<WeekMeter | null> }) {
   const pathname = usePathname();
-  const desktopItems = isAdmin ? [...menuNavigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : menuNavigation;
+  const desktopUtilityItems = isAdmin ? [...desktopUtilityNavigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : desktopUtilityNavigation;
+  const desktopItems = [...desktopMainNavigation, ...desktopUtilityItems];
   const section = desktopItems.find((item) => isNavigationActive(pathname, item.href));
 
-  return <div className="app-canvas app-frame min-h-screen lg:grid lg:grid-cols-[292px_minmax(0,1fr)]">
+  return <div className={cn("app-canvas app-frame min-h-screen lg:grid lg:grid-cols-[292px_minmax(0,1fr)]", pathname === "/" && dashboardShell.quiet)}>
     <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-xl focus:bg-[var(--primary)] focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-[var(--primary-foreground)] focus:shadow-2xl focus:shadow-[var(--primary-glow)]">Skip to content</a>
     {/* No `backdrop-blur` on the sidebar or the header bar.
         Both used to carry one on the theory that they overlay scrolling
@@ -307,11 +335,14 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
         filter is re-evaluated as it moves, on every scroll frame, on every
         page. The bottom bar keeps its blur, being the one layer here that
         genuinely does overlay scrolling content. */}
-    <aside id="desktop-sidebar" className="app-sidebar hidden p-4 lg:flex">
-      <div className="premium-card sticky top-4 flex h-[calc(100vh-2rem)] w-full flex-col rounded-[1.75rem] border bg-[var(--card)]/82 p-3.5">
+    <aside id="desktop-sidebar" className={cn("app-sidebar hidden p-4 lg:flex", dashboardShell.sidebar)}>
+      <div className={cn("premium-card sticky top-4 flex w-full flex-col border bg-[var(--card)]/82 p-3.5", dashboardShell.sidebarCard)}>
         <Link href="/" aria-label="Go to ShiftSentry overview" className="app-sidebar-brand mb-8 rounded-2xl px-2 py-2"><Brand /></Link>
-        <nav className="space-y-1" aria-label="Main navigation">{desktopItems.map((item, index) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(desktopItems, pathname, index)} pillName="nav-pill-side" />)}</nav>
-        <div className="app-sidebar-note mt-auto rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 text-xs leading-5 text-[var(--muted-foreground)]"><span className="mb-1 block font-semibold text-[var(--foreground)]">{isDemo ? "Preview mode" : "Private workspace"}</span>{isDemo ? "Connect Supabase to save your workspace data." : "Your work schedule stays private to your account."}</div>
+        <nav className={dashboardShell.sidebarNavigation} aria-label="Main navigation">
+          <div className="space-y-1">{desktopMainNavigation.map((item) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(desktopItems, pathname, desktopItems.indexOf(item))} pillName="nav-pill-side" />)}</div>
+          <div className={cn("space-y-1", dashboardShell.sidebarUtilities)}>{desktopUtilityItems.map((item) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(desktopItems, pathname, desktopItems.indexOf(item))} pillName="nav-pill-side" />)}</div>
+        </nav>
+        <div className="app-sidebar-note mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 text-xs leading-5 text-[var(--muted-foreground)]"><span className="mb-1 block font-semibold text-[var(--foreground)]">{isDemo ? "Preview mode" : "Private workspace"}</span>{isDemo ? "Connect Supabase to save your workspace data." : "Your work schedule stays private to your account."}</div>
       </div>
     </aside>
     <div className="min-w-0">
