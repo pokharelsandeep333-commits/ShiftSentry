@@ -128,6 +128,13 @@ jobs:
     steps:
       - name: "📥 Check out repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Exercise the release-only installer before it can reach production.
+      - name: "🗃️ Verify Supabase CLI setup"
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.84.2
+      - name: "🗃️ Check pinned release CLI version"
+        run: test "$(supabase --version)" = "2.84.2"
       - name: "🐳 Build image with non-secret placeholders"
         run: >-
           docker build

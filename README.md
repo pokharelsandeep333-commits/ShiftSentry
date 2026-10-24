@@ -129,7 +129,7 @@ flowchart LR
 * **Google access is read-only.** Calendar tokens are stored encrypted and every Google call is made server-to-server. Event titles and details are never stored. The only thing kept is the start and end times of events a job has opted in to sync, which become shifts.
 * **Guarded pipeline.** Gitleaks secret scanning, CodeQL, a production dependency audit, and a Docker build check all gate `main` before a release is built. Every high or critical production advisory blocks release; malformed audit reports fail closed. Dependabot alerts and security update PRs are enabled alongside the weekly audit and CodeQL runs.
 
-The production audit currently reports no advisories. Prisma's configuration dependency is pinned to patched `deepmerge-ts` 8.0.2 through a scoped override, verified with Prisma generation, validation, and a production build. The full development audit still reports five affected packages from one unpatched `braces` advisory ([GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)) in Next.js's ESLint dependency chain. This development dependency is excluded from the production audit; it is not suppressed in the full audit.
+Prisma's configuration dependency is pinned to patched `deepmerge-ts` 8.0.2 through a scoped override, verified with Prisma generation, validation, and a production build. Run `npm run audit:production` for the release-blocking runtime audit and `npm audit` for the full dependency audit; advisory results can change independently of this repository.
 
 <br />
 
@@ -155,7 +155,7 @@ docs/screenshots/           Images used by this README
 
 ### Prerequisites
 
-- **Node.js 24** or a compatible runtime supported by Next.js 16
+- **Node.js 24 LTS**, matching CI, the production image, and the Node 24 TypeScript declarations
 - A **Supabase project** with email, Google, and GitHub sign-in enabled
 - **Docker** (only for the SQL tests or for testing the production image locally)
 
@@ -216,9 +216,17 @@ These are the same checks the pipeline runs on every pull request:
 
 ### Production release verification
 
+The required Docker build check also installs Supabase CLI 2.84.2 with the same pinned `supabase/setup-cli` action used by the release job, and checks the installed version without production credentials. Installer updates are therefore exercised on pull requests before release; the CLI version itself remains explicitly pinned.
+
 Merging a green PR into protected `main` deploys it. GitHub Actions builds an immutable `sha-<commit>` image, verifies and applies pending Supabase migrations, then promotes the same image to `stable`. EC2 Watchtower polls every 300 seconds. After the release job succeeds, verify [the live health endpoint](https://sentry.sandeeppokharel.com.np/api/health) from an allowed external network until it returns `status: "ok"` and the exact merged commit. Allow up to ten minutes after promotion for the image pull and restart. GitHub-hosted runner requests to this endpoint receive HTTP 403, so public health verification is an operator step. A green release job confirms image promotion; the health response confirms the running deployment.
 
 Live configuration remains in `/home/ubuntu/sandeepcloud/docker-compose.yml` and `/home/ubuntu/sandeepcloud/nginx.conf`. Runtime credentials are interpolated from `/home/ubuntu/sandeepcloud/.env`, owned by `root:root` with mode `600`; run Compose through `sudo` so it can read that file. Watchtower's Docker Hub credentials remain in `/home/ubuntu/sandeepcloud/watchtower/config/config.json`, also `root:root` with mode `600`. Nginx is the public ingress; the app has no public port mapping.
+
+### Dependency updates and local sync
+
+Dependabot opens weekly proposals for npm packages, Docker images, and GitHub Actions. Review compatibility and run the required checks before merging. Related proposals can be merged into one integration branch, checked together, and delivered through one PR to `main`, producing one release. Keep the Node type declarations aligned with the supported runtime major.
+
+After a GitHub merge, update a clean local checkout with `git switch main`, `git pull --ff-only origin main`, and `npm ci`. Pulling updates tracked files, while `npm ci` installs the exact versions in `package-lock.json`. GitHub Actions and Dockerfile updates are applied by their respective builds; they do not upgrade the Node installation on your computer.
 
 > [!TIP]
 > Without Supabase configuration the root route intentionally renders a read-only dashboard preview with sample data, so the app boots and is browsable before you have any credentials. With Supabase configured, a signed-out visit to `/` shows the public landing page instead, at the same address.
