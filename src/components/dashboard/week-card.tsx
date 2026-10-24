@@ -75,7 +75,7 @@ export function WeekCard({ jobs, workedMinutes, limitMinutes, rangeLabel, upcomi
   const tick = limitPosition(meter);
   const width = limitMinutes === null ? (meter.plannedMinutes > 0 ? 100 : 0) : Math.min(100, meter.percent);
 
-  return <section aria-labelledby="week-card-title" className={cn("premium-card min-w-0 border !border-[color-mix(in_srgb,var(--primary)_23%,var(--border))]", styles.cap)}>
+  return <section aria-labelledby="week-card-title" className={cn("premium-card min-w-0", styles.cap)}>
     <div className="min-w-0">
       <div className={styles.capHeader}>
         <h2 id="week-card-title" className="font-display text-base font-semibold">Global weekly cap</h2>
