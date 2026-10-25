@@ -26,10 +26,6 @@ function headroom(planned: number, limit: number) {
   return over === 0 ? "At the limit" : `${formatMinutes(-over)} left`;
 }
 
-function faint(color: string) {
-  return `color-mix(in srgb, ${color} 36%, transparent)`;
-}
-
 /** The overall limit, said once, where the eye lands first. */
 function StatusPill({ meter }: { meter: WeekMeter }) {
   if (meter.limitMinutes === null) return <Link href="/settings#week" className="press inline-flex min-h-11 shrink-0 items-center rounded-full border border-dashed px-3.5 text-xs font-semibold text-[var(--primary)] hover:bg-[var(--primary-soft)] sm:min-h-9">Set a weekly limit</Link>;
@@ -51,7 +47,7 @@ function JobRow({ job }: { job: JobLimitRow }) {
     {limited
       ? <span aria-hidden="true" className="relative col-span-2 flex h-1.5 gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] max-sm:order-last sm:col-span-1">
           {job.loggedWidth > 0 && <span className="h-full rounded-full" style={{ width: `${job.loggedWidth}%`, background: job.color }} />}
-          {job.scheduledWidth > 0 && <span className="h-full rounded-full" style={{ width: `${job.scheduledWidth}%`, background: faint(job.color) }} />}
+          {job.scheduledWidth > 0 && <span className="h-full rounded-full" style={{ width: `${job.scheduledWidth}%`, background: job.color }} />}
           {tick !== null && <span className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-[var(--foreground)]" style={{ left: `${tick}%` }} />}
         </span>
       : null}
@@ -87,7 +83,7 @@ export function WeekCard({ jobs, workedMinutes, limitMinutes, rangeLabel, upcomi
         <span className="text-sm text-[var(--muted-foreground)]">{limitMinutes === null ? "planned · no cap set" : `of ${formatMinutes(limitMinutes)}`}</span>
       </p>
       <div className="relative mt-5 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] shadow-inner" role="progressbar" aria-label="Global weekly cap" aria-valuemin={0} aria-valuemax={100} aria-valuenow={width} aria-valuetext={`${formatMinutes(meter.plannedMinutes)} planned${limitMinutes === null ? ", no cap set" : ` of ${formatMinutes(limitMinutes)}`}`}>
-        {meter.segments.map((segment) => <span key={`${segment.jobId}-${segment.scheduled}`} className="h-full rounded-full" style={{ width: `${segment.widthPercent}%`, background: segment.scheduled ? faint(segment.color) : segment.color }} />)}
+        {meter.segments.map((segment) => <span key={`${segment.jobId}-${segment.scheduled}`} className="h-full rounded-full" style={{ width: `${segment.widthPercent}%`, background: segment.color }} />)}
         {tick !== null && tick < 100 && <span aria-hidden="true" className="absolute inset-y-0 w-0.5 bg-[var(--foreground)]" style={{ left: `${tick}%` }} />}
       </div>
       <div className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs tabular-nums text-[var(--muted-foreground)]"><span>{formatMinutes(workedMinutes)} logged</span><span>{formatMinutes(scheduledMinutes)} scheduled</span></div>
