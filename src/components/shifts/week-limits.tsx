@@ -21,8 +21,8 @@ function Bar({ children, tick }: { children: React.ReactNode; tick: number | nul
 
 /**
  * This week against your limits, at the top of the current week in the log:
- * the overall limit (Settings) and each job's own (Jobs). Worked time solid,
- * planned time faint, from the same numbers as the header meter. A guide, not
+ * the overall limit (Settings) and each job's own (Jobs). Job colours stay
+ * solid for worked and planned time, as in the header meter. A guide, not
  * the rule: the database decides whether a shift fits when it is saved.
  */
 export function WeekLimits({ meter, jobs }: { meter: WeekMeter; jobs: JobLimitRow[] }) {
@@ -40,7 +40,7 @@ export function WeekLimits({ meter, jobs }: { meter: WeekMeter; jobs: JobLimitRo
         </p>
       </div>
       <Bar tick={tick}>
-        {meter.segments.map((segment) => <span key={`${segment.jobId}-${segment.scheduled}`} className="h-full rounded-full" style={{ width: `${segment.widthPercent}%`, background: segment.scheduled ? `color-mix(in srgb, ${segment.color} 38%, transparent)` : segment.color }} />)}
+        {meter.segments.map((segment) => <span key={`${segment.jobId}-${segment.scheduled}`} className="h-full rounded-full" style={{ width: `${segment.widthPercent}%`, background: segment.color }} />)}
       </Bar>
       <p className="text-xs text-[var(--muted-foreground)]">
         {formatMinutes(meter.loggedMinutes)} worked · {formatMinutes(meter.plannedMinutes - meter.loggedMinutes)} still scheduled
@@ -59,7 +59,7 @@ export function WeekLimits({ meter, jobs }: { meter: WeekMeter; jobs: JobLimitRo
         </div>
         <Bar tick={job.limitMinutes && job.plannedMinutes > job.limitMinutes ? (job.limitMinutes / job.plannedMinutes) * 100 : null}>
           {job.loggedWidth > 0 && <span className="h-full rounded-full" style={{ width: `${job.loggedWidth}%`, background: job.color }} />}
-          {job.scheduledWidth > 0 && <span className="h-full rounded-full" style={{ width: `${job.scheduledWidth}%`, background: `color-mix(in srgb, ${job.color} 38%, transparent)` }} />}
+          {job.scheduledWidth > 0 && <span className="h-full rounded-full" style={{ width: `${job.scheduledWidth}%`, background: job.color }} />}
         </Bar>
         <span className="sr-only">{job.name}: {formatMinutes(job.plannedMinutes)} of {formatMinutes(job.limitMinutes ?? 0)} this week, {note(job.plannedMinutes, job.limitMinutes)}.</span>
       </li>)}

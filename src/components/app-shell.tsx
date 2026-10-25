@@ -283,8 +283,8 @@ function meterNote(meter: WeekMeter) {
 
 /**
  * The week against its limit, on every page: the product's one number, kept
- * where the eye starts. Job colours fill the bar, worked time solid and
- * planned time faint, and the figure turns amber from 80% and coral at the
+ * where the eye starts. Job colours fill both worked and planned time,
+ * and the figure turns amber from 80% and coral at the
  * limit -- the dashboard's ladder, from the same total.
  */
 function WeekMeterLink({ weekMeter }: { weekMeter: Promise<WeekMeter | null> }) {
@@ -298,7 +298,7 @@ function WeekMeterLink({ weekMeter }: { weekMeter: Promise<WeekMeter | null> }) 
   return <Link href="/" aria-label={summary} className="group flex h-9 min-w-0 items-center gap-3 rounded-full px-3.5 transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
     <span aria-hidden="true" className="whitespace-nowrap text-xs font-medium text-[var(--muted-foreground)]">This week</span>
     <span aria-hidden="true" className="relative flex h-2 w-24 shrink-0 gap-0.5 rounded-full bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)] lg:w-32 xl:w-44 2xl:w-56">
-      {meter.segments.map((segment) => <span key={`${segment.jobId}-${segment.scheduled}`} title={`${segment.name}: ${formatMinutes(segment.minutes)} ${segment.scheduled ? "planned" : "worked"}`} className="h-full rounded-full" style={{ width: `${segment.widthPercent}%`, background: segment.scheduled ? `color-mix(in srgb, ${segment.color} 38%, transparent)` : segment.color }} />)}
+      {meter.segments.map((segment) => <span key={`${segment.jobId}-${segment.scheduled}`} title={`${segment.name}: ${formatMinutes(segment.minutes)} ${segment.scheduled ? "planned" : "worked"}`} className="h-full rounded-full" style={{ width: `${segment.widthPercent}%`, background: segment.color }} />)}
       {tick !== null && tick < 100 && <span className="absolute -inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-[var(--foreground)]" style={{ left: `${tick}%` }} />}
     </span>
     <span aria-hidden="true" className="whitespace-nowrap font-display text-sm font-semibold tabular-nums">

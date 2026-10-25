@@ -23,7 +23,7 @@ import { greetingForDate } from "@/lib/greeting";
 import { createLocalPreference } from "@/lib/local-preference";
 import { niceAxisTicks } from "@/lib/chart-ticks";
 import { combineMonthTotals } from "@/lib/period-totals";
-import { addDays, daysBetween, formatPayDay, formatPayPeriod, type PayPeriodSummary } from "@/lib/pay-period";
+import { formatPayDay, formatPayPeriod, type PayPeriodSummary } from "@/lib/pay-period";
 import { weekEndFor, weekStartFor } from "@/lib/time";
 import { cn, formatMinutes } from "@/lib/utils";
 import type { DashboardData, DashboardTotals, MonthlyJobAllocation, PeriodJobTotal } from "@/lib/types";
@@ -110,14 +110,14 @@ export function DashboardView({ data }: { data: DashboardData }) {
     <WeeklyPayForecast earnedNetCents={data.totals.week.earnings.netCents} forecast={data.weekForecast} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} />
 
     {/* Then money: what this period came to, beside how it compares with the
-        months before. Pay periods, when a job has a schedule, close the page. */}
+        months before. Pay periods follow, then the latest completed shifts. */}
     <section className="mt-5 grid grid-cols-1 items-stretch gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <Reveal className="min-w-0"><EarningsCard totals={data.totals} comparison={data.weekComparison} /></Reveal>
       <Reveal className="min-w-0" delay={0.06}><HistoryChart allocation={data.monthlyJobAllocation} /></Reveal>
     </section>
 
-    <RecentShifts shifts={data.recentShifts} timeZone={data.viewer.timeZone} />
     {data.payPeriods.length > 0 && <Reveal><PayPeriodsCard periods={data.payPeriods} /></Reveal>}
+    <RecentShifts shifts={data.recentShifts} timeZone={data.viewer.timeZone} />
   </div>;
 }
 
@@ -293,7 +293,7 @@ function usePayPeriodsOpen() {
 }
 
 /**
- * The pay period each scheduled job is in, as its employer counts it. One tile
+ * The pay period each scheduled job is in, as its employer counts it. One row
  * per job, because two jobs' periods do not line up and a sum of them would
  * match no paycheck. "So far" is worked time clipped at now, the same rule as
  * every other earnings figure; scheduled shifts left in the period are shown as
@@ -309,7 +309,7 @@ function PayPeriodsCard({ periods }: { periods: PayPeriodSummary[] }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <CardTitle>Pay periods</CardTitle>
-          <CardDescription className="mt-2">{open ? "Estimated from your rates, on each job’s own pay schedule." : `${periods.length} job${periods.length === 1 ? "" : "s"} with a pay schedule. Show to see each period.`}</CardDescription>
+          <CardDescription className="mt-1">Estimated net pay · {periods.length} job{periods.length === 1 ? "" : "s"}</CardDescription>
         </div>
         <button type="button" onClick={toggle} aria-expanded={open} aria-controls={contentId} aria-label={open ? "Hide pay periods" : "Show pay periods"} className="press -mr-1 -mt-1 grid size-11 shrink-0 place-items-center rounded-xl text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] sm:size-9">
           <ChevronDown className={cn("size-4 transition-transform duration-[var(--dur-morph)] ease-[var(--ease-out)]", !open && "-rotate-90")} />
@@ -318,46 +318,43 @@ function PayPeriodsCard({ periods }: { periods: PayPeriodSummary[] }) {
     </CardHeader>
     <div id={contentId} inert={!open} className={cn("card-collapse", open && "is-open", canAnimate && "can-animate")}>
       <div>
-        <CardContent className={cn("grid grid-cols-1 gap-4", periods.length > 1 && "md:grid-cols-2", periods.length > 2 && "2xl:grid-cols-3")}>
-          {periods.map((period) => <PayPeriodTile key={period.jobId} period={period} />)}
+        <CardContent>
+          {periods.map((period) => <PayPeriodRow key={period.jobId} period={period} />)}
         </CardContent>
       </div>
     </div>
   </Card>;
 }
 
-function PayPeriodTile({ period }: { period: PayPeriodSummary }) {
+function PayPeriodRow({ period }: { period: PayPeriodSummary }) {
   const { current, previous } = period;
-  const length = daysBetween(current.start, current.end);
-  // The viewer's local today, recovered from the server's count rather than the
-  // browser clock, so the wording cannot disagree with "days left".
-  const today = addDays(current.end, -current.daysLeft);
-  const elapsedPercent = Math.round(((length - current.daysLeft + 1) / length) * 100);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsId = useId();
   const projected = { minutes: current.worked.minutes + current.scheduled.minutes, netCents: current.worked.netCents + current.scheduled.netCents };
 
-  // One tile per job, no boxes inside it: the period, how far through it is,
-  // what it has come to so far, and the last period as a footnote.
-  return <div className="flex min-w-0 flex-col border-t pt-4">
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="flex min-w-0 items-center gap-2.5 font-semibold"><span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: period.jobColor }} /><span className="truncate" title={period.jobName}>{period.jobName}</span></span>
-      <span className="shrink-0 text-xs font-semibold text-[var(--muted-foreground)]">{current.daysLeft === 1 ? "Last day" : `${current.daysLeft} days left`}</span>
+  return <div className={styles.payPeriod}>
+    <div className={styles.payPeriodJob}>
+      <h3 className="flex min-w-0 items-start gap-2.5 text-sm font-semibold"><span aria-hidden="true" className="mt-1 size-2.5 shrink-0 rounded-full" style={{ background: period.jobColor }} /><span className="min-w-0 break-words [overflow-wrap:anywhere]">{period.jobName}</span></h3>
+      <p className="mt-1 text-xs text-[var(--muted-foreground)]">{formatPayPeriod(current)} · {current.daysLeft === 1 ? "Last day" : `${current.daysLeft} days left`}</p>
     </div>
-    <p className="mt-1 text-sm text-[var(--muted-foreground)]"><span className="font-medium text-[var(--foreground)]">{formatPayPeriod(current)}</span> · {period.scheduleLabel}</p>
-    <span aria-hidden="true" className="mt-3 flex h-1.5 rounded-full bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)]"><span className="h-full rounded-full" style={{ width: `${elapsedPercent}%`, background: period.jobColor }} /></span>
-    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <p><span className="font-display text-2xl font-semibold tabular-nums text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]">{formatCents(current.worked.netCents)}</span> <span className="text-sm text-[var(--muted-foreground)]">net so far</span></p>
-      <p className="text-sm tabular-nums"><span className="font-semibold">{formatMinutes(current.worked.minutes)}</span> <span className="text-[var(--muted-foreground)]">worked</span></p>
+    <div>
+      <p className="text-xs text-[var(--muted-foreground)]">Net earned</p>
+      <p className="mt-1 font-display text-xl font-semibold tabular-nums text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]">{formatCents(current.worked.netCents)}</p>
+      <p className="mt-0.5 text-xs tabular-nums text-[var(--muted-foreground)]">{formatMinutes(current.worked.minutes)} worked</p>
     </div>
-    <dl className="mt-3 space-y-1.5 text-sm">
-      {current.scheduled.minutes > 0 && <div className="flex justify-between gap-3"><dt className="text-[var(--muted-foreground)]">With scheduled shifts</dt><dd className="whitespace-nowrap font-semibold tabular-nums">{formatCents(projected.netCents)} · {formatMinutes(projected.minutes)}</dd></div>}
-      {current.payday && <div className="flex justify-between gap-3"><dt className="text-[var(--muted-foreground)]">Expected payday</dt><dd className="whitespace-nowrap font-semibold">{formatPayDay(current.payday, true)}</dd></div>}
-    </dl>
-    <div className="mt-auto pt-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-[color-mix(in_srgb,var(--foreground)_8%,transparent)] pt-3 text-sm">
-        <span className="text-[var(--muted-foreground)]">Last period · {formatPayPeriod(previous)}</span>
-        <span className="whitespace-nowrap font-semibold tabular-nums">{formatCents(previous.worked.netCents)} · {formatMinutes(previous.worked.minutes)}</span>
-      </div>
-      {previous.payday && <p className="mt-1 text-xs text-[var(--muted-foreground)]">{previous.payday >= today ? "Expected" : "Paid around"} {formatPayDay(previous.payday, true)}</p>}
+    <div>
+      <p className="text-xs text-[var(--muted-foreground)]">Est. payday</p>
+      <p className="mt-1 text-sm font-semibold">{current.payday ? formatPayDay(current.payday, true) : "Not set"}</p>
+    </div>
+    <button type="button" onClick={() => setDetailsOpen(!detailsOpen)} aria-expanded={detailsOpen} aria-controls={detailsId} aria-label={`${detailsOpen ? "Hide" : "Show"} details for ${period.jobName}`} className={cn(styles.payPeriodToggle, "press rounded-lg text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]")}>
+      Details <ChevronDown aria-hidden="true" className={cn("size-3.5 transition-transform", detailsOpen && "rotate-180")} />
+    </button>
+    <div id={detailsId} hidden={!detailsOpen} className={styles.payPeriodDetails}>
+      <p className="mb-3 text-xs text-[var(--muted-foreground)]">{period.scheduleLabel}</p>
+      <dl className="grid gap-3 text-sm sm:grid-cols-2">
+        {current.scheduled.minutes > 0 && <div><dt className="text-xs text-[var(--muted-foreground)]">Projected net · includes scheduled shifts</dt><dd className="mt-1 font-semibold tabular-nums">{formatCents(projected.netCents)} <span className="font-normal text-[var(--muted-foreground)]">· {formatMinutes(projected.minutes)}</span></dd></div>}
+        <div><dt className="text-xs text-[var(--muted-foreground)]">Last period · {formatPayPeriod(previous)}</dt><dd className="mt-1 font-semibold tabular-nums">{formatCents(previous.worked.netCents)} <span className="font-normal text-[var(--muted-foreground)]">· {formatMinutes(previous.worked.minutes)}</span></dd>{previous.payday && <dd className="mt-1 text-xs text-[var(--muted-foreground)]">Est. payday {formatPayDay(previous.payday, true)}</dd>}</div>
+      </dl>
     </div>
   </div>;
 }
