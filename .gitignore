@@ -72,3 +72,4 @@ supabase/.branches/
 
 # MCP server config stays on the maintainer's machine
 .mcp.json
+.codex/
