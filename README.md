@@ -96,7 +96,7 @@ The daily security-retention workflow uses the existing protected production `SU
 | **Charts & Dates** | Recharts, `date-fns`, `date-fns-tz` |
 | **Integrations** | Google Calendar API (read-only scopes), tokens encrypted with AES-256-GCM |
 | **Validation & Tests** | Zod, Node.js test runner via `tsx`, SQL suites against a throwaway Postgres in Docker |
-| **Delivery** | Docker, GitHub Actions, Nginx on EC2 |
+| **Delivery** | Docker, GitHub Actions, Nginx behind a Cloudflare Tunnel |
 
 <br />
 
@@ -218,7 +218,7 @@ These are the same checks the pipeline runs on every pull request:
 
 The required Docker build check also installs Supabase CLI 2.84.2 with the same pinned `supabase/setup-cli` action used by the release job, and checks the installed version without production credentials. Installer updates are therefore exercised on pull requests before release; the CLI version itself remains explicitly pinned.
 
-Merging a green PR into protected `main` deploys it. GitHub Actions builds an immutable `sha-<commit>` image, verifies and applies pending Supabase migrations, then promotes the same image to `stable`. EC2 Watchtower polls every 300 seconds. After the release job succeeds, verify [the live health endpoint](https://sentry.sandeeppokharel.com.np/api/health) from an allowed external network until it returns `status: "ok"` and the exact merged commit. Allow up to ten minutes after promotion for the image pull and restart. GitHub-hosted runner requests to this endpoint receive HTTP 403, so public health verification is an operator step. A green release job confirms image promotion; the health response confirms the running deployment.
+Merging a green PR into protected `main` deploys it. GitHub Actions builds an immutable `sha-<commit>` image, verifies and applies pending Supabase migrations, then promotes the same image to `stable`. Watchtower on the server polls every 300 seconds. After the release job succeeds, verify [the live health endpoint](https://sentry.sandeeppokharel.com.np/api/health) from an allowed external network until it returns `status: "ok"` and the exact merged commit. Allow up to ten minutes after promotion for the image pull and restart. GitHub-hosted runner requests to this endpoint receive HTTP 403, so public health verification is an operator step. A green release job confirms image promotion; the health response confirms the running deployment.
 
 Live configuration remains in `/home/ubuntu/sandeepcloud/docker-compose.yml` and `/home/ubuntu/sandeepcloud/nginx.conf`. Runtime credentials are interpolated from `/home/ubuntu/sandeepcloud/.env`, owned by `root:root` with mode `600`; run Compose through `sudo` so it can read that file. Watchtower's Docker Hub credentials remain in `/home/ubuntu/sandeepcloud/watchtower/config/config.json`, also `root:root` with mode `600`. Nginx is the public ingress; the app has no public port mapping.
 
