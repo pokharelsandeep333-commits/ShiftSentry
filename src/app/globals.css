@@ -130,62 +130,29 @@ body {
   letter-spacing: -0.035em;
 }
 
-.app-canvas {
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--foreground) 2.5%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--foreground) 2.5%, transparent) 1px, transparent 1px);
-  background-position: center;
-  background-size: 34px 34px;
-}
+/*
+ * The signed-in app's ground: one flat neutral, covering the body's violet
+ * glows (which the sign-in and account pages keep). No grid and no glow: every
+ * card is white, and violet is kept for what is selected (Sandeep, 2026-11-01).
+ */
+.app-canvas { background: var(--background); }
 
 /*
- * The collapsed desktop sidebar: an icon rail whose labels become tooltips.
+ * The collapsed desktop sidebar: the rail alone, its section panel hidden.
  * Keyed on <html data-sidebar="collapsed">, set before first paint by the
  * bootstrap in src/app/layout.tsx and on click by SidebarToggle. Unlayered on
- * purpose, so it beats the Tailwind utilities it overrides without !important.
- * Scoped to .app-sidebar at lg, so the phone drawer's links are untouched. The
+ * purpose, so it beats the Tailwind column utility without !important. The
  * width does not animate: that would re-lay out the whole page every frame.
  */
 @media (min-width: 64rem) {
-  :root[data-sidebar="collapsed"] .app-frame { grid-template-columns: 112px minmax(0, 1fr); }
-  :root[data-sidebar="collapsed"] .app-sidebar-brand { align-self: center; padding-inline: 0; }
-  :root[data-sidebar="collapsed"] .app-sidebar-brand > span > span:last-child,
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-dot,
-  :root[data-sidebar="collapsed"] .app-sidebar-note { display: none; }
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link { justify-content: center; padding-inline: 0.625rem; translate: none; }
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-label {
-    pointer-events: none;
-    position: absolute;
-    left: calc(100% + 1rem);
-    top: 50%;
-    z-index: 50;
-    translate: 0 -50%;
-    white-space: nowrap;
-    border-radius: 0.5rem;
-    background: var(--foreground);
-    color: var(--background);
-    padding: 0.375rem 0.625rem;
-    font-size: 0.75rem;
-    box-shadow: 0 10px 24px -12px rgb(16 24 40 / 0.45);
-    opacity: 0;
-  }
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:hover .app-nav-label,
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:focus-visible .app-nav-label { opacity: 1; }
+  :root[data-sidebar="collapsed"] .app-frame { grid-template-columns: 80px minmax(0, 1fr); }
 }
 
-/* The tooltip fades in only while its link is hovered or focused. On every
-   label, the fade also ran at the moment of collapsing: each label had already
-   become a dark tooltip beside the rail but was still fully opaque, so all of
-   them flashed out to the right before fading. Leaving a link hides its
-   tooltip at once. */
-@media (min-width: 64rem) {
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:hover .app-nav-label,
-  :root[data-sidebar="collapsed"] .app-sidebar .app-nav-link:focus-visible .app-nav-label { transition: opacity 150ms ease-out; }
-}
-
+/* App cards: white, one neutral hairline, no shadow (2026-11-01). Elevation
+   is declared once, by the border; violet is kept for what is selected. */
 .premium-card {
-  border-color: color-mix(in srgb, var(--border) 88%, var(--primary));
-  box-shadow: 0 22px 55px -34px rgb(var(--shadow-color) / 0.68), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  border-color: var(--border);
+  box-shadow: none;
 }
 
 .field-control,

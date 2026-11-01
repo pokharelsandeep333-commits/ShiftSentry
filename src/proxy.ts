@@ -26,7 +26,7 @@ async function route(request: NextRequest) {
   let response = NextResponse.next({ request });
   const supabase = createServerClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, { cookies: { getAll: () => request.cookies.getAll(), setAll: (values) => { values.forEach(({ name, value }) => request.cookies.set(name, value)); response = NextResponse.next({ request }); values.forEach(({ name, value, options }) => response.cookies.set(name, value, options)); } } });
   const { data: { user } } = await supabase.auth.getUser();
-  if (user && (request.nextUrl.pathname === "/" || /^\/(?:admin|game|shifts|jobs|calendar|settings|integrations)(?:\/|$)/.test(request.nextUrl.pathname))) {
+  if (user && (request.nextUrl.pathname === "/" || /^\/(?:admin|game|shifts|jobs|calendar|pay-periods|settings|integrations)(?:\/|$)/.test(request.nextUrl.pathname))) {
     const { data: accepted, error } = await supabase.rpc("has_current_legal_acceptance");
     if (!error && accepted !== true) {
       const destination = acceptancePath(`${request.nextUrl.pathname}${request.nextUrl.search}`);

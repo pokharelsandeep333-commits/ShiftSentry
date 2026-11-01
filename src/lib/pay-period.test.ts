@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PAY_PERIOD_LOOKAHEAD_DAYS, PAY_PERIOD_LOOKBACK_DAYS, addDays, describePaySchedule, formatPayPeriod, lastDayOf,
-  payFrequencyOf, payPeriodFor, payScheduleFromColumns, paydayFor, previousPayPeriod, summarizePayPeriods, type PaySchedule,
+  payFrequencyOf, payPeriodFor, payPeriodsBack, payScheduleFromColumns, paydayFor, previousPayPeriod, summarizePayHistory, summarizePayPeriods, type PaySchedule,
 } from "./pay-period";
 import type { WorkedShift } from "./period-totals";
 
@@ -171,4 +171,34 @@ test("periods follow the viewer's zone, not UTC", () => {
   });
   assert.equal(summary.previous.worked.minutes, 120);
   assert.equal(summary.current.worked.minutes, 0);
+});
+
+test("history: periods walk back from the one holding today, meeting end to start", () => {
+  const periods = payPeriodsBack("2026-10-20", BIWEEKLY_THURSDAY, 4);
+  assert.deepEqual(periods.map((period) => period.start), ["2026-10-15", "2026-10-01", "2026-09-17", "2026-09-03"]);
+  for (let index = 1; index < periods.length; index += 1) assert.equal(periods[index].end, periods[index - 1].start);
+  assert.equal(payPeriodsBack("2026-10-20", MONTHLY_21ST, 1).length, 1);
+});
+
+test("history: each period's pay matches the dashboard's current and previous figures to the cent", () => {
+  const now = new Date("2026-10-20T16:00:00Z");
+  const schedule = { ...BIWEEKLY_THURSDAY, paydayOffsetDays: 8 };
+  const shifts = [
+    shift({}), // current period, worked
+    shift({ startsAt: new Date("2026-10-20T14:00:00Z"), endsAt: new Date("2026-10-20T18:00:00Z") }), // in progress
+    shift({ startsAt: new Date("2026-10-05T14:00:00Z"), endsAt: new Date("2026-10-05T19:00:00Z") }), // previous period
+    shift({ startsAt: new Date("2026-09-20T22:00:00Z"), endsAt: new Date("2026-09-21T03:00:00Z") }), // two periods back, overnight
+    shift({ startsAt: new Date("2026-08-01T14:00:00Z"), endsAt: new Date("2026-08-01T18:00:00Z") }), // outside the loaded periods
+  ];
+  const [current, previous, older] = summarizePayHistory({ periods: payPeriodsBack("2026-10-20", schedule, 3), schedule, shifts, now, timeZone: "UTC" });
+  const [dashboard] = summarizePayPeriods({ now, timeZone: "UTC", jobs: [{ id: "sodexo", name: "Sodexo", color: "#0ea5e9", schedule }], shifts });
+
+  assert.equal(current.isCurrent, true);
+  assert.equal(previous.isCurrent, false);
+  assert.deepEqual(current.worked, dashboard.current.worked);
+  assert.deepEqual(current.scheduled, dashboard.current.scheduled);
+  assert.deepEqual(previous.worked, dashboard.previous.worked);
+  assert.equal(current.payday, dashboard.current.payday);
+  assert.equal(older.worked.minutes, 300);
+  assert.equal(older.scheduled.minutes, 0);
 });

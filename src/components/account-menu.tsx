@@ -11,7 +11,8 @@ function accountInitial(name: string | null | undefined, email: string) {
   return (name?.trim() || email.trim()).charAt(0).toUpperCase();
 }
 
-export function AccountMenu({ email = "", name }: { email?: string; name?: string | null }) {
+/** `rail` is the sidebar's version: it opens to the right, beside the rail. */
+export function AccountMenu({ email = "", name, placement = "header" }: { email?: string; name?: string | null; placement?: "header" | "rail" }) {
   const initial = accountInitial(name, email);
   const accountLabel = email || "Account";
   const [isSigningOut, startSignOut] = useTransition();
@@ -33,7 +34,7 @@ export function AccountMenu({ email = "", name }: { email?: string; name?: strin
       </button>
     </DropdownMenu.Trigger>
     <DropdownMenu.Portal>
-      <DropdownMenu.Content align="end" sideOffset={10} className="z-50 w-64 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)]/96 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-2xl outline-none menu-pop">
+      <DropdownMenu.Content side={placement === "rail" ? "right" : "bottom"} align="end" sideOffset={placement === "rail" ? 14 : 10} className="z-50 w-64 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_20%,var(--border))] bg-[var(--card)]/96 p-1.5 shadow-2xl shadow-black/15 backdrop-blur-2xl outline-none menu-pop">
         <DropdownMenu.Label className="px-3 py-2.5">
           <p className="text-sm font-medium text-[var(--muted-foreground)]">{email ? "Signed in as" : "Account"}</p>
           <p className="mt-1 truncate text-sm font-semibold text-[var(--foreground)]">{accountLabel}</p>

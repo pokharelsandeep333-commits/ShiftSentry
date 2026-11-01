@@ -17,7 +17,7 @@ const fallbackContentSecurityPolicy = contentSecurityPolicy({
 // `:path*` matches the bare prefix too.
 const NOINDEX_PATHS = [
   "/admin/:path*", "/api/:path*", "/auth/:path*", "/integrations/:path*", "/game/:path*",
-  "/shifts/:path*", "/jobs/:path*", "/calendar/:path*", "/settings/:path*",
+  "/shifts/:path*", "/jobs/:path*", "/calendar/:path*", "/pay-periods/:path*", "/settings/:path*",
   "/account-disabled", "/offline", "/account/:path*", "/accept-terms", "/account-deleted",
 ];
 

@@ -1,45 +1,53 @@
-.quiet {
-  background:
-    radial-gradient(ellipse at 12% 0%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 36rem),
-    var(--background);
-}
-
-.quiet :global(.app-sidebar > .premium-card),
-.quiet :global(header > .premium-card) {
-  border-color: var(--border);
-  background: var(--card);
-  box-shadow: none;
-}
-
-.quiet :global(.app-sidebar .app-nav-icon) {
-  color: inherit;
-  background: transparent;
-  box-shadow: none;
-}
-
-.quiet :global(.app-sidebar .app-nav-link[aria-current="page"]) {
-  color: color-mix(in srgb, var(--primary) 85%, var(--foreground));
-}
-
-.quiet :global(.app-sidebar .app-nav-highlight) {
-  background: color-mix(in srgb, var(--primary) 10%, var(--card));
-}
-
-.quiet :global(.app-sidebar .app-nav-dot) {
-  display: none;
-}
-
+/* The floating card: a white 64px rail, and a white panel of names beside it.
+   Rows are grids with the same two columns, so an icon and its name share a
+   line by construction. */
+/* Sticky here, not as a Tailwind class: this unlayered rule would beat the
+   utility, and sticky also anchors the absolutely placed panel. */
 .sidebarCard {
-  height: calc(100dvh - 2rem);
+  position: sticky;
+  top: 8px;
+  isolation: isolate;
+  height: calc(100dvh - 1rem);
+  padding: 12px 0;
   border-radius: 18px;
+  border-color: var(--border);
 }
 
-.sidebar :global(.app-sidebar-brand),
-.sidebar :global(.app-sidebar-note) {
-  flex-shrink: 0;
+.panel {
+  position: absolute;
+  z-index: -1;
+  inset: 12px 0 12px 64px;
+  /* White like the rail (Sandeep's call); one hairline divides the tiers. */
+  border-left: 1px solid var(--border);
+  background: var(--card);
 }
 
-.sidebarNavigation {
+.row {
+  display: grid;
+  min-height: 40px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+}
+
+.label {
+  display: flex;
+  height: 36px;
+  min-width: 0;
+  align-items: center;
+  margin: 0 14px 0 8px;
+  padding: 0 12px;
+  overflow: hidden;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+
+.identity { min-width: 0; margin: 0 14px 0 8px; padding: 0 12px; }
+
+.navigation {
   display: flex;
   min-height: 0;
   flex: 1;
@@ -48,25 +56,19 @@
   scrollbar-width: none;
 }
 
-.sidebarNavigation::-webkit-scrollbar {
-  display: none;
-}
+.navigation::-webkit-scrollbar { display: none; }
 
-.sidebarUtilities {
-  margin-top: 4px;
-}
+.group { display: flex; flex-direction: column; gap: 4px; }
+.group + .group { margin-top: 16px; }
+.foot { margin-top: auto !important; padding-top: 16px; }
 
 @media (min-width: 64rem) {
-  .quiet:global(.app-frame) {
-    grid-template-columns: 256px minmax(0, 1fr);
-  }
-
-  :global(:root[data-sidebar="collapsed"]) .sidebar :global(.app-nav-label) {
-    display: none;
-  }
+  :global(:root[data-sidebar="collapsed"]) .panel,
+  :global(:root[data-sidebar="collapsed"]) .label,
+  :global(:root[data-sidebar="collapsed"]) .identity { display: none; }
+  :global(:root[data-sidebar="collapsed"]) .row { grid-template-columns: 64px; }
 }
 
-@media (max-height: 42rem) {
-  .sidebar :global(.app-sidebar-brand) { margin-bottom: 16px; }
-  .sidebar :global(.app-sidebar-note) { display: none; }
+@media (max-height: 36rem) {
+  .group + .group { margin-top: 8px; }
 }

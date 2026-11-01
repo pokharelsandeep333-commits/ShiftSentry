@@ -3,15 +3,15 @@
 import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, ViewTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ClipboardClock, Drama, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ChevronRight, ClipboardClock, Drama, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { createLocalPreference } from "@/lib/local-preference";
 import { cn, formatMinutes } from "@/lib/utils";
 import { limitPosition, type WeekMeter } from "@/lib/week-meter";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
-import { Brand } from "@/components/brand";
+import { Brand, BrandMark } from "@/components/brand";
 import dashboardShell from "./quiet-dashboard-shell.module.css";
 
 /**
@@ -41,13 +41,31 @@ const menuNavigation = [
   { href: "/game", label: "Imposter", icon: Drama },
 ];
 
-const desktopMainNavigation = navigation.filter((item) => item.href !== "/settings");
-const desktopUtilityNavigation = [
-  ...menuNavigation.filter((item) => item.href === "/game"),
-  ...navigation.filter((item) => item.href === "/settings"),
-];
+const ADMIN_ITEM = { href: "/admin", label: "Admin", icon: ShieldCheck };
+
+/** The desktop rail, top to bottom: the work, then the extras, then Settings at the foot. */
+const railMainNavigation = navigation.filter((item) => item.href !== "/settings");
+const railExtraNavigation = menuNavigation.filter((item) => item.href === "/game");
+const railSettings = navigation.filter((item) => item.href === "/settings");
 
 type NavigationItem = typeof navigation[number];
+
+/**
+ * The page within a section, for the header's breadcrumb: a shift-log filter,
+ * a form, or an admin sub-page. Null on a section's own page.
+ */
+const SHOW_LABELS: Record<string, string> = { upcoming: "Upcoming", worked: "Worked" };
+function pageLabel(section: NavigationItem, pathname: string, show: string | null) {
+  if (pathname === "/pay-periods") return "Pay periods";
+  if (pathname.endsWith("/new")) return "New";
+  if (pathname.endsWith("/edit")) return "Edit";
+  if (pathname === "/shifts" && show) return SHOW_LABELS[show] ?? null;
+  if (section.href === "/admin" && pathname !== "/admin") {
+    const segment = pathname.split("/")[2] ?? "";
+    return segment.charAt(0).toUpperCase() + segment.slice(1);
+  }
+  return null;
+}
 
 /**
  * A nested route lights its section: /shifts/new and /shifts/123/edit both keep
@@ -56,7 +74,9 @@ type NavigationItem = typeof navigation[number];
  * path exactly, so opening a form left nothing highlighted.
  */
 function isNavigationActive(pathname: string, href: string) {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  // Pay-period history is opened from the dashboard, so it belongs to Overview.
+  if (href === "/") return pathname === "/" || pathname === "/pay-periods";
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /**
@@ -128,18 +148,22 @@ function SidebarToggle() {
   </Button>;
 }
 
-function NavigationLink({ item, active, transitionTypes, pillName, onNavigate }: { item: NavigationItem; active: boolean; transitionTypes?: string[]; pillName?: string; onNavigate?: () => void }) {
+/** A link in the phone drawer: the rail's plain icon, with its label beside it. */
+function NavigationLink({ item, active, transitionTypes, onNavigate }: { item: NavigationItem; active: boolean; transitionTypes?: string[]; onNavigate?: () => void }) {
   const Icon = item.icon;
-  const linkRef = useRef<HTMLAnchorElement>(null);
-  // Portal the collapsed label so short-window navigation scrolling cannot clip it.
+  return <Link href={item.href} transitionTypes={transitionTypes} onClick={onNavigate} aria-current={active ? "page" : undefined} className={cn(
+    "press group relative isolate flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
+    active ? "text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
+  )}>
+    {active && <NavPill className="rounded-xl bg-[color-mix(in_srgb,var(--primary)_11%,var(--card))]" />}
+    <Icon className="size-5" strokeWidth={1.85} />
+    {item.label}
+  </Link>;
+}
+
+/** The rail's tooltip, portalled so a short window's scrolling cannot clip it. */
+function useRailTooltip() {
   const [tooltip, setTooltip] = useState<{ left: number; top: number } | null>(null);
-
-  function showTooltip() {
-    if (!pillName || document.documentElement.dataset.sidebar !== "collapsed" || !window.matchMedia("(min-width: 64rem)").matches) return;
-    const bounds = linkRef.current?.getBoundingClientRect();
-    if (bounds) setTooltip({ left: bounds.right + 16, top: bounds.top + bounds.height / 2 });
-  }
-
   useEffect(() => {
     if (!tooltip) return;
     const hide = () => setTooltip(null);
@@ -150,30 +174,62 @@ function NavigationLink({ item, active, transitionTypes, pillName, onNavigate }:
       window.removeEventListener("resize", hide);
     };
   }, [tooltip]);
+  return {
+    tooltip,
+    show: (element: HTMLElement | null) => {
+      const bounds = element?.getBoundingClientRect();
+      if (bounds) setTooltip({ left: bounds.right + 12, top: bounds.top + bounds.height / 2 });
+    },
+    hide: () => setTooltip(null),
+  };
+}
 
-  return <><Link ref={linkRef} href={item.href} transitionTypes={transitionTypes} onClick={() => { setTooltip(null); onNavigate?.(); }} onMouseEnter={showTooltip} onMouseLeave={() => setTooltip(null)} onFocus={showTooltip} onBlur={() => setTooltip(null)} aria-label={item.label} aria-current={active ? "page" : undefined} className={cn(
-    "press app-nav-link group relative isolate flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold hover:translate-x-0.5",
-    active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
-  )}>
-    {active && <NavPill name={pillName} className="rounded-2xl bg-[var(--primary-soft)]" />}
-    <span className={cn("app-nav-icon grid size-8 place-items-center rounded-xl transition-colors", active ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-lg shadow-[var(--primary-glow)]" : "bg-[var(--surface-subtle)] text-[var(--muted-foreground)] group-hover:bg-[var(--primary-soft)] group-hover:text-[var(--primary)]")}>
-      <Icon className="size-4" />
-    </span>
-    <span className="app-nav-label">{item.label}</span>
-    {active && <span className="app-nav-dot absolute right-2 size-1.5 rounded-full bg-[var(--primary)]" />}
-  </Link>{tooltip && createPortal(<span aria-hidden="true" className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[var(--foreground)] px-3 py-2 text-xs font-medium text-[var(--background)] shadow-lg" style={tooltip}>{item.label}</span>, document.body)}</>;
+function RailTooltip({ label, position }: { label: string; position: { left: number; top: number } | null }) {
+  return position ? createPortal(<span aria-hidden="true" className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-lg bg-[var(--foreground)] px-2.5 py-1.5 text-xs font-medium text-[var(--background)] shadow-[0_10px_24px_-12px_rgb(16_24_40/0.45)]" style={position}>{label}</span>, document.body) : null;
+}
+
+/**
+ * One section in the sidebar: a single link across both tiers, its icon on the
+ * white rail and its name on the grey panel, so the two always line up. When
+ * the sidebar is collapsed the name is hidden and returns as a tooltip;
+ * Settings, at the foot, is always just its icon.
+ */
+function SidebarLink({ item, active, transitionTypes, iconOnly = false }: { item: NavigationItem; active: boolean; transitionTypes?: string[]; iconOnly?: boolean }) {
+  const Icon = item.icon;
+  const ref = useRef<HTMLAnchorElement>(null);
+  const { tooltip, show, hide } = useRailTooltip();
+  const showIfCollapsed = () => { if (iconOnly || document.documentElement.dataset.sidebar === "collapsed") show(ref.current); };
+  return <>
+    <Link ref={ref} href={item.href} transitionTypes={transitionTypes} aria-current={active ? "page" : undefined} aria-label={iconOnly ? item.label : undefined} onClick={hide} onMouseEnter={showIfCollapsed} onMouseLeave={hide} onFocus={showIfCollapsed} onBlur={hide} className={cn("group outline-none", dashboardShell.row)}>
+      <span className={cn("press relative isolate grid size-10 place-items-center justify-self-center rounded-[11px] transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--primary)]", active ? "text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] group-hover:bg-[var(--surface-subtle)] group-hover:text-[var(--foreground)]")}>
+        {active && <NavPill name="nav-pill-side" className="rounded-[11px] bg-[color-mix(in_srgb,var(--primary)_11%,var(--card))]" />}
+        <Icon aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />
+      </span>
+      {!iconOnly && <span className={cn(dashboardShell.label, active ? "bg-[color-mix(in_srgb,var(--primary)_11%,var(--card))] font-semibold text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] group-hover:bg-[var(--surface-subtle)] group-hover:text-[var(--foreground)]")}>{item.label}</span>}
+    </Link>
+    <RailTooltip label={item.label} position={tooltip} />
+  </>;
+}
+
+/** Where you are, from lg: the section, then the page within it when there is one. */
+function Breadcrumb({ section, pathname }: { section: NavigationItem; pathname: string }) {
+  const leaf = pageLabel(section, pathname, useSearchParams().get("show"));
+  return <p className="hidden min-w-0 items-center gap-1.5 font-display text-[15px] font-semibold leading-6 tracking-[-0.02em] lg:flex">
+    {leaf ? <Link href={section.href} className="truncate py-0.5 pr-0.5 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]">{section.label}</Link> : <span className="truncate py-0.5 pr-0.5">{section.label}</span>}
+    {leaf && <><ChevronRight aria-hidden="true" className="size-4 shrink-0 text-[var(--muted-foreground)]" /><span className="truncate py-0.5 pr-0.5">{leaf}</span></>}
+  </p>;
 }
 
 function BottomNavigationLink({ item, active, transitionTypes }: { item: NavigationItem; active: boolean; transitionTypes?: string[] }) {
   const Icon = item.icon;
 
   return <Link href={item.href} transitionTypes={transitionTypes} aria-current={active ? "page" : undefined} className={cn(
-    "press flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 pb-1.5 pt-2 text-[11px] font-semibold leading-none",
-    active ? "text-[var(--primary)]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
+    "press flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 pb-1.5 pt-2 text-[11px] font-medium leading-none",
+    active ? "text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
   )}>
     <span className="relative isolate grid h-7 w-12 place-items-center">
-      {active && <NavPill name="nav-pill-bar" className="rounded-full bg-[var(--primary-soft)]" />}
-      <Icon className="size-5" />
+      {active && <NavPill name="nav-pill-bar" className="rounded-full bg-[color-mix(in_srgb,var(--primary)_9%,var(--card))]" />}
+      <Icon className="size-5" strokeWidth={1.75} />
     </span>
     {item.label}
   </Link>;
@@ -188,7 +244,7 @@ function BottomNavigationLink({ item, active, transitionTypes }: { item: Navigat
  * Admin stays in the drawer; these five are the everyday destinations.
  */
 function BottomNavigation({ pathname }: { pathname: string }) {
-  return <nav aria-label="Primary" className="app-bottom-bar fixed inset-x-0 bottom-0 z-30 border-t bg-[var(--background)]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+  return <nav aria-label="Primary" className="app-bottom-bar fixed inset-x-0 bottom-0 z-30 border-t bg-[var(--card)]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
     <div className="mx-auto flex max-w-md items-stretch gap-1 px-2 py-1">
       {navigation.map((item, index) => <BottomNavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(navigation, pathname, index)} />)}
     </div>
@@ -201,7 +257,7 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const shouldRestoreFocus = useRef(false);
-  const mobileItems = isAdmin ? [...menuNavigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : menuNavigation;
+  const mobileItems = isAdmin ? [...menuNavigation, ADMIN_ITEM] : menuNavigation;
 
   function closeMenu(restoreFocus = false) {
     shouldRestoreFocus.current = restoreFocus;
@@ -318,51 +374,54 @@ function WeekMeterPlaceholder() {
 
 export function AppShell({ children, isAdmin = false, isDemo = false, userEmail, userName, weekMeter }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string; userName?: string | null; weekMeter?: Promise<WeekMeter | null> }) {
   const pathname = usePathname();
-  const desktopUtilityItems = isAdmin ? [...desktopUtilityNavigation, { href: "/admin", label: "Admin", icon: ShieldCheck }] : desktopUtilityNavigation;
-  const desktopItems = [...desktopMainNavigation, ...desktopUtilityItems];
-  const section = desktopItems.find((item) => isNavigationActive(pathname, item.href));
+  const railExtras = isAdmin ? [...railExtraNavigation, ADMIN_ITEM] : railExtraNavigation;
+  const railItems = [...railMainNavigation, ...railExtras, ...railSettings];
+  const section = railItems.find((item) => isNavigationActive(pathname, item.href));
+  const sidebarLink = (item: NavigationItem, iconOnly = false) => <SidebarLink key={item.href} item={item} iconOnly={iconOnly} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(railItems, pathname, railItems.indexOf(item))} />;
 
-  return <div className={cn("app-canvas app-frame min-h-screen lg:grid lg:grid-cols-[292px_minmax(0,1fr)]", pathname === "/" && dashboardShell.quiet)}>
+  return <div className="app-canvas app-frame min-h-screen lg:grid lg:grid-cols-[296px_minmax(0,1fr)]">
     <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-xl focus:bg-[var(--primary)] focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-[var(--primary-foreground)] focus:shadow-2xl focus:shadow-[var(--primary-glow)]">Skip to content</a>
-    {/* No `backdrop-blur` on the sidebar or the header bar.
-        Both used to carry one on the theory that they overlay scrolling
-        content. Measured at 1440px, neither does: the sidebar sits in its own
-        grid column and ends 16px clear of `main`, and the header is `static`,
-        so the page scrolls past it rather than under it. All either one could
-        ever sample is `app-canvas` -- a flat colour under 2.5%-opacity grid
-        lines -- through 82-90% opaque glass, which is no visible blur at all.
-        The sidebar's was the worse of the two: `position: sticky` means the
-        filter is re-evaluated as it moves, on every scroll frame, on every
-        page. The bottom bar keeps its blur, being the one layer here that
-        genuinely does overlay scrolling content. */}
-    <aside id="desktop-sidebar" className={cn("app-sidebar hidden p-4 lg:flex", dashboardShell.sidebar)}>
-      <div className={cn("premium-card sticky top-4 flex w-full flex-col border bg-[var(--card)]/82 p-3.5", dashboardShell.sidebarCard)}>
-        <Link href="/" aria-label="Go to ShiftSentry overview" className="app-sidebar-brand mb-8 rounded-2xl px-2 py-2"><Brand /></Link>
-        <nav className={dashboardShell.sidebarNavigation} aria-label="Main navigation">
-          <div className="space-y-1">{desktopMainNavigation.map((item) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(desktopItems, pathname, desktopItems.indexOf(item))} pillName="nav-pill-side" />)}</div>
-          <div className={cn("space-y-1", dashboardShell.sidebarUtilities)}>{desktopUtilityItems.map((item) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(desktopItems, pathname, desktopItems.indexOf(item))} pillName="nav-pill-side" />)}</div>
+    {/* No `backdrop-blur` on the sidebar or the header bar: neither overlays
+        scrolling content (the sidebar has its own grid column, the header is
+        static), so a blur would sample only the flat canvas while costing a
+        filter on every scroll frame. The bottom bar keeps its blur, being the
+        one layer that genuinely sits over the page. */}
+    <aside id="desktop-sidebar" className={cn("app-sidebar hidden p-2 lg:flex", dashboardShell.sidebar)}>
+      {/* Two tiers in one floating card: icons on a white rail, their names on
+          an inset grey panel that collapsing hides. Each row is one link. */}
+      <div className={cn("flex w-full flex-col border bg-[var(--card)]", dashboardShell.sidebarCard)}>
+        <span aria-hidden="true" className={dashboardShell.panel} />
+        <div className={cn(dashboardShell.row, "mb-4")}>
+          <Link href="/" aria-label="Go to ShiftSentry overview" className="justify-self-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"><BrandMark /></Link>
+          <p className={cn(dashboardShell.identity, "font-display text-[17px] font-semibold tracking-[-0.02em]")}>ShiftSentry</p>
+        </div>
+        <nav aria-label="Main navigation" className={dashboardShell.navigation}>
+          <div className={dashboardShell.group}>{railMainNavigation.map((item) => sidebarLink(item))}</div>
+          <div className={dashboardShell.group}>{railExtras.map((item) => sidebarLink(item))}</div>
+          <div className={cn(dashboardShell.group, dashboardShell.foot)}>{railSettings.map((item) => sidebarLink(item, true))}</div>
         </nav>
-        <div className="app-sidebar-note mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-subtle)] p-4 text-xs leading-5 text-[var(--muted-foreground)]"><span className="mb-1 block font-semibold text-[var(--foreground)]">{isDemo ? "Preview mode" : "Private workspace"}</span>{isDemo ? "Connect Supabase to save your workspace data." : "Your work schedule stays private to your account."}</div>
+        {!isDemo && <div className={cn(dashboardShell.row, "mt-2")}><span className="justify-self-center"><AccountMenu email={userEmail} name={userName} placement="rail" /></span></div>}
       </div>
     </aside>
     <div className="min-w-0">
       {/* Left and right groups both flex from zero, so the week meter sits on
-          the bar's true centre whatever the two sides hold. Sized like the
-          landing's top bar (56px, 36px controls from md) and, from lg, 16px
-          down so its top lines up with the sidebar card's. The calendar page's
-          `100dvh - 6.5rem` counts this: change both together. */}
-      <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-4"><div className="premium-card mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border bg-[var(--card)]/82 px-2.5">
+          the bar's true centre. 56px tall and, from lg, 8px down so its top
+          lines up with the sidebar card's. The calendar page's
+          `100dvh - 6rem` counts this: change both together. From lg the
+          account lives on the rail, so the bar keeps where you are, the week,
+          the theme switch and Add shift. */}
+      <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-2"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-2.5">
         <div className="flex min-w-0 flex-auto items-center gap-1 sm:gap-2 md:flex-1 md:basis-0">
           <SidebarToggle />
           <MobileNavigation pathname={pathname} isAdmin={isAdmin} />
           <Link href="/" className="flex h-11 min-w-0 items-center lg:hidden" aria-label="Go to ShiftSentry overview"><Brand size="compact" className="gap-2 max-[379px]:[&>span:last-child]:hidden" /></Link>
-          {section && <p className="hidden truncate font-display text-[15px] font-semibold tracking-[-0.02em] lg:block">{section.label}</p>}
+          {section && <Suspense fallback={<p className="hidden truncate py-0.5 pr-0.5 font-display text-[15px] font-semibold leading-6 tracking-[-0.02em] lg:block">{section.label}</p>}><Breadcrumb section={section} pathname={pathname} /></Suspense>}
         </div>
         {weekMeter && <div className="hidden min-w-0 md:block"><Suspense fallback={<WeekMeterPlaceholder />}><WeekMeterLink weekMeter={weekMeter} /></Suspense></div>}
         <div className="flex min-w-0 flex-none items-center justify-end gap-1 sm:gap-2 md:flex-1 md:basis-0">
           <ThemeToggle />
           <Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants(), "size-11 rounded-full p-0 shadow-none hover:shadow-none sm:w-auto sm:px-4 md:h-9")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>
-          {!isDemo && <AccountMenu email={userEmail} name={userName} />}
+          {!isDemo && <div className="flex lg:hidden"><AccountMenu email={userEmail} name={userName} /></div>}
         </div>
       </div></header>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12">{children}</main>

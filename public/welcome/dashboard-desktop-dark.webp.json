@@ -1,4 +1,4 @@
 {
-  "prompt": "Browser screenshot, not generated art. Final release design of ShiftSentry's standalone production demo using src/lib/dashboard-demo.ts and synthetic sample records, including proportional Outfit numerals and aligned financial cards. Captured through the in-app Chromium browser at 1425x891 pixels in dark theme, selected through the app's theme control. Encoded as WebP at quality 82. Preview mode and sample-data labels are retained. No personal workspace data.",
-  "createdAt": "2026-10-22T01:22:10.942Z"
+  "prompt": "Browser screenshot, not generated art. ShiftSentry's demo dashboard (2026-11-01 redesign: two-tier sidebar, week panel, Up next rail) using src/lib/dashboard-demo.ts and synthetic sample records. Captured with headless Edge over the DevTools protocol at 1425x891 pixels in dark theme, selected through the app's stored theme. Encoded as WebP at quality 82. Preview mode and sample-data labels are retained. No personal workspace data.",
+  "createdAt": "2026-11-01T22:17:47.378Z"
 }
