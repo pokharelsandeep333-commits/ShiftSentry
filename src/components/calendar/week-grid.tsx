@@ -60,7 +60,7 @@ export function WeekGrid({ days, today, items, timeZone }: { days: string[]; tod
     </div>
     <ScrollToHour hour={7} className="min-h-0 flex-1 overflow-y-auto [container-type:size] [scrollbar-gutter:stable]">
       <div className={COLUMNS} style={{ "--hour": HOUR, height: "calc(var(--hour) * 24)" } as CSSProperties}>
-        <div>{hours.map((hour) => <div key={hour} data-hour-row className="-mt-1.5 pr-1.5 text-right text-[11px] font-medium tabular-nums text-[var(--muted-foreground)]" style={{ height: "var(--hour)" }}>{hour === 0 ? "" : hourLabel(hour)}</div>)}</div>
+        <div>{hours.map((hour) => <div key={hour} data-hour-row className="relative -top-1.5 pr-1.5 text-right text-[11px] font-medium tabular-nums text-[var(--muted-foreground)]" style={{ height: "var(--hour)" }}>{hour === 0 ? "" : hourLabel(hour)}</div>)}</div>
         {days.map((day) => <div key={day} className="relative min-w-0 border-l">
           {hours.map((hour) => <Link key={hour} href={newShiftHref(day, hour)} prefetch={false} tabIndex={-1} aria-hidden="true" className="block border-t border-[color-mix(in_srgb,var(--border)_70%,transparent)] transition-colors hover:bg-[var(--surface-subtle)]" style={{ height: "var(--hour)" }} />)}
           {layoutDay(items, day, timeZone).map(({ item, top, height, lane, lanes }) => {
