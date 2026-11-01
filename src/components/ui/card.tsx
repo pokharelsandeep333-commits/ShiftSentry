@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * bar -- fixed over scrolling content -- still earns a blur. See app-shell.tsx.
  */
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("premium-card rounded-[1.35rem] border bg-[var(--card)]/80 transition-[transform,border-color,box-shadow] duration-300", className)} {...props} />;
+  return <div className={cn("premium-card rounded-[1.35rem] border bg-[var(--card)] transition-[transform,border-color,box-shadow] duration-300", className)} {...props} />;
 }
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("flex flex-col gap-1.5 p-5 sm:p-6", className)} {...props} />;
