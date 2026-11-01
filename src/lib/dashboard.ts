@@ -4,7 +4,7 @@ import type { DashboardData, MonthTotals } from "@/lib/types";
 import type { DeductionSnapshot } from "@/lib/earnings";
 import { addWorkedMinutes, bucketWorkedShiftsByMonth, createTotals, finalizeTotals } from "@/lib/period-totals";
 import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-allocation";
-import { allocateWeekMinutes, buildJobLimitRows, buildWeekMeter, type JobLimitRow, type WeekMeter } from "@/lib/week-meter";
+import { allocateWeekMinutes, buildWeekMeter, type WeekMeter } from "@/lib/week-meter";
 import { JOB_PAY_COLUMNS, payPeriodQueryWindow, payScheduleFromColumns, summarizePayPeriods, type JobPayColumns } from "@/lib/pay-period";
 import { buildDashboardInsights, recentCompletedShifts, type DashboardShift, type RecentCompletedShift } from "@/lib/dashboard-insights";
 
@@ -77,20 +77,6 @@ async function fetchHistory(supabase: Awaited<ReturnType<typeof createServerSupa
 export async function getWeekMeter(profile: WeekProfile): Promise<WeekMeter | null> {
   const jobs = await loadCurrentWeek(profile);
   return jobs ? buildWeekMeter(jobs, profile.global_weekly_limit_minutes) : null;
-}
-
-/**
- * The shift log's current-week card: the header meter's numbers plus a row per
- * job against its own weekly limit. The same query path as the header, so the
- * two can never disagree. Null on any failure; the log then shows no card.
- */
-export async function getWeekLimits(profile: WeekProfile): Promise<{ meter: WeekMeter; jobs: JobLimitRow[] } | null> {
-  const jobs = await loadCurrentWeek(profile);
-  if (!jobs) return null;
-  return {
-    meter: buildWeekMeter(jobs, profile.global_weekly_limit_minutes),
-    jobs: buildJobLimitRows(jobs.map((job) => ({ ...job, limitMinutes: job.weekly_limit_minutes }))),
-  };
 }
 
 type WeekProfile = { id: string; time_zone: string; week_starts_on: number; global_weekly_limit_minutes: number | null };

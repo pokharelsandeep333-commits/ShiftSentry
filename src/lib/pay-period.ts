@@ -262,3 +262,59 @@ export function summarizePayPeriods({ jobs, shifts, now, timeZone }: {
     previous: { ...previous, payday: paydayFor(previous, schedule), worked: amountOf(previousWorked) },
   }));
 }
+
+/** The newest `count` periods of a schedule, the one holding `today` first. */
+export function payPeriodsBack(today: string, schedule: PaySchedule, count: number): PayPeriod[] {
+  const periods = [payPeriodFor(today, schedule)];
+  while (periods.length < count) periods.push(previousPayPeriod(periods[periods.length - 1], schedule));
+  return periods;
+}
+
+export type PayPeriodHistoryEntry = PayPeriod & { payday: string | null; worked: PayPeriodAmount; scheduled: PayPeriodAmount; isCurrent: boolean };
+
+/**
+ * One job's pay periods, newest first, for the pay-period history page. The
+ * same rules as `summarizePayPeriods`, so a period reads the same cents here as
+ * on the dashboard: money is added per local-day slice, worked time is clipped
+ * at `now`, and whatever lies after `now` is "scheduled" (only the current
+ * period can hold any). Each slice finds its period through `payPeriodFor`, the
+ * one place a schedule becomes a period; slices outside `periods` are ignored.
+ */
+export function summarizePayHistory({ periods, schedule, shifts, now, timeZone }: {
+  periods: PayPeriod[];
+  schedule: PaySchedule;
+  shifts: WorkedShift[];
+  now: Date;
+  timeZone: string;
+}): PayPeriodHistoryEntry[] {
+  const today = formatInTimeZone(now, timeZone, "yyyy-MM-dd");
+  const entries = periods.map((period) => ({ period, worked: createTotals(), scheduled: createTotals() }));
+  const byStart = new Map(entries.map((entry) => [entry.period.start, entry]));
+  const entryFor = (day: string) => byStart.get(payPeriodFor(day, schedule).start);
+
+  for (const shift of shifts) {
+    const jobRef = { id: shift.jobId, name: shift.jobName, color: shift.jobColor };
+    if (shift.startsAt < now) {
+      const workedEnd = shift.endsAt < now ? shift.endsAt : now;
+      for (const slice of allocateShiftMinutes(shift.startsAt, workedEnd, timeZone)) {
+        const entry = entryFor(slice.date);
+        if (entry) addWorkedMinutes(entry.worked, slice.minutes, jobRef, shift);
+      }
+    }
+    if (shift.endsAt > now) {
+      const scheduledStart = shift.startsAt > now ? shift.startsAt : now;
+      for (const slice of allocateShiftMinutes(scheduledStart, shift.endsAt, timeZone)) {
+        const entry = entryFor(slice.date);
+        if (entry) addWorkedMinutes(entry.scheduled, slice.minutes, jobRef, shift);
+      }
+    }
+  }
+
+  return entries.map(({ period, worked, scheduled }) => ({
+    ...period,
+    payday: paydayFor(period, schedule),
+    worked: amountOf(worked),
+    scheduled: amountOf(scheduled),
+    isCurrent: within(today, period),
+  }));
+}

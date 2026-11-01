@@ -2,7 +2,7 @@ import { ViewTransition } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import styles from "@/components/dashboard/dashboard.module.css";
 
-/** Matches the weekly workspace, upcoming work/pay rail and earnings row. */
+/** Matches the cap card, the week panel and up-next rail, the earnings row and recent shifts. */
 export default function Loading() {
   return <ViewTransition exit="skeleton-out" default="none"><div className={styles.root} aria-busy="true" aria-live="polite">
     <span className="sr-only">Loading</span>
@@ -13,15 +13,15 @@ export default function Loading() {
     </div>
     <div className={styles.topGrid}>
       <div className="premium-card min-w-0 border p-5 sm:p-6">
-        <div className="flex flex-wrap justify-between gap-3"><Skeleton className="h-5 w-36" /><Skeleton className="h-8 w-28 rounded-full" /></div>
-        <div className="mt-5 border-t pt-4"><Skeleton className="h-4 w-28" /><div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-7">{[0, 1, 2, 3, 4, 5, 6].map((day) => <Skeleton key={day} className="h-28 w-full rounded-lg" />)}</div><Skeleton className="mt-4 h-14 w-full" /></div>
+        <div className="flex flex-wrap justify-between gap-3"><Skeleton className="h-10 w-32" /><Skeleton className="h-10 w-40" /></div>
+        <div className="mt-5 grid grid-cols-7 gap-1">{[0, 1, 2, 3, 4, 5, 6].map((day) => <Skeleton key={day} className="h-32 w-full rounded-xl" />)}</div>
+        <div className="mt-4 border-t pt-4"><Skeleton className="h-4 w-20" /><Skeleton className="mt-3 h-10 w-full" /></div>
       </div>
       <div className="premium-card min-w-0 border p-5 sm:p-6">
-        <Skeleton className="h-5 w-32" /><Skeleton className="mt-4 h-32 w-full" />
-        <div className="mt-5 border-t pt-5"><Skeleton className="h-5 w-28" /><Skeleton className="mt-4 h-12 w-full" /><Skeleton className="mt-3 h-14 w-full" /></div>
+        <Skeleton className="h-5 w-24" /><Skeleton className="mt-4 h-28 w-full rounded-2xl" />
+        <div className="mt-5 border-t pt-4"><Skeleton className="h-5 w-20" /><Skeleton className="mt-3 h-10 w-full" /></div>
       </div>
     </div>
-    <div className="premium-card mt-5 border p-5"><Skeleton className="h-5 w-40" /><div className="mt-4 grid grid-cols-3 gap-3">{[0, 1, 2].map((item) => <Skeleton key={item} className="h-12 w-full" />)}</div></div>
     <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       {[0, 1].map((card) => <div key={card} className="premium-card min-w-0 border p-5 sm:p-6"><Skeleton className="h-5 w-32" /><Skeleton className="mt-6 h-12 w-48 max-w-full" /><Skeleton className="mt-6 h-48 w-full" /></div>)}
     </div>

@@ -10,11 +10,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { SavedToast } from "@/components/saved-toast";
 import { ShiftRowActions } from "@/components/shifts/shift-row-actions";
 import { ShiftLogHeader, SyncIssuesNotice } from "@/components/shifts/shift-log-header";
-import { WeekLimits } from "@/components/shifts/week-limits";
 import { seriesIdOf, type SyncIssue } from "@/lib/google-sync-plan";
 import { WeekDisclosure } from "@/components/shifts/week-disclosure";
 import { WeekNote } from "@/components/shifts/week-note";
-import { getWeekLimits } from "@/lib/dashboard";
 import { formatCents } from "@/lib/earnings";
 import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
 import { weekStartFor } from "@/lib/time";
@@ -25,7 +23,6 @@ import { LoadError } from "@/components/load-error";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { getSyncIssues, hasSyncingJob } from "@/lib/google/shift-sync";
 import { noteForWeek, weekStartOfLocalDate, type WeekNote as WeekNoteRow } from "@/lib/week-notes";
-import type { JobLimitRow, WeekMeter } from "@/lib/week-meter";
 
 type JobRef = { name: string; color: string; archived_at: string | null };
 
@@ -114,7 +111,7 @@ function groupByWeek(shifts: ShiftRow[], timeZone: string, weekStartsOn: number,
 /**
  * The shift log's data: the loaded weeks (filtered by `?show=` and `?job=`),
  * whether older ones exist, the week notes, the active jobs for the filter
- * chips, this week's limits, and Google sync's refusals. The drawing is
+ * chips, and Google sync's refusals. The drawing is
  * `ShiftLogView`, so it can be checked without a session.
  */
 export async function ShiftLog({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -141,12 +138,11 @@ export async function ShiftLog({ searchParams }: { searchParams: Promise<SearchP
   if (filters.show === "worked") { shiftsQuery = shiftsQuery.lte("starts_at", now.toISOString()); olderQuery = olderQuery.lte("starts_at", now.toISOString()); }
 
   const windowStartDate = formatInTimeZone(windowStart, profile.time_zone, "yyyy-MM-dd");
-  const [{ data: shifts, error: shiftsError }, { count: olderCount }, { data: noteRows, error: notesError }, { data: jobs }, limits, issues] = await Promise.all([
+  const [{ data: shifts, error: shiftsError }, { count: olderCount }, { data: noteRows, error: notesError }, { data: jobs }, issues] = await Promise.all([
     shiftsQuery.order("starts_at", { ascending: false }),
     olderQuery,
     supabase.from("week_notes").select("id,week_start,body").eq("user_id", profile.id).gte("week_start", windowStartDate),
     supabase.from("jobs").select("id,name,color").eq("user_id", profile.id).is("archived_at", null).order("name"),
-    getWeekLimits(profile),
     syncing ? getSyncIssues(profile.id) : Promise.resolve([] as SyncIssue[]),
   ]);
 
@@ -172,7 +168,6 @@ export async function ShiftLog({ searchParams }: { searchParams: Promise<SearchP
     saved={saved}
     syncing={syncing}
     issues={issues}
-    limits={limits}
   />;
 }
 
@@ -189,10 +184,9 @@ type ShiftLogViewProps = {
   saved?: string;
   syncing?: boolean;
   issues: SyncIssue[];
-  limits: { meter: WeekMeter; jobs: JobLimitRow[] } | null;
 };
 
-export function ShiftLogView({ groups, currentKey, timeZone, weeks, filters, notes, jobs, olderCount, hasAnyShifts, saved, syncing, issues, limits }: ShiftLogViewProps) {
+export function ShiftLogView({ groups, currentKey, timeZone, weeks, filters, notes, jobs, olderCount, hasAnyShifts, saved, syncing, issues }: ShiftLogViewProps) {
   const filtered = isFiltered(filters);
   const firstRun = !jobs.length && !hasAnyShifts;
 
@@ -214,13 +208,13 @@ export function ShiftLogView({ groups, currentKey, timeZone, weeks, filters, not
         <p className="text-sm text-[var(--muted-foreground)]">No shifts match these filters{olderCount ? " in the weeks loaded" : ""}.</p>
         <Link href={shiftLogHref(weeks, { show: "all", job: "" })} className="mt-3 inline-block text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Clear filters</Link>
       </Card>
-      : <div className="shift-weeks">{groups.map((group) => <ShiftWeek key={group.key} group={group} current={group.key === currentKey} timeZone={timeZone} weeks={weeks} filters={filters} notes={notes} limits={group.key === currentKey ? limits : null} canAdd={jobs.length > 0} />)}</div>}
+      : <div className="shift-weeks">{groups.map((group) => <ShiftWeek key={group.key} group={group} current={group.key === currentKey} timeZone={timeZone} weeks={weeks} filters={filters} notes={notes} canAdd={jobs.length > 0} />)}</div>}
 
     {olderCount ? <div className="older-wrap"><Link href={shiftLogHref(clampWeeks(weeks + WEEKS_PER_PAGE), filters)} scroll={false} className="shift-text-button">Load older weeks <span>({olderCount} older)</span><ChevronDown size={16} aria-hidden="true" /></Link></div> : null}
   </div>;
 }
 
-export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, limits, canAdd }: { group: WeekGroup; current: boolean; timeZone: string; weeks: number; filters: ShiftFilters; notes: WeekNoteRow[] | null; limits: { meter: WeekMeter; jobs: JobLimitRow[] } | null; canAdd: boolean }) {
+export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, canAdd }: { group: WeekGroup; current: boolean; timeZone: string; weeks: number; filters: ShiftFilters; notes: WeekNoteRow[] | null; canAdd: boolean }) {
   const lastDay = addDays(group.start, 6);
   const range = `${formatInTimeZone(group.start, timeZone, "MMM d")} – ${formatInTimeZone(lastDay, timeZone, "MMM d")}`;
   const weekStart = formatInTimeZone(group.start, timeZone, "yyyy-MM-dd");
@@ -233,7 +227,6 @@ export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, lim
       <span className="week-totals"><span className="week-duration">{formatMinutes(group.minutes)}<small>total</small></span><span className="week-net">{formatCents(group.netCents)}<small>net estimate</small></span></span>
     </>}
   >
-    {current && limits && !filters.job && <div className="week-note-wrap"><WeekLimits meter={limits.meter} jobs={limits.jobs} /></div>}
     {notes && <div className="week-note-wrap"><WeekNote weekStart={weekStart} label={`the week of ${range}`} note={note} /></div>}
     <div className="shift-table" role="table" aria-label={`Shifts for ${range}`}>
       <div className="shift-table-head" role="row"><span role="columnheader">Date</span><span role="columnheader">Job</span><span role="columnheader">Time</span><span role="columnheader">Duration</span><span role="columnheader">Status</span><span className="sr-only" role="columnheader">Actions</span></div>

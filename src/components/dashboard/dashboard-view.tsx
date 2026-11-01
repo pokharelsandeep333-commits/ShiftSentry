@@ -4,16 +4,14 @@ import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CalendarCheck, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NextShiftCard } from "@/components/dashboard/next-shift-card";
-import { WeekCard, WeekJobLimits } from "@/components/dashboard/week-card";
-import { WorkWeek } from "@/components/dashboard/work-week";
-import { WorkGrid } from "@/components/dashboard/work-grid";
+import { WeekCard } from "@/components/dashboard/week-card";
+import { WeekPanel } from "@/components/dashboard/work-week";
 import { PaydaySummary } from "@/components/dashboard/payday-summary";
-import { WeeklyPayForecast } from "@/components/dashboard/weekly-pay-forecast";
 import { RecentShifts } from "@/components/dashboard/recent-shifts";
 import { PremiumSelect } from "@/components/ui/premium-select";
 import { Reveal } from "@/components/ui/reveal";
@@ -23,7 +21,7 @@ import { greetingForDate } from "@/lib/greeting";
 import { createLocalPreference } from "@/lib/local-preference";
 import { niceAxisTicks } from "@/lib/chart-ticks";
 import { combineMonthTotals } from "@/lib/period-totals";
-import { formatPayDay, formatPayPeriod, type PayPeriodSummary } from "@/lib/pay-period";
+import { daysBetween, formatPayDay, formatPayPeriod, type PayPeriodSummary } from "@/lib/pay-period";
 import { weekEndFor, weekStartFor } from "@/lib/time";
 import { cn, formatMinutes } from "@/lib/utils";
 import type { DashboardData, DashboardTotals, MonthlyJobAllocation, PeriodJobTotal } from "@/lib/types";
@@ -94,20 +92,16 @@ export function DashboardView({ data }: { data: DashboardData }) {
     <DashboardHeading data={data} />
     <WeekCard jobs={data.jobs} workedMinutes={data.totals.week.minutes} limitMinutes={data.globalLimitMinutes} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
 
-    {/* The next shift leads the stacked view; days and job limits stay beside
-        it on wide screens, with keyboard order following the visible panels. */}
-    <WorkGrid work={
-      <Reveal className={styles.workPanel} delay={0.05}><Card className="flex h-full min-w-0 flex-col p-5 sm:p-6">
-        <WorkWeek days={data.weekDays} timeZone={data.viewer.timeZone} />
-        <WeekJobLimits jobs={data.jobs} />
-      </Card></Reveal>
-    } upcoming={
+    {/* The week, then what is next: the same order stacked and side by side. */}
+    <section className={styles.topGrid}>
+      <Reveal className={styles.workPanel} delay={0.05}>
+        <WeekPanel days={data.weekDays} jobs={data.jobs} timeZone={data.viewer.timeZone} snapshotAt={data.snapshotAt} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} earnedNetCents={data.totals.week.earnings.netCents} forecast={data.weekForecast} />
+      </Reveal>
       <aside className={cn("premium-card", styles.rail)} aria-label="Upcoming work and pay">
-        <NextShiftCard current={data.currentShift} upcoming={data.upcomingShifts} timeZone={data.viewer.timeZone} snapshotAt={data.snapshotAt} />
+        <div className={styles.upNext}><NextShiftCard current={data.currentShift} upcoming={data.upcomingShifts} timeZone={data.viewer.timeZone} snapshotAt={data.snapshotAt} /></div>
         <PaydaySummary periods={data.payPeriods} snapshotAt={data.snapshotAt} timeZone={data.viewer.timeZone} onShowDetails={() => payPeriodsPreference.write("open")} />
       </aside>
-    } />
-    <WeeklyPayForecast earnedNetCents={data.totals.week.earnings.netCents} forecast={data.weekForecast} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} />
+    </section>
 
     {/* Then money: what this period came to, beside how it compares with the
         months before. Pay periods follow, then the latest completed shifts. */}
@@ -116,8 +110,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
       <Reveal className="min-w-0" delay={0.06}><HistoryChart allocation={data.monthlyJobAllocation} /></Reveal>
     </section>
 
-    {data.payPeriods.length > 0 && <Reveal><PayPeriodsCard periods={data.payPeriods} /></Reveal>}
-    <RecentShifts shifts={data.recentShifts} timeZone={data.viewer.timeZone} />
+    {data.payPeriods.length > 0 && <Reveal><PayPeriodsCard periods={data.payPeriods} today={formatInTimeZone(data.snapshotAt, data.viewer.timeZone, "yyyy-MM-dd")} /></Reveal>}
+    <Reveal><RecentShifts shifts={data.recentShifts} timeZone={data.viewer.timeZone} /></Reveal>
   </div>;
 }
 
@@ -293,70 +287,61 @@ function usePayPeriodsOpen() {
 }
 
 /**
- * The pay period each scheduled job is in, as its employer counts it. One row
- * per job, because two jobs' periods do not line up and a sum of them would
- * match no paycheck. "So far" is worked time clipped at now, the same rule as
- * every other earnings figure; scheduled shifts left in the period are shown as
- * a projection on top, never folded into what has been earned.
- * Hiding it keeps the header, so it can always be brought back.
+ * The pay period each scheduled job is in, as its employer counts it: one
+ * column per job, read like a pay stub. Never summed, because two jobs'
+ * periods do not line up and a total would match no paycheck. The figure is
+ * worked time clipped at now, the same rule as every other earnings figure;
+ * planned shifts left in the period are a quiet "+ planned" beside it, never
+ * folded in. Each stub opens that job's full history on /pay-periods.
+ * Hiding the card keeps its header, so it can be brought back.
  */
-function PayPeriodsCard({ periods }: { periods: PayPeriodSummary[] }) {
+function PayPeriodsCard({ periods, today }: { periods: PayPeriodSummary[]; today: string }) {
   const contentId = useId();
   const { open, canAnimate, toggle } = usePayPeriodsOpen();
 
-  return <Card id="pay-periods" className="mt-5 scroll-mt-5">
-    <CardHeader>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <CardTitle>Pay periods</CardTitle>
-          <CardDescription className="mt-1">Estimated net pay · {periods.length} job{periods.length === 1 ? "" : "s"}</CardDescription>
-        </div>
-        <button type="button" onClick={toggle} aria-expanded={open} aria-controls={contentId} aria-label={open ? "Hide pay periods" : "Show pay periods"} className="press -mr-1 -mt-1 grid size-11 shrink-0 place-items-center rounded-xl text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] sm:size-9">
+  return <Card id="pay-periods" className="mt-5 scroll-mt-5 overflow-hidden">
+    {/* The whole header is the toggle, not just the chevron. */}
+    <h2>
+      <button type="button" onClick={toggle} aria-expanded={open} aria-controls={contentId} className="group flex w-full items-center justify-between gap-3 p-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)] sm:px-6">
+        <span className="font-display text-lg font-semibold">Pay periods</span>
+        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-xl text-[var(--muted-foreground)] transition-colors group-hover:bg-[var(--surface-subtle)] group-hover:text-[var(--foreground)]">
           <ChevronDown className={cn("size-4 transition-transform duration-[var(--dur-morph)] ease-[var(--ease-out)]", !open && "-rotate-90")} />
-        </button>
-      </div>
-    </CardHeader>
+        </span>
+      </button>
+    </h2>
     <div id={contentId} inert={!open} className={cn("card-collapse", open && "is-open", canAnimate && "can-animate")}>
       <div>
-        <CardContent>
-          {periods.map((period) => <PayPeriodRow key={period.jobId} period={period} />)}
-        </CardContent>
+        <ul className={styles.stubs}>{periods.map((period) => <PayStub key={period.jobId} period={period} today={today} />)}</ul>
       </div>
     </div>
   </Card>;
 }
 
-function PayPeriodRow({ period }: { period: PayPeriodSummary }) {
-  const { current, previous } = period;
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const detailsId = useId();
-  const projected = { minutes: current.worked.minutes + current.scheduled.minutes, netCents: current.worked.netCents + current.scheduled.netCents };
+function PayStub({ period, today }: { period: PayPeriodSummary; today: string }) {
+  const { current } = period;
+  const days = current.payday ? daysBetween(today, current.payday) : null;
+  const when = days === null ? null : days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `in ${days} days`;
 
-  return <div className={styles.payPeriod}>
-    <div className={styles.payPeriodJob}>
-      <h3 className="flex min-w-0 items-start gap-2.5 text-sm font-semibold"><span aria-hidden="true" className="mt-1 size-2.5 shrink-0 rounded-full" style={{ background: period.jobColor }} /><span className="min-w-0 break-words [overflow-wrap:anywhere]">{period.jobName}</span></h3>
-      <p className="mt-1 text-xs text-[var(--muted-foreground)]">{formatPayPeriod(current)} · {current.daysLeft === 1 ? "Last day" : `${current.daysLeft} days left`}</p>
+  return <li className="flex"><Link href={`/pay-periods?job=${encodeURIComponent(period.jobId)}`} aria-label={`${period.jobName}: ${formatCents(current.worked.netCents)} so far. All pay periods`} className={cn(styles.stub, "group")}>
+    <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
+      <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: period.jobColor }} />
+      <span className="truncate" title={period.jobName}>{period.jobName}</span>
+      <ArrowUpRight aria-hidden="true" className="ml-auto size-4 shrink-0 text-[var(--muted-foreground)] transition-[color,translate] duration-200 group-hover:-translate-y-px group-hover:translate-x-px group-hover:text-[var(--foreground)]" />
+    </p>
+    <p className="mt-3 font-display text-[1.75rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]">{formatCents(current.worked.netCents)}</p>
+    <p className="mt-2 text-xs tabular-nums text-[var(--muted-foreground)]">
+      {formatMinutes(current.worked.minutes)} worked
+      {current.scheduled.netCents > 0 && <> · <span title="Planned shifts left in this period, after tax and deductions">+{formatCents(current.scheduled.netCents)} planned</span></>}
+    </p>
+    <div className={styles.stubFoot}>
+      <span className="flex min-w-0 items-center gap-2">
+        <CalendarCheck aria-hidden="true" className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+        <span className="truncate text-sm font-semibold">{current.payday ? formatPayDay(current.payday, true) : "No payday set"}</span>
+      </span>
+      {when && <span className="shrink-0 text-xs text-[var(--muted-foreground)]">{when}</span>}
     </div>
-    <div>
-      <p className="text-xs text-[var(--muted-foreground)]">Net earned</p>
-      <p className="mt-1 font-display text-xl font-semibold tabular-nums text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]">{formatCents(current.worked.netCents)}</p>
-      <p className="mt-0.5 text-xs tabular-nums text-[var(--muted-foreground)]">{formatMinutes(current.worked.minutes)} worked</p>
-    </div>
-    <div>
-      <p className="text-xs text-[var(--muted-foreground)]">Est. payday</p>
-      <p className="mt-1 text-sm font-semibold">{current.payday ? formatPayDay(current.payday, true) : "Not set"}</p>
-    </div>
-    <button type="button" onClick={() => setDetailsOpen(!detailsOpen)} aria-expanded={detailsOpen} aria-controls={detailsId} aria-label={`${detailsOpen ? "Hide" : "Show"} details for ${period.jobName}`} className={cn(styles.payPeriodToggle, "press rounded-lg text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]")}>
-      Details <ChevronDown aria-hidden="true" className={cn("size-3.5 transition-transform", detailsOpen && "rotate-180")} />
-    </button>
-    <div id={detailsId} hidden={!detailsOpen} className={styles.payPeriodDetails}>
-      <p className="mb-3 text-xs text-[var(--muted-foreground)]">{period.scheduleLabel}</p>
-      <dl className="grid gap-3 text-sm sm:grid-cols-2">
-        {current.scheduled.minutes > 0 && <div><dt className="text-xs text-[var(--muted-foreground)]">Projected net · includes scheduled shifts</dt><dd className="mt-1 font-semibold tabular-nums">{formatCents(projected.netCents)} <span className="font-normal text-[var(--muted-foreground)]">· {formatMinutes(projected.minutes)}</span></dd></div>}
-        <div><dt className="text-xs text-[var(--muted-foreground)]">Last period · {formatPayPeriod(previous)}</dt><dd className="mt-1 font-semibold tabular-nums">{formatCents(previous.worked.netCents)} <span className="font-normal text-[var(--muted-foreground)]">· {formatMinutes(previous.worked.minutes)}</span></dd>{previous.payday && <dd className="mt-1 text-xs text-[var(--muted-foreground)]">Est. payday {formatPayDay(previous.payday, true)}</dd>}</div>
-      </dl>
-    </div>
-  </div>;
+    <p className="mt-1 pl-6 text-xs tabular-nums text-[var(--muted-foreground)]" title={period.scheduleLabel}>{formatPayPeriod(current)}</p>
+  </Link></li>;
 }
 
 // The value never wraps: an all-time figure broke across lines at 390px and left
