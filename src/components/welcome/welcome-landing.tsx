@@ -35,8 +35,9 @@ import { cn } from "@/lib/utils";
  * surfaces are described in the welcome block of globals.css).
  *
  * Images in `public/welcome/`:
- * - `hero-3d.webp`, `cta-3d.webp`: rendered by `scripts/render-welcome-3d.mjs`
- *   from `scripts/welcome-3d/scene.html`. Re-render there, never edit the webp.
+ * - `hero-3d.webp` and its `hero-3d-<width>.webp` variants: rendered by
+ *   `scripts/render-welcome-3d.mjs` from `scripts/welcome-3d/scene.html`.
+ *   Re-render there, never edit the webp.
  * - `dashboard-*.webp`: the demo dashboard (what `demoDashboardFor` renders with no
  *   Supabase configured) captured in both themes, shown through the
  *   `.theme-light-only` / `.theme-dark-only` pair. Recapture when its look changes.
@@ -135,16 +136,6 @@ export function WelcomeLanding() {
           </section>
 
           <WelcomeFaq items={faq} className={cn(panel, "scroll-mt-24 px-5 py-9 sm:p-10 lg:px-12 lg:py-12")} titleClassName={sectionTitle} />
-
-          <section aria-labelledby="start-title" className="welcome-tint welcome-container mx-auto grid items-center gap-6 overflow-hidden rounded-[1.5rem] px-5 py-9 sm:px-10 md:grid-cols-2 lg:px-14">
-            <Image src="/welcome/cta-3d.webp" width={1200} height={1000} alt="" unoptimized sizes="(min-width: 768px) 40vw, 80vw" className="rv rv-rise mx-auto h-auto w-full max-w-sm" />
-            <div className="pb-4 md:pb-0">
-              <h2 id="start-title" className={sectionTitle}>Start with this week.</h2>
-              <p className="mt-3 max-w-[25rem] text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">Add your jobs and your hour limit. ShiftSentry does the counting.</p>
-              <div className="mt-7"><Pill>Get started</Pill></div>
-              <p className="mt-4 text-[13px] text-[var(--muted-foreground)]">Your work schedule stays private.</p>
-            </div>
-          </section>
         </div>
       </main>
 

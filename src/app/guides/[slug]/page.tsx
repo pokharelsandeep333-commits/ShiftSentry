@@ -29,6 +29,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         description: guide.description,
         url,
         mainEntityOfPage: url,
+        datePublished: guide.published,
         dateModified: guide.updated,
         author: { "@type": "Person", name: "Sandeep Pokharel", url: `${origin}/about` },
         publisher: { "@id": `${origin}/#org` },

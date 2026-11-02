@@ -21,6 +21,8 @@ export type Guide = {
   heading: string;
   lede: string;
   sections: GuideSection[];
+  /** The date the guide first went live, for the Article data. Never changes. */
+  published: string;
   /** The date the text last changed, for the sitemap and the Article data. */
   updated: string;
 };
@@ -33,6 +35,7 @@ export const GUIDES: Guide[] = [
     description: "Keep one running total of your hours across every part-time job, with planned shifts counted before you work them and overnight shifts split at midnight.",
     heading: "Tracking work hours across more than one job",
     lede: "With two or three part-time jobs, each employer only sees its own hours. The total across all of them is the number you have to keep yourself, and it is the one most limits apply to.",
+    published: "2026-11-02",
     updated: "2026-11-02",
     sections: [
       {
@@ -77,6 +80,7 @@ export const GUIDES: Guide[] = [
     description: "Count logged and planned shifts against a weekly hour limit, get warned at 80% and 90%, and have any shift that would push you over refused.",
     heading: "Staying under a weekly work-hour limit",
     lede: "Going over a weekly limit usually happens one extra shift at a time, and you only find out once the week is over. The fix is to count the week as you plan it, not after you have worked it.",
+    published: "2026-11-02",
     updated: "2026-11-02",
     sections: [
       {
@@ -115,6 +119,7 @@ export const GUIDES: Guide[] = [
     description: "Estimate net pay per shift from the hourly rate, tax and deductions you set for each job, with every shift keeping the rate it was worked at.",
     heading: "Estimating take-home pay for each shift",
     lede: "Hours are only half of what you want to know about a week. The other half is what those hours will actually pay once tax and deductions come out.",
+    published: "2026-11-02",
     updated: "2026-11-02",
     sections: [
       {
