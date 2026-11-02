@@ -24,18 +24,27 @@ begin
   refused := false;
   begin perform public.accept_legal_terms('forged',true,true); exception when others then refused := true; end;
   if not refused then raise exception 'forged agreement version accepted'; end if;
+  -- 2026-10-11.1 is superseded: it can no longer be accepted, and an account
+  -- that accepted only it is asked again.
   refused := false;
-  begin perform public.accept_legal_terms('2026-10-11.1',true,false); exception when others then refused := true; end;
+  begin perform public.accept_legal_terms('2026-10-11.1',true,true); exception when others then refused := true; end;
+  if not refused then raise exception 'superseded agreement version accepted'; end if;
+  set local role postgres;
+  insert into public.legal_acceptances(user_id,version) values(owner_id,'2026-10-11.1');
+  set local role authenticated;
+  if public.has_current_legal_acceptance() then raise exception 'superseded agreement still counts as current'; end if;
+  refused := false;
+  begin perform public.accept_legal_terms('2026-11-02.1',true,false); exception when others then refused := true; end;
   if not refused then raise exception 'missing eligibility confirmation accepted'; end if;
   refused := false;
-  begin insert into public.legal_acceptances(user_id,version) values(other_id,'2026-10-11.1'); exception when insufficient_privilege then refused := true; end;
+  begin insert into public.legal_acceptances(user_id,version) values(other_id,'2026-11-02.1'); exception when insufficient_privilege then refused := true; end;
   if not refused then raise exception 'caller could manufacture another account agreement'; end if;
   exported := public.export_account_data();
   if exported->'profile'->>'id' <> owner_id::text then raise exception 'pre-acceptance export is not scoped'; end if;
-  perform public.accept_legal_terms('2026-10-11.1',true,true);
-  select accepted_at into before_accept from public.legal_acceptances where user_id=owner_id;
-  perform public.accept_legal_terms('2026-10-11.1',true,true);
-  select accepted_at into after_accept from public.legal_acceptances where user_id=owner_id;
+  perform public.accept_legal_terms('2026-11-02.1',true,true);
+  select accepted_at into before_accept from public.legal_acceptances where user_id=owner_id and version='2026-11-02.1';
+  perform public.accept_legal_terms('2026-11-02.1',true,true);
+  select accepted_at into after_accept from public.legal_acceptances where user_id=owner_id and version='2026-11-02.1';
   if before_accept is distinct from after_accept then raise exception 'repeated acceptance rewrote evidence'; end if;
   if not public.has_current_legal_acceptance() then raise exception 'recorded agreement was not recognized'; end if;
   refused := false;
@@ -50,7 +59,7 @@ begin
   room_code := public.create_game_room();
   select id into room_id from public.game_rooms where code=room_code;
   perform set_config('request.jwt.claim.sub',other_id::text,true);
-  perform public.accept_legal_terms('2026-10-11.1',true,true);
+  perform public.accept_legal_terms('2026-11-02.1',true,true);
   perform public.join_game_room(room_code);
   perform set_config('request.jwt.claim.sub',owner_id::text,true);
   insert into public.jobs(user_id,name) select owner_id,'Export job '||n from generate_series(1,1005) n;

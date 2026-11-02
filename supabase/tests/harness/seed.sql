@@ -14,4 +14,4 @@ on conflict (id) do nothing;
 -- Existing business-rule fixtures represent users who accepted the agreement.
 -- New-account/declined-version behavior is exercised explicitly in suite 23.
 insert into public.legal_acceptances(user_id, version)
-  select id, '2026-10-11.1' from public.profiles on conflict do nothing;
+  select id, '2026-11-02.1' from public.profiles on conflict do nothing;

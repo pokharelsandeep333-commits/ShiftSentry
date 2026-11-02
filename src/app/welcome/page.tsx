@@ -14,7 +14,7 @@ import { WelcomeLanding } from "@/components/welcome/welcome-landing";
  */
 export const metadata = {
   title: "ShiftSentry | Work hours tracker for every job you have",
-  description: "ShiftSentry is a work hours tracker for students and anyone with more than one job: log shifts, get warned before you pass your weekly hour limit, and see what you earned after tax.",
+  description: "Track hours across every job, get warned before you pass your weekly limit, and see what you earned after tax. A free work hours tracker for students.",
 };
 
 export default function WelcomePage() {

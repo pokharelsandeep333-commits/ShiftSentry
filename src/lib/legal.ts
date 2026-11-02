@@ -2,7 +2,7 @@ import { z } from "zod";
 import { safeInternalRedirect } from "./request-origin";
 
 /** Deliberately matches the immutable legal_versions row in the migration. */
-export const LEGAL_VERSION = "2026-10-11.1";
+export const LEGAL_VERSION = "2026-11-02.1";
 export const MINIMUM_AGE = 16;
 export const AUDIT_RETENTION_DAYS = 30;
 

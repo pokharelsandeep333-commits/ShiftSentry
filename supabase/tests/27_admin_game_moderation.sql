@@ -86,7 +86,7 @@ insert into auth.users(id, email) values
   ('6d000000-0000-4000-8000-000000000002', 'moderation-target@example.com'),
   ('6d000000-0000-4000-8000-000000000003', 'moderation-third@example.com');
 insert into public.legal_acceptances(user_id, version)
-  select id, '2026-10-11.1' from public.profiles where email like 'moderation-%@example.com' on conflict do nothing;
+  select id, '2026-11-02.1' from public.profiles where email like 'moderation-%@example.com' on conflict do nothing;
 
 create temp table moderation_race (room_id uuid);
 do $$

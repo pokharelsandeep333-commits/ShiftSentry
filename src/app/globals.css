@@ -445,6 +445,18 @@ body {
   margin-left: 0;
   opacity: 0;
 }
+/* On a narrow phone the unscrolled row (mark, wordmark, theme switch and two
+   44px buttons) is wider than the screen, and `.welcome-page`'s overflow clip
+   cut "Get started" off the right edge: by 8px at 375px, 23px at 360. Below
+   that width the bar starts as it ends up once scrolled, mark only; the link
+   keeps its "ShiftSentry home" label. */
+@media (max-width: 25.99rem) {
+  .welcome-nav-word {
+    max-width: 0;
+    margin-left: 0;
+    opacity: 0;
+  }
+}
 
 /* The app's primary button, as a pill with an arrow disc. */
 .welcome-pill {
