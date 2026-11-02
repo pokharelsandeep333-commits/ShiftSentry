@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { safeInternalRedirect } from "./request-origin";
+
+export { acceptancePath, legalDestination } from "./legal-paths";
 
 /** Deliberately matches the immutable legal_versions row in the migration. */
 export const LEGAL_VERSION = "2026-11-02.1";
@@ -16,16 +17,6 @@ export const accountDeletionSchema = z.object({
   confirmation: z.literal("DELETE", "Type DELETE to confirm permanent account deletion."),
   understood: z.literal("on", "Please confirm that you understand what will be deleted."),
 });
-
-export function legalDestination(value: string | null) {
-  const next = safeInternalRedirect(value);
-  const pathname = new URL(next, "https://internal.invalid").pathname;
-  return ["/accept-terms", "/login", "/auth/callback"].includes(pathname) ? "/" : next;
-}
-
-export function acceptancePath(next: string | null) {
-  return `/accept-terms?next=${encodeURIComponent(legalDestination(next))}`;
-}
 
 /** Token refresh (iat) is not a fresh authentication event. Only verified AMR counts. */
 export function hasRecentAuthentication(claims: { amr?: unknown }, now = Date.now()) {
