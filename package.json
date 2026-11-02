@@ -46,6 +46,9 @@
     "mysql2": "^3.24.3",
     "@prisma/config": {
       "deepmerge-ts": "8.0.2"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.4"
     }
   },
   "devDependencies": {
