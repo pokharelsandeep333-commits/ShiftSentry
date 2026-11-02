@@ -2,12 +2,20 @@
 // transparent webp in public/welcome/. Run by hand when the art changes:
 //
 //   node scripts/render-welcome-3d.mjs
+//   node scripts/render-welcome-3d.mjs --variants   (only rebuild the smaller copies)
 //
 // It serves the scene folder on localhost, drives headless Edge or Chrome over
 // the DevTools protocol, renders each scene at 2x over white and over black,
 // and recovers alpha from the difference (alpha = 1 - (white - black)), which
 // is what keeps glass transmission and soft shadows correct on any background.
 // Set BROWSER to a Chromium binary if neither default path exists.
+//
+// Each scene also gets smaller copies, `<name>-<width>.webp`, downscaled from
+// the full render, for the page's `srcset`: a phone draws the hero about
+// 350px wide, so even at 3x it never needs all 1400. `--variants` rebuilds
+// only those from the webp already on disk, with no browser and no network.
+// The scene file still has a `cta` camera; the closing card that used it was
+// removed on 2026-11-02, so nothing renders it.
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -20,9 +28,14 @@ const root = dirname(fileURLToPath(import.meta.url));
 const sceneDir = join(root, "welcome-3d");
 const outDir = join(root, "..", "public", "welcome");
 const SCENES = [
-  { name: "hero-3d", scene: "hero", width: 1400, height: 1400 },
-  { name: "cta-3d", scene: "cta", width: 1200, height: 1000 },
+  { name: "hero-3d", scene: "hero", width: 1400, height: 1400, variants: [720, 1080] },
 ];
+const WEBP = { quality: 86, alphaQuality: 90, effort: 6 };
+
+if (process.argv.includes("--variants")) {
+  for (const scene of SCENES) await writeVariants(scene);
+  process.exit(0);
+}
 const SUPERSAMPLE = 2;
 
 const browserPath = [
@@ -69,7 +82,7 @@ try {
     return result.result.value;
   };
 
-  for (const { name, scene, width, height } of SCENES) {
+  for (const { name, scene, width, height, variants } of SCENES) {
     const w = width * SUPERSAMPLE;
     const h = height * SUPERSAMPLE;
     await send("Page.navigate", { url: `http://127.0.0.1:${serverPort}/scene.html?scene=${scene}&w=${w}&h=${h}` });
@@ -86,13 +99,22 @@ try {
       out[o + 3] = alpha;
     }
     const file = join(outDir, `${name}.webp`);
-    await sharp(out, { raw: { width: w, height: h, channels: 4 } }).resize(width, height, { kernel: "lanczos3" }).webp({ quality: 86, alphaQuality: 90, effort: 6 }).toFile(file);
+    await sharp(out, { raw: { width: w, height: h, channels: 4 } }).resize(width, height, { kernel: "lanczos3" }).webp(WEBP).toFile(file);
     console.log(`wrote ${file}`);
+    await writeVariants({ name, width, height, variants });
   }
   socket.close();
 } finally {
   browser.kill();
   server.close();
+}
+
+async function writeVariants({ name, width, height, variants }) {
+  for (const variant of variants) {
+    const file = join(outDir, `${name}-${variant}.webp`);
+    await sharp(join(outDir, `${name}.webp`)).resize(variant, Math.round((height * variant) / width), { kernel: "lanczos3" }).webp(WEBP).toFile(file);
+    console.log(`wrote ${file}`);
+  }
 }
 
 async function rawPixels(dataUrl) {
