@@ -85,6 +85,17 @@ test("weekly forecast includes only the remaining part of running and scheduled 
   assert.deepEqual(data.weekForecast, { remainingMinutes: 270, remainingNetCents: 5_400, remainingShiftCount: 2 });
 });
 
+test("pay climb splits each shift at now and adds up to the forecast", () => {
+  const data = buildDashboardInsights([
+    shift("2026-10-22T09:00", "2026-10-22T11:00", "future"),
+    shift("2026-10-21T09:00", "2026-10-21T13:00", "running"),
+    shift("2026-10-20T09:00", "2026-10-20T11:00", "past"),
+    shift("2026-10-25T09:00", "2026-10-25T11:00", "next-week"),
+  ], at("2026-10-21T10:30"), zone, 0);
+  assert.deepEqual(data.payClimb.map((step) => [step.id, step.earnedNetCents, step.plannedNetCents]), [["past", 2_400, 0], ["running", 1_800, 3_000], ["future", 0, 2_400]]);
+  assert.equal(data.payClimb.reduce((total, step) => total + step.plannedNetCents, 0), data.weekForecast.remainingNetCents);
+});
+
 test("forecast clips an overnight shift at the week end and uses its stored tax snapshot", () => {
   const data = buildDashboardInsights([{ ...shift("2026-10-24T23:00", "2026-10-25T02:00"), taxRateBasisPoints: 1_000 }], at("2026-10-21T12:00"), zone, 0);
   assert.deepEqual(data.weekForecast, { remainingMinutes: 60, remainingNetCents: 1_080, remainingShiftCount: 1 });

@@ -1,5 +1,5 @@
 import type { PayPeriodSummary } from "@/lib/pay-period";
-import type { RecentCompletedShift, WorkDay } from "@/lib/dashboard-insights";
+import type { PayClimbStep, RecentCompletedShift, WorkDay } from "@/lib/dashboard-insights";
 
 export type AppRole = "USER" | "ADMIN";
 
@@ -87,6 +87,9 @@ export type ShiftSummary = {
 export type DashboardData = {
   snapshotAt: string;
   weekDays: WorkDay[];
+  weekStartsAt: string;
+  weekEndsAt: string;
+  payClimb: PayClimbStep[];
   weekForecast: { remainingMinutes: number; remainingNetCents: number; remainingShiftCount: number };
   recentShifts: RecentCompletedShift[];
   weekComparison: { previous: PeriodTotals; throughLabel: string };

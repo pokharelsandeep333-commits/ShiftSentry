@@ -10,7 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NextShiftCard } from "@/components/dashboard/next-shift-card";
 import { WeekCard } from "@/components/dashboard/week-card";
-import { WeekPanel } from "@/components/dashboard/work-week";
+import { PayClimb } from "@/components/dashboard/pay-climb";
 import { PaydaySummary } from "@/components/dashboard/payday-summary";
 import { RecentShifts } from "@/components/dashboard/recent-shifts";
 import { PremiumSelect } from "@/components/ui/premium-select";
@@ -95,7 +95,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
     {/* The week, then what is next: the same order stacked and side by side. */}
     <section className={styles.topGrid}>
       <Reveal className={styles.workPanel} delay={0.05}>
-        <WeekPanel days={data.weekDays} jobs={data.jobs} timeZone={data.viewer.timeZone} snapshotAt={data.snapshotAt} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} earnedNetCents={data.totals.week.earnings.netCents} forecast={data.weekForecast} />
+        <PayClimb steps={data.payClimb} days={data.weekDays} jobs={data.jobs} weekStartsAt={data.weekStartsAt} weekEndsAt={data.weekEndsAt} snapshotAt={data.snapshotAt} timeZone={data.viewer.timeZone} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} remainingShiftCount={data.weekForecast.remainingShiftCount} />
       </Reveal>
       <aside className={cn("premium-card", styles.rail)} aria-label="Upcoming work and pay">
         <div className={styles.upNext}><NextShiftCard current={data.currentShift} upcoming={data.upcomingShifts} timeZone={data.viewer.timeZone} snapshotAt={data.snapshotAt} /></div>
