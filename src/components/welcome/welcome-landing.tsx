@@ -9,7 +9,10 @@ import { HeroChips } from "@/components/welcome/hero-chips";
 import { RulesBento } from "@/components/welcome/rule-previews";
 import { SignInLink } from "@/components/welcome/sign-in-link";
 import { WeekGauge } from "@/components/welcome/week-gauge";
+import { faqItems, WelcomeFaq } from "@/components/welcome/welcome-faq";
+import { WelcomeJsonLd } from "@/components/welcome/welcome-json-ld";
 import { WelcomeNav } from "@/components/welcome/welcome-nav";
+import { GUIDES } from "@/lib/guides";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { cn } from "@/lib/utils";
 
@@ -64,8 +67,10 @@ const footerLink = "inline-flex min-h-11 items-center py-1 text-[var(--muted-for
 
 export function WelcomeLanding() {
   const calendarEnabled = isGoogleCalendarEnabled();
+  const faq = faqItems(calendarEnabled);
 
   return <div className="welcome-page relative overflow-x-clip">
+      <WelcomeJsonLd faq={faq} />
       <WelcomeNav />
 
       <main>
@@ -129,6 +134,8 @@ export function WelcomeLanding() {
             </figure>
           </section>
 
+          <WelcomeFaq items={faq} className={cn(panel, "scroll-mt-24 px-5 py-9 sm:p-10 lg:px-12 lg:py-12")} titleClassName={sectionTitle} />
+
           <section aria-labelledby="start-title" className="welcome-tint welcome-container mx-auto grid items-center gap-6 overflow-hidden rounded-[1.5rem] px-5 py-9 sm:px-10 md:grid-cols-2 lg:px-14">
             <Image src="/welcome/cta-3d.webp" width={1200} height={1000} alt="" unoptimized sizes="(min-width: 768px) 40vw, 80vw" className="rv rv-rise mx-auto h-auto w-full max-w-sm" />
             <div className="pb-4 md:pb-0">
@@ -150,6 +157,9 @@ export function WelcomeLanding() {
             </div>
             <FooterColumn title="Product">
               <li><a href="#week" className={footerLink}>How it works</a></li>
+              <li><a href="#faq" className={footerLink}>Questions</a></li>
+              {GUIDES.map((guide) => <li key={guide.slug}><Link href={`/guides/${guide.slug}`} className={footerLink}>{guide.navLabel}</Link></li>)}
+              <li><Link href="/about" className={footerLink}>About</Link></li>
             </FooterColumn>
             <FooterColumn title="Account">
               <li><SignInLink href="/login" className={footerLink}>Sign in</SignInLink></li>
@@ -190,9 +200,11 @@ function HeadlineGlyph({ icon: Icon, order }: { icon: ComponentType<LucideProps>
   return <span aria-hidden="true" className="hero-glyph" style={{ "--glyph-order": order } as CSSProperties}><Icon strokeWidth={2.6} /></span>;
 }
 
+/* The column titles are labels, not headings: as `<h2>`s they sat beside the
+   page's real section headings in the outline. */
 function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
   return <div>
-    <h2 className="text-[13px] font-semibold">{title}</h2>
+    <p className="text-[13px] font-semibold">{title}</p>
     <ul className="mt-3.5 space-y-2.5 text-sm">{children}</ul>
   </div>;
 }

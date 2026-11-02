@@ -42,6 +42,10 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers },
       ...NOINDEX_PATHS.map((source) => ({ source, headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] })),
+      // The landing art changes only with a deploy, but keeps its file name, so a day
+      // fresh plus a week of background revalidation rather than `immutable`. Without
+      // this the files went out at Cloudflare's 4 hour browser default.
+      { source: "/welcome/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
     ];
   },
 };
