@@ -34,13 +34,13 @@
 
 **Desktop view**
 
-<img src="docs/screenshots/dashboard-desktop.png" alt="ShiftSentry dashboard showing the weekly cap, earnings, and monthly job allocation" width="92%" />
+<img src="docs/screenshots/dashboard-desktop.png" alt="ShiftSentry dashboard with sample data: 16 of 20 weekly hours at the 80% warning, a bar chart of the week by job with the planned Friday shift hatched, $136.40 earned, and the next shift" width="92%" />
 
 <br /><br />
 
 **Mobile view**
 
-<img src="docs/screenshots/dashboard-mobile.png" alt="ShiftSentry dashboard on a phone" width="30%" />
+<img src="docs/screenshots/dashboard-mobile.png" alt="The same ShiftSentry dashboard on a phone, with the weekly cap, this week's pay and the bottom navigation bar" width="30%" />
 
 <br /><br />
 
@@ -79,7 +79,8 @@ The daily security-retention workflow uses the existing protected production `SU
 | 🗓️ **See it on a calendar** | Week and month views of your shifts. Overnight shifts appear on both days and clashes are marked. |
 | 🔗 **Connect Google Calendar** | Optional and read-only: show your Google events beside your shifts and get a warning when a new shift clashes with one. A job can also opt in to adding shifts automatically from matching Google events. Nothing is ever written to Google. |
 | 🔒 **Use secure sign-in** | Sign in with email, Google, or GitHub through Supabase Auth. Signed out, the site's home page is a public landing page with an interactive example week. |
-| 📱 **Work comfortably anywhere** | Responsive dashboard, mobile navigation, keyboard-accessible controls, light or dark themes, and an installable app with an offline fallback page. |
+| 📊 **See the week at a glance** | The overview charts each day's shifts in their job colours, worked solid and planned hatched, beside what the week has paid so far and what it will pay by Saturday. |
+| 📱 **Work comfortably anywhere** | Responsive dashboard, mobile navigation, keyboard-accessible controls, light or dark themes, a Help menu with the support address and the legal pages, and an installable app with an offline fallback page. |
 | 🎭 **Take a break** | Imposter, a small party word game for friends, with QR-code and link invites. |
 
 <br />
