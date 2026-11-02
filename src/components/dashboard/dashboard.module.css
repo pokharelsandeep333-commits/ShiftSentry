@@ -37,49 +37,51 @@
 /* This week: a header with the week's pay, seven day columns, the chosen day. */
 .weekPanel { display: flex; width: 100%; min-width: 0; flex-direction: column; padding: 20px; }
 .weekHead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
-.weekPay { display: flex; gap: 24px; }
-.weekPay dt { font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
-.weekPay dd { margin-top: 2px; font-family: var(--font-display); font-size: 1.375rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.weekPayProjected dd { color: color-mix(in srgb, var(--success) 78%, var(--foreground)); }
-.ribbon { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-top: 20px; }
-.day {
+.weekPay { display: flex; flex-direction: column; gap: 2px; }
+.weekEarned { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.weekProjected { font-weight: 600; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--success) 78%, var(--foreground)); }
+/* A plain bar chart: one baseline across the week, each day's shifts stacked
+   on it in job colours, and nothing drawn for a day off. */
+.ribbon { --plot: 88px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-top: 24px; }
+.day { display: flex; min-width: 0; flex-direction: column; align-items: center; cursor: pointer; }
+.day:focus-visible { outline: none; }
+.day:focus-visible .dayNumber, .dayShift:focus-visible, .recentShift:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.plot {
   display: flex;
-  min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 0 9px;
-  border: 1px solid transparent;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out);
-}
-.day:hover { background: var(--surface-subtle); }
-.daySelected, .daySelected:hover { border-color: color-mix(in srgb, var(--primary) 32%, var(--border)); background: color-mix(in srgb, var(--primary) 6%, var(--card)); }
-.day:focus-visible, .dayShift:focus-visible, .recentShift:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.dayName { font-size: 11px; font-weight: 500; color: var(--muted-foreground); }
-.dayNumber { font-family: var(--font-display); font-size: 1.125rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-.dayToday .dayName, .dayToday .dayNumber { color: var(--primary); }
-.track {
-  display: flex;
-  width: min(100%, 20px);
-  height: 52px;
+  width: 100%;
+  height: var(--plot);
   flex-direction: column-reverse;
+  align-items: center;
   gap: 2px;
-  overflow: hidden;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
 }
-.segment { flex: none; width: 100%; min-height: 4px; border-radius: 4px; background: var(--seg); transform-origin: bottom; animation: segment-rise 600ms var(--ease-out) both; }
-.segmentPlanned { background: color-mix(in srgb, var(--seg) 20%, var(--card)); box-shadow: inset 0 0 0 1.5px var(--seg); }
+.segment { flex: none; width: min(56%, 28px); min-height: 3px; border-radius: 3px; background: var(--seg); transform-origin: bottom; animation: segment-rise 600ms var(--ease-out) both; }
+.segmentPlanned { background: repeating-linear-gradient(-45deg, var(--seg) 0 1.5px, color-mix(in srgb, var(--seg) 14%, var(--card)) 1.5px 5px); box-shadow: inset 0 0 0 1px var(--seg); }
 @keyframes segment-rise { from { transform: scaleY(0); } }
-.dayHours { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.dayOff { font-weight: 500; color: var(--muted-foreground); }
+.dayHours { margin-bottom: 4px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dayName { font-size: 11px; font-weight: 500; color: var(--muted-foreground); }
+.dayNumber {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  margin-top: 2px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.day:hover .dayNumber { background: var(--surface-subtle); }
+.dayToday .dayName, .dayToday .dayNumber { color: var(--primary); }
+.daySelected .dayNumber, .daySelected:hover .dayNumber { background: var(--primary); color: var(--primary-foreground); }
 .dayDetail { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-.legend { display: flex; gap: 12px; font-size: 11px; color: var(--muted-foreground); }
+.legend { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--muted-foreground); }
 .legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.legendWorked, .legendPlanned { width: 8px; height: 8px; border-radius: 2px; background: var(--primary); }
-.legendPlanned { background: color-mix(in srgb, var(--primary) 20%, var(--card)); box-shadow: inset 0 0 0 1.5px var(--primary); }
+.legendWorked, .legendPlanned { width: 8px; height: 8px; border-radius: 2px; background: var(--muted-foreground); }
+.legendPlanned { background: repeating-linear-gradient(-45deg, var(--muted-foreground) 0 1px, var(--card) 1px 3px); box-shadow: inset 0 0 0 1px var(--muted-foreground); }
 .dayShift { display: grid; min-height: 52px; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-inline: -10px; padding: 8px 10px; border-radius: 12px; transition: background-color 160ms var(--ease-out); }
 .dayShift:hover { background: var(--surface-subtle); }
 .limits { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: auto; padding-top: 20px; }
@@ -114,9 +116,9 @@
 @media (min-width: 40rem) {
   .weekPanel, .upNext, .root .recent { padding: 24px; }
   .payday { margin-inline: 24px; }
-  .ribbon { gap: 4px; }
-  .track { width: 22px; height: 64px; }
-  .dayNumber { font-size: 1.25rem; }
+  .weekPay { align-items: flex-end; text-align: right; }
+  .ribbon { --plot: 112px; }
+  .dayNumber { width: 36px; height: 36px; font-size: 1.0625rem; }
   .recentShift { grid-template-columns: 44px minmax(0, 1fr) 72px 96px; gap: 16px; }
   .recentHours { display: block; text-align: right; }
   .stub { padding: 22px 24px 24px; }

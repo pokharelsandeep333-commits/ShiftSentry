@@ -15,7 +15,16 @@ import styles from "./dashboard.module.css";
 /** Seven columns have to fit a phone, where "12h 30m" does not; the button's
  *  label still carries the exact figure. */
 function compactHours(minutes: number) {
+  if (minutes < 60) return `${minutes}m`;
   return minutes % 60 === 0 ? `${minutes / 60}h` : `${(minutes / 60).toFixed(1)}h`;
+}
+
+/** "2h 30m", but "30m" rather than "0h 30m" and "3h" rather than "3h 0m". */
+function shortHours(minutes: number) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}m`;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
 /**
@@ -71,32 +80,34 @@ export function WeekPanel({ days, jobs, timeZone, snapshotAt, rangeLabel, earned
         <h2 id="week-panel-title" className="font-display text-lg font-semibold">This week</h2>
         <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">{rangeLabel}</p>
       </div>
-      <dl className={styles.weekPay}>
-        <div><dt>Earned</dt><dd>{formatCents(earnedNetCents)}</dd></div>
-        <div className={styles.weekPayProjected}><dt>Projected</dt><dd title={forecast.remainingShiftCount > 0 ? `${formatCents(forecast.remainingNetCents)} from ${forecast.remainingShiftCount} planned shift${forecast.remainingShiftCount === 1 ? "" : "s"}, after tax and deductions` : "After tax and deductions"}>{formatCents(projected)}</dd></div>
-      </dl>
+      <div className={styles.weekPay}>
+        <p><span className={styles.weekEarned}>{formatCents(earnedNetCents)}</span> <span className="text-sm text-[var(--muted-foreground)]">earned</span></p>
+        <p className="text-sm text-[var(--muted-foreground)]" title={forecast.remainingShiftCount > 0 ? `${formatCents(forecast.remainingNetCents)} from ${forecast.remainingShiftCount} planned shift${forecast.remainingShiftCount === 1 ? "" : "s"}, after tax and deductions` : "After tax and deductions"}><span className={styles.weekProjected}>{formatCents(projected)}</span> by the end of the week</p>
+      </div>
     </div>
 
     <div className={styles.ribbon} role="group" aria-label="Days this week">
       {days.map((day) => {
         const total = day.workedMinutes + day.scheduledMinutes;
         return <button key={day.date} type="button" aria-pressed={day.date === selected.date} aria-controls={detailId} aria-label={`${day.weekday} ${day.dayNumber}${day.isToday ? ", today" : ""}: ${total > 0 ? `${formatMinutes(day.workedMinutes)} worked, ${formatMinutes(day.scheduledMinutes)} planned` : "nothing scheduled"}`} onClick={() => setSelectedDate(day.date)} className={cn(styles.day, day.date === selected.date && styles.daySelected, day.isToday && styles.dayToday)}>
+          <span className={styles.plot} aria-hidden="true">
+            {daySegments(day, now).map((segment) => <span key={segment.key} className={cn(styles.segment, segment.planned && styles.segmentPlanned)} style={{ "--seg": segment.color, height: `${(segment.minutes / scale) * 100}%` } as CSSProperties} />)}
+            {total > 0 && <span className={styles.dayHours}><span className="sm:hidden">{compactHours(total)}</span><span className="hidden sm:inline">{shortHours(total)}</span></span>}
+          </span>
           <span className={styles.dayName}>{day.weekday}</span>
           <span className={styles.dayNumber}>{day.dayNumber}</span>
-          <span className={styles.track} aria-hidden="true">
-            {daySegments(day, now).map((segment) => <span key={segment.key} className={cn(styles.segment, segment.planned && styles.segmentPlanned)} style={{ "--seg": segment.color, height: `${(segment.minutes / scale) * 100}%` } as CSSProperties} />)}
-          </span>
-          <span className={cn(styles.dayHours, total === 0 && styles.dayOff)}>{total > 0 ? <><span className="sm:hidden">{compactHours(total)}</span><span className="hidden sm:inline">{formatMinutes(total)}</span></> : "Off"}</span>
         </button>;
       })}
     </div>
+    <p className={styles.legend} aria-hidden="true"><span><i className={styles.legendWorked} />Worked</span><span><i className={styles.legendPlanned} />Planned</span></p>
 
     <div id={detailId} className={styles.dayDetail} aria-live="polite" aria-atomic="true">
       <div className="mb-1 flex items-baseline justify-between gap-3">
         <p className="text-sm font-semibold">{selected.isToday ? "Today" : formatInTimeZone(`${selected.date}T12:00:00Z`, "UTC", "EEEE, MMM d")}</p>
-        <span className={styles.legend} aria-hidden="true"><span><i className={styles.legendWorked} />Worked</span><span><i className={styles.legendPlanned} />Planned</span></span>
+        {selected.shifts.length === 0 && <p className="text-sm text-[var(--muted-foreground)]">No shifts</p>}
+        {selected.shifts.length > 1 && <p className="text-sm font-semibold tabular-nums">{shortHours(selectedTotal)}</p>}
       </div>
-      {selected.shifts.length > 0 ? <ul>
+      {selected.shifts.length > 0 && <ul>
         {selected.shifts.map((shift) => <li key={shift.id}>
           <Link href={`/shifts/${shift.id}/edit`} className={styles.dayShift}>
             <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: shift.jobColor }} />
@@ -104,11 +115,10 @@ export function WeekPanel({ days, jobs, timeZone, snapshotAt, rangeLabel, earned
               <span className="block truncate text-sm font-medium" title={shift.jobName}>{shift.jobName}</span>
               <span className="block text-xs tabular-nums text-[var(--muted-foreground)]">{formatInTimeZone(shift.startsAt, timeZone, "h:mm a")} – {formatInTimeZone(shift.endsAt, timeZone, "h:mm a")}{formatInTimeZone(shift.startsAt, timeZone, "yyyy-MM-dd") !== formatInTimeZone(shift.endsAt, timeZone, "yyyy-MM-dd") ? " · overnight" : ""}</span>
             </span>
-            <span className="text-sm font-semibold tabular-nums">{formatMinutes(shift.minutes)}</span>
+            <span className="text-sm tabular-nums text-[var(--muted-foreground)]">{shortHours(shift.minutes)}</span>
           </Link>
         </li>)}
-      </ul> : <p className="py-3 text-sm text-[var(--muted-foreground)]">Nothing scheduled.</p>}
-      {selected.shifts.length > 1 && <p className="mt-1 flex justify-between border-t pt-3 text-sm"><span className="text-[var(--muted-foreground)]">Total</span><span className="font-semibold tabular-nums">{formatMinutes(selectedTotal)}</span></p>}
+      </ul>}
     </div>
 
     <JobLimits jobs={jobs} />
