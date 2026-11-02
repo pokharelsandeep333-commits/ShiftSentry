@@ -1,17 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { NEXT_COOKIE, safeInternalRedirect } from "@/lib/request-origin";
 import { GoogleMark, GitHubMark } from "@/components/ui/brand-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { acceptancePath } from "@/lib/legal";
+import { acceptancePath } from "@/lib/legal-paths";
 
 export type SignInMode = "signin" | "signup";
+
+/**
+ * The Supabase browser client, imported on demand. The landing prefetches
+ * /login so the sign-in morph starts on the click, and a static import put the
+ * whole client (about 67 KB compressed) into that prefetch for every visitor,
+ * signed up or not. Now it is its own chunk: the form starts fetching it when
+ * it mounts, long before anyone finishes typing, and each handler awaits the
+ * same promise, so a fast submit still works.
+ */
+let supabaseModule: Promise<typeof import("@/lib/supabase/client")> | undefined;
+function importSupabase() {
+  // A failed fetch (offline, a deploy that replaced the chunk) is forgotten, so
+  // the next attempt tries again instead of failing forever.
+  supabaseModule ??= import("@/lib/supabase/client").catch((error: unknown) => { supabaseModule = undefined; throw error; });
+  return supabaseModule;
+}
+async function loadSupabase() {
+  return (await importSupabase()).createClient();
+}
 
 /**
  * The sign-in and create-account form. `SignInPanel` owns the mode, so the
@@ -29,6 +47,8 @@ export function LoginForm({ mode, onModeChange }: { mode: SignInMode; onModeChan
   // Where to go once signed in. Same-origin paths only -- the helper refuses
   // anything else, so a crafted link cannot bounce a fresh session off-site.
   const next = safeInternalRedirect(search.get("next"));
+
+  useEffect(() => { importSupabase().catch(() => undefined); }, []);
 
   // The OAuth and confirm-email flows come back through /auth/callback, which
   // has to learn `next` somehow. Not as a query string on `redirectTo`: Supabase
@@ -49,7 +69,7 @@ export function LoginForm({ mode, onModeChange }: { mode: SignInMode; onModeChan
 
     try {
       rememberNext();
-      const supabase = createClient();
+      const supabase = await loadSupabase();
       const result = mode === "signin"
         ? await supabase.auth.signInWithPassword({ email, password })
         : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${location.origin}/auth/callback` } });
@@ -78,7 +98,7 @@ export function LoginForm({ mode, onModeChange }: { mode: SignInMode; onModeChan
 
     try {
       rememberNext();
-      const { error } = await createClient().auth.signInWithOAuth({ provider, options: { redirectTo: `${location.origin}/auth/callback` } });
+      const { error } = await (await loadSupabase()).auth.signInWithOAuth({ provider, options: { redirectTo: `${location.origin}/auth/callback` } });
       if (error) setMessage(error.message);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to start sign-in.");
