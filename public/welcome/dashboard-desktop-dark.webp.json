@@ -1,4 +1,4 @@
 {
-  "prompt": "Browser screenshot, not generated art. ShiftSentry's demo dashboard (2026-11-02: week bar chart, header account menu, Help on the rail) using src/lib/dashboard-demo.ts and synthetic sample records. Captured with headless Edge over the DevTools protocol at 1425x891 pixels in dark theme, selected through the app's stored theme. Encoded as WebP at quality 82. Preview mode and sample-data labels are retained. No personal workspace data.",
-  "createdAt": "2026-11-02T12:57:10.758Z"
+  "prompt": "Browser screenshot, not generated art. ShiftSentry's demo dashboard (2026-11-02: pay climb card, header account menu, Help on the rail) using src/lib/dashboard-demo.ts and synthetic sample records. Captured with headless Edge over the DevTools protocol at 1425x891 pixels in dark theme, selected through the app's stored theme. Encoded as WebP at quality 82. Preview mode and sample-data labels are retained. No personal workspace data.",
+  "createdAt": "2026-11-02T14:55:02.766Z"
 }
