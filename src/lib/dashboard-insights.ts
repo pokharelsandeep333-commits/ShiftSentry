@@ -15,6 +15,8 @@ export type WorkDay = {
   scheduledMinutes: number;
   shifts: (ShiftSummary & { minutes: number })[];
 };
+/** One shift's place on the week's pay climb, clipped to the week and split at now. */
+export type PayClimbStep = ShiftSummary & { earnedNetCents: number; plannedNetCents: number };
 
 /** Uses the same per-local-day rounding as every existing earnings total. */
 function workedWithin(shifts: WorkedShift[], start: Date, end: Date, timeZone: string) {
@@ -57,6 +59,17 @@ export function buildDashboardInsights(shifts: DashboardShift[], now: Date, time
   }
   days.forEach((day) => day.shifts.sort((a, b) => a.startsAt.localeCompare(b.startsAt)));
 
+  // Split at now with the same slicing as the week total and the forecast, so
+  // the steps add up to exactly the earned and projected figures.
+  const payClimb: PayClimbStep[] = shifts.flatMap((shift) => {
+    const first = shift.startsAt > start ? shift.startsAt : start;
+    const last = shift.endsAt < end ? shift.endsAt : end;
+    if (last <= first) return [];
+    const earned = first < now ? workedWithin([shift], first, last < now ? last : now, timeZone).earnings.netCents : 0;
+    const planned = last > now ? workedWithin([shift], first > now ? first : now, last, timeZone).earnings.netCents : 0;
+    return [{ id: shift.id, jobId: shift.jobId, jobName: shift.jobName, jobColor: shift.jobColor, startsAt: first.toISOString(), endsAt: last.toISOString(), earnedNetCents: earned, plannedNetCents: planned }];
+  }).sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+
   // Shift local dates, not 168 hours: DST must not move the comparison by an hour.
   const previousStart = fromZonedTime(`${addDays(firstDay, -7)}T00:00:00`, timeZone);
   const previousThrough = fromZonedTime(`${addDays(today, -7)}T${formatInTimeZone(now, timeZone, "HH:mm:ss.SSS")}`, timeZone);
@@ -64,6 +77,9 @@ export function buildDashboardInsights(shifts: DashboardShift[], now: Date, time
   return {
     snapshotAt: now.toISOString(),
     weekDays: days,
+    weekStartsAt: start.toISOString(),
+    weekEndsAt: end.toISOString(),
+    payClimb,
     weekForecast: {
       remainingMinutes: remaining.minutes,
       remainingNetCents: remaining.earnings.netCents,

@@ -31,60 +31,42 @@
   align-items: stretch;
   gap: 20px;
 }
-.legendScheduled { background: color-mix(in srgb, var(--primary) 28%, var(--card)); }
 .workPanel { display: flex; min-width: 0; }
 
-/* This week: a header with the week's pay, seven day columns, the chosen day. */
-.weekPanel { display: flex; width: 100%; min-width: 0; flex-direction: column; padding: 20px; }
-.weekHead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
-.weekPay { display: flex; flex-direction: column; gap: 2px; }
-.weekEarned { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.weekProjected { font-weight: 600; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--success) 78%, var(--foreground)); }
-/* A plain bar chart: one baseline across the week, each day's shifts stacked
-   on it in job colours, and nothing drawn for a day off. */
-.ribbon { --plot: 88px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-top: 24px; }
-.day { display: flex; min-width: 0; flex-direction: column; align-items: center; cursor: pointer; }
-.day:focus-visible { outline: none; }
-.day:focus-visible .dayNumber, .dayShift:focus-visible, .recentShift:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.plot {
-  display: flex;
-  width: 100%;
-  height: var(--plot);
-  flex-direction: column-reverse;
-  align-items: center;
-  gap: 2px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-}
-.segment { flex: none; width: min(56%, 28px); min-height: 3px; border-radius: 3px; background: var(--seg); transform-origin: bottom; animation: segment-rise 600ms var(--ease-out) both; }
-.segmentPlanned { background: repeating-linear-gradient(-45deg, var(--seg) 0 1.5px, color-mix(in srgb, var(--seg) 14%, var(--card)) 1.5px 5px); box-shadow: inset 0 0 0 1px var(--seg); }
-@keyframes segment-rise { from { transform: scaleY(0); } }
-.dayHours { margin-bottom: 4px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.dayName { font-size: 11px; font-weight: 500; color: var(--muted-foreground); }
-.dayNumber {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  margin-top: 2px;
-  border-radius: 999px;
-  font-family: var(--font-display);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
-}
-.day:hover .dayNumber { background: var(--surface-subtle); }
-.dayToday .dayName, .dayToday .dayNumber { color: var(--primary); }
-.daySelected .dayNumber, .daySelected:hover .dayNumber { background: var(--primary); color: var(--primary-foreground); }
-.dayDetail { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-.legend { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--muted-foreground); }
-.legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.legendWorked, .legendPlanned { width: 8px; height: 8px; border-radius: 2px; background: var(--muted-foreground); }
-.legendPlanned { background: repeating-linear-gradient(-45deg, var(--muted-foreground) 0 1px, var(--card) 1px 3px); box-shadow: inset 0 0 0 1px var(--muted-foreground); }
-.dayShift { display: grid; min-height: 52px; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-inline: -10px; padding: 8px 10px; border-radius: 12px; transition: background-color 160ms var(--ease-out); }
-.dayShift:hover { background: var(--surface-subtle); }
-.limits { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: auto; padding-top: 20px; }
+/* Pay climb: the week's pay as one line over time, earned solid and planned
+   dashed, in money green. Coordinates are percentages of the plot, shared by
+   the stretched SVG and the HTML dots and labels laid over it. */
+.climb { --money: color-mix(in srgb, var(--success) 78%, var(--foreground)); display: flex; width: 100%; min-width: 0; flex-direction: column; padding: 20px; }
+:global(.dark) .climb { --money: var(--success); }
+.climbHead { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; }
+.climbEarned { margin-top: 6px; font-family: var(--font-display); font-size: 3rem; font-weight: 600; line-height: 1; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; color: var(--money); }
+.climbMoney { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--money); }
+.climbBadge { display: inline-flex; min-height: 28px; align-items: center; padding: 0 12px; border-radius: 999px; background: color-mix(in srgb, var(--success) 12%, var(--card)); font-size: 12px; font-weight: 600; color: var(--money); white-space: nowrap; }
+.climbPlot { position: relative; height: 168px; margin-top: 20px; animation: climb-draw 1100ms var(--ease-out) both; }
+/* Ends with negative insets so a step label near either edge is not cut off. */
+@keyframes climb-draw { from { clip-path: inset(-48px 100% -16px -48px); } to { clip-path: inset(-48px -48px -16px -48px); } }
+.climbSvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.climbBaseline { stroke: var(--border); stroke-width: 1; }
+.climbAreaEarned { fill: color-mix(in srgb, var(--success) 18%, transparent); }
+.climbAreaPlanned { fill: color-mix(in srgb, var(--success) 6%, transparent); }
+.climbLineEarned { fill: none; stroke: var(--money); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.climbLinePlanned { fill: none; stroke: color-mix(in srgb, var(--success) 70%, var(--card)); stroke-width: 2; stroke-dasharray: 5 5; stroke-linejoin: round; }
+.climbNowLine { stroke: color-mix(in srgb, var(--foreground) 22%, transparent); stroke-width: 1; }
+.climbNow, .climbGoal { position: absolute; width: 14px; height: 14px; border-radius: 999px; transform: translate(-50%, -50%); }
+.climbNow { background: var(--money); box-shadow: 0 0 0 3px var(--card), 0 0 0 7px color-mix(in srgb, var(--success) 18%, transparent); }
+.climbGoal { width: 12px; height: 12px; border: 2px solid color-mix(in srgb, var(--success) 70%, var(--card)); background: var(--card); }
+.climbStep { position: absolute; display: inline-flex; min-height: 24px; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%); animation: climb-label 500ms var(--ease-out) 700ms both; }
+.climbStep i { width: 8px; height: 8px; border-radius: 999px; }
+.climbStepWorked { color: var(--money); }
+.climbStepNext { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); color: var(--money); }
+@keyframes climb-label { from { opacity: 0; translate: 0 4px; } }
+.climbDays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-top: 10px; text-align: center; }
+.climbDays li { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted-foreground); }
+.climbDays li > span:last-child { font-family: var(--font-display); font-size: 0.9375rem; font-weight: 600; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.climbDays .climbToday, .climbDays .climbToday > span:last-child { color: var(--primary); }
+.climbFoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.recentShift:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.limits { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .limitChip { display: inline-flex; min-height: 32px; align-items: center; gap: 8px; padding: 0 12px; border-radius: 999px; background: var(--surface-subtle); font-size: 12px; }
 .limitChip_warning { background: color-mix(in srgb, var(--warning) 12%, var(--card)); }
 .limitChip_danger { background: color-mix(in srgb, var(--danger) 10%, var(--card)); }
@@ -114,11 +96,10 @@
 .comparison dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
 .jobEarning { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding-block: 10px; }
 @media (min-width: 40rem) {
-  .weekPanel, .upNext, .root .recent { padding: 24px; }
+  .climb, .upNext, .root .recent { padding: 24px; }
+  .climbEarned { font-size: 3.75rem; }
+  .climbPlot { height: 200px; }
   .payday { margin-inline: 24px; }
-  .weekPay { align-items: flex-end; text-align: right; }
-  .ribbon { --plot: 112px; }
-  .dayNumber { width: 36px; height: 36px; font-size: 1.0625rem; }
   .recentShift { grid-template-columns: 44px minmax(0, 1fr) 72px 96px; gap: 16px; }
   .recentHours { display: block; text-align: right; }
   .stub { padding: 22px 24px 24px; }
