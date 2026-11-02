@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 -- Two independent sessions verify the deletion/write ordering in both directions.
 insert into auth.users(id,email) values('6b000000-0000-4000-8000-000000000001','delete-race@example.com');
-insert into public.legal_acceptances(user_id,version) values('6b000000-0000-4000-8000-000000000001','2026-10-11.1');
+insert into public.legal_acceptances(user_id,version) values('6b000000-0000-4000-8000-000000000001','2026-11-02.1');
 do $$
 declare actor constant uuid := '6b000000-0000-4000-8000-000000000001'; pid integer; queued boolean; refused boolean := false;
 begin
