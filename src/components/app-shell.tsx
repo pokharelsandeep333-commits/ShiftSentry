@@ -4,7 +4,8 @@ import { Suspense, use, useEffect, useRef, useState, useSyncExternalStore, ViewT
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ChevronRight, ClipboardClock, Drama, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Settings, ShieldCheck, Sun, X } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ChevronRight, CircleHelp, ClipboardClock, Drama, FileText, Lock, Mail, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Scale, Settings, ShieldCheck, Sun, X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { createLocalPreference } from "@/lib/local-preference";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -12,6 +13,7 @@ import { limitPosition, type WeekMeter } from "@/lib/week-meter";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
 import { Brand, BrandMark } from "@/components/brand";
+import { LEGAL_CONTACT_EMAIL } from "@/components/legal-page";
 import dashboardShell from "./quiet-dashboard-shell.module.css";
 
 /**
@@ -211,6 +213,40 @@ function SidebarLink({ item, active, transitionTypes, iconOnly = false }: { item
   </>;
 }
 
+/** Support and the public pages, which otherwise only the landing's footer links. */
+const HELP_LINKS = [
+  { label: "Contact support", href: `mailto:${LEGAL_CONTACT_EMAIL}`, icon: Mail },
+  { label: "Privacy", href: "/privacy", icon: Lock },
+  { label: "Terms", href: "/terms", icon: FileText },
+  { label: "Open-source licenses", href: "/open-source-licenses", icon: Scale },
+] as const;
+
+/** Help, under Settings: an icon like it, opening a short menu beside the rail. */
+function RailHelp() {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const { tooltip, show, hide } = useRailTooltip();
+  return <DropdownMenu.Root modal={false} open={open} onOpenChange={(next) => { setOpen(next); hide(); }}>
+    <div className={dashboardShell.row}>
+      <DropdownMenu.Trigger asChild>
+        <button ref={ref} type="button" aria-label="Help" onMouseEnter={() => { if (!open) show(ref.current); }} onMouseLeave={hide} onBlur={hide} className="group press grid size-10 place-items-center justify-self-center rounded-[11px] text-[var(--muted-foreground)] outline-none transition-colors hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-[var(--primary)] data-[state=open]:bg-[var(--surface-subtle)] data-[state=open]:text-[var(--foreground)]">
+          <CircleHelp aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />
+        </button>
+      </DropdownMenu.Trigger>
+    </div>
+    <RailTooltip label="Help" position={tooltip} />
+    <DropdownMenu.Portal>
+      <DropdownMenu.Content side="right" align="end" sideOffset={14} className="z-50 w-60 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-1.5 shadow-2xl shadow-black/15 outline-none menu-pop">
+        {HELP_LINKS.map((link, index) => <DropdownMenu.Item key={link.href} asChild>
+          <a href={link.href} className={cn("flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--foreground)] outline-none transition-colors hover:bg-[var(--surface-subtle)] focus:bg-[var(--surface-subtle)]", index === 1 && "mt-1 border-t border-[var(--border)] pt-3.5")}>
+            <link.icon aria-hidden="true" className="size-4 text-[var(--muted-foreground)]" />{link.label}
+          </a>
+        </DropdownMenu.Item>)}
+      </DropdownMenu.Content>
+    </DropdownMenu.Portal>
+  </DropdownMenu.Root>;
+}
+
 /** Where you are, from lg: the section, then the page within it when there is one. */
 function Breadcrumb({ section, pathname }: { section: NavigationItem; pathname: string }) {
   const leaf = pageLabel(section, pathname, useSearchParams().get("show"));
@@ -320,7 +356,9 @@ function MobileNavigation({ pathname, isAdmin }: { pathname: string; isAdmin: bo
           <nav className="mt-6 space-y-1" aria-label="Mobile navigation">
             {mobileItems.map((item, index) => <NavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(mobileItems, pathname, index)} onNavigate={() => closeMenu()} />)}
           </nav>
-          <div className="mt-auto rounded-2xl border bg-[var(--surface-subtle)] p-4 text-sm text-[var(--muted-foreground)]">Your schedule is private to your account.</div>
+          <nav aria-label="Help" className="mt-auto border-t pt-3">
+            {HELP_LINKS.map((link) => <a key={link.href} href={link.href} onClick={() => closeMenu()} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-[var(--muted-foreground)] outline-none hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]"><link.icon aria-hidden="true" className="size-4" />{link.label}</a>)}
+          </nav>
         </aside>
       </>, document.body)}
   </>;
@@ -398,18 +436,16 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
         <nav aria-label="Main navigation" className={dashboardShell.navigation}>
           <div className={dashboardShell.group}>{railMainNavigation.map((item) => sidebarLink(item))}</div>
           <div className={dashboardShell.group}>{railExtras.map((item) => sidebarLink(item))}</div>
-          <div className={cn(dashboardShell.group, dashboardShell.foot)}>{railSettings.map((item) => sidebarLink(item, true))}</div>
+          <div className={cn(dashboardShell.group, dashboardShell.foot)}>{railSettings.map((item) => sidebarLink(item, true))}<RailHelp /></div>
         </nav>
-        {!isDemo && <div className={cn(dashboardShell.row, "mt-2")}><span className="justify-self-center"><AccountMenu email={userEmail} name={userName} placement="rail" /></span></div>}
       </div>
     </aside>
     <div className="min-w-0">
       {/* Left and right groups both flex from zero, so the week meter sits on
           the bar's true centre. 56px tall and, from lg, 8px down so its top
           lines up with the sidebar card's. The calendar page's
-          `100dvh - 6rem` counts this: change both together. From lg the
-          account lives on the rail, so the bar keeps where you are, the week,
-          the theme switch and Add shift. */}
+          `100dvh - 6rem` counts this: change both together. The account
+          avatar sits at the bar's right end at every width. */}
       <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-2"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-2.5">
         <div className="flex min-w-0 flex-auto items-center gap-1 sm:gap-2 md:flex-1 md:basis-0">
           <SidebarToggle />
@@ -421,7 +457,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
         <div className="flex min-w-0 flex-none items-center justify-end gap-1 sm:gap-2 md:flex-1 md:basis-0">
           <ThemeToggle />
           <Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants(), "size-11 rounded-full p-0 shadow-none hover:shadow-none sm:w-auto sm:px-4 md:h-9")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>
-          {!isDemo && <div className="flex lg:hidden"><AccountMenu email={userEmail} name={userName} /></div>}
+          {!isDemo && <AccountMenu email={userEmail} name={userName} />}
         </div>
       </div></header>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12">{children}</main>
