@@ -1,239 +1,273 @@
 <div align="center">
 
-# ShiftSentry
+# 🛡️ ShiftSentry
 
-**Plan work with confidence. Track shifts, forecast weekly hours, and stay ahead of every limit.**
+**A shift planner for people working more than one job. It tracks every shift, forecasts the week's hours and pay, and warns you before you cross a weekly limit. The limits are enforced in the app and again in Postgres, so a write that skips the app is still refused.**
 
-<a href="https://sentry.sandeeppokharel.com.np"><img alt="Visit the live site" src="https://img.shields.io/badge/Visit_Live_Site-6D5DF6?style=for-the-badge&logo=googlechrome&logoColor=white" height="40" /></a>
+<h3><a href="https://sentry.sandeeppokharel.com.np">View Live Site »</a></h3>
 
-<br /><br />
-
-<img alt="Next.js 16" src="https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" />
-<img alt="React 19" src="https://img.shields.io/badge/React_19-149ECA?style=for-the-badge&logo=react&logoColor=white" />
-<img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript_5-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
-<img alt="Tailwind CSS v4" src="https://img.shields.io/badge/Tailwind_v4-38BDF8?style=for-the-badge&logo=tailwindcss&logoColor=white" />
-
-<img alt="Supabase" src="https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" />
-<img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
-<img alt="Prisma 7" src="https://img.shields.io/badge/Prisma_7-2D3748?style=for-the-badge&logo=prisma&logoColor=white" />
-<img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+[![CI/CD](https://github.com/pokharelsandeep333-commits/ShiftSentry/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pokharelsandeep333-commits/ShiftSentry/actions/workflows/ci.yml)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38BDF8?logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3FCF8E?logo=supabase&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Node%2024%20alpine-2496ED?logo=docker&logoColor=white)
+![CodeQL](https://img.shields.io/badge/scan-CodeQL-2F81F7?logo=github&logoColor=white)
+![gitleaks](https://img.shields.io/badge/secrets-gitleaks-E05D44)
+![Actions pinned](https://img.shields.io/badge/actions-SHA--pinned-2EA44F?logo=githubactions&logoColor=white)
 
 </div>
 
-<br />
+---
+
+## ✨ At a glance
+
+| | |
+|---|---|
+| 🎯 **Problem** | Students and part-time workers juggle several jobs under a weekly hour limit. Going over is easy to miss until it has already happened, and net pay takes arithmetic nobody wants to do |
+| 🧮 **What it does** | Shows logged plus scheduled hours against every cap, warns at 80%, 90% and 100%, and forecasts this week's pay before the week is over |
+| 🔁 **Rules enforced twice** | Weekly caps, the pay snapshot, the tax-and-deductions ceiling and the no-overlap rule live in a TypeScript helper **and** a Postgres trigger or constraint. A direct authenticated write through the API hits the same wall |
+| 🕰️ **Your time, your week** | Hours count in the user's time zone and chosen week start. An overnight shift is split at local midnight, and every total (week, month, all time) is built the same way, so one shift is never worth two amounts |
+| 💵 **Money without floats** | Cents and basis points as integers end to end. Input is parsed with dedicated helpers, never `parseFloat` |
+| 🧪 **Tested at both layers** | 37 TypeScript test files, plus 28 SQL suites that apply all 37 migrations to a throwaway Postgres and attack the triggers, policies and grants directly |
+| 🚀 **Merge is deploy** | Six required checks gate `main`. A merge builds an immutable image, applies migrations, promotes it to `stable`, and the server pulls it within five minutes |
 
 ## 📸 Screens
 
 <div align="center">
 
-**Landing page**
-
 <img src="docs/screenshots/landing.png" alt="ShiftSentry landing page with the headline 'Every job, every shift, under your limit' beside lavender 3D glass art and example-week chips" width="92%" />
 
-<br /><br />
-
-**Desktop view**
-
-<img src="docs/screenshots/dashboard-desktop.png" alt="ShiftSentry dashboard with sample data: 16 of 20 weekly hours at the 80% warning, this week's pay in green climbing a step with each shift to $136.40 earned, a dashed line up to $169.40 after the planned Friday shift, and the next shift" width="92%" />
+<sub><b>Landing page.</b> Public, with an interactive example week.</sub>
 
 <br /><br />
 
-**Mobile view**
+<img src="docs/screenshots/dashboard-desktop.png" alt="ShiftSentry dashboard with sample data: 16 of 20 weekly hours at the 80% warning, this week's pay climbing a step with each shift to $136.40 earned, a dashed line up to $169.40 after the planned Friday shift, and the next shift" width="92%" />
+
+<sub><b>Overview.</b> The weekly cap at its 80% warning, and this week's pay: solid for what is earned, dashed for what the planned shifts will add.</sub>
+
+<br /><br />
 
 <img src="docs/screenshots/dashboard-mobile.png" alt="The same ShiftSentry dashboard on a phone, with the weekly cap, this week's pay and the bottom navigation bar" width="30%" />
+&nbsp;&nbsp;&nbsp;
+<img src="docs/screenshots/login.png" alt="ShiftSentry sign-in box with email, Google, and GitHub options, centred on the landing page's lavender background" width="60%" />
 
-<br /><br />
-
-**Sign in**
-
-<img src="docs/screenshots/login.png" alt="ShiftSentry sign-in box with email, Google, and GitHub options, centred on the landing page's lavender background" width="92%" />
+<sub><b>Phone layout</b> and <b>sign-in</b> (email, Google or GitHub).</sub>
 
 </div>
 
 > [!NOTE]
-> The dashboard images come from the app's built-in preview mode, which renders sample data when no Supabase credentials are present. The landing page and sign-in are public pages. No real user data is shown anywhere.
+> Dashboard images come from the app's built-in preview mode, which renders sample data when no Supabase credentials are set. No real user data appears anywhere in this repository.
 
-<br />
+## 🧰 Features
 
-## 📖 Overview
+| | Feature | What it does |
+|---|---|---|
+| 💼 | **Multiple jobs** | Each job has its own color, pay rate, tax and deductions, weekly cap and payday schedule. Archiving a job hides it while its shifts stay in the history |
+| ⚠️ | **Weekly limits** | A global cap and per-job caps. The shift form checks a new shift (and its weekly repeats) against them before you save |
+| 💰 | **Earnings** | Gross, tax, deductions and net for this week, this month, the last 3 or 6 months, year to date, all time or a custom span. Pay periods show what lands on each payday |
+| 🧾 | **Honest history** | A shift remembers the rate it was worked at, so a later raise never reprices past work |
+| 🗓️ | **Calendar** | Week and month views. Overnight shifts appear on both days and clashes are marked |
+| 🔗 | **Google Calendar** *(optional)* | Read-only. Shows your events beside your shifts, warns when a new shift clashes, and can turn matching events into shifts for jobs that opt in. Nothing is ever written to Google |
+| 📝 | **Shift log** | Paged by week, filterable by job and by worked or upcoming, with a note per week |
+| 🔒 | **Account rights** | Versioned Terms with a 16+ confirmation, a JSON export of everything stored, and confirmed permanent deletion from `/account` |
+| 🛠️ | **Admin area** | Users, audit log, health, integrations, announcements and game moderation. It never shows job names, shift times or note contents |
+| 📱 | **Installable** | Responsive layout, light and dark themes, keyboard-accessible controls, and an installable app with an offline page |
+| 🎭 | **Imposter** | A small party word game for friends, with QR-code and link invites, built on Supabase Realtime |
 
-ShiftSentry is a responsive workspace for people balancing one or more jobs. It brings scheduled shifts, completed work, pay, deductions, and weekly limits into one calm view—so users can spot a problem before it becomes one.
-
-Hours are counted in **your** time zone and **your** week, not the server's. An overnight shift is split at local midnight and counted across both days, and every total—this week, this month, all time—is accumulated the same way, so the same shift is never worth a different amount in a different view.
-
-<br />
-
-## ✨ Features
-
-Account protections now include explicit versioned Terms acceptance and 16+ eligibility, an account JSON export, and confirmed permanent deletion from `/account`. Privacy and storage disclosures are at `/privacy`, `/terms`, and `/cookies`. See [the deduplicated screenshot audit](docs/checklist-audit.md) and [privacy/incident/retention operations](docs/privacy-operations.md) for evidence and deployment boundaries. Cloudflare analytics is left unchanged and disclosed.
-
-The daily security-retention workflow uses the existing protected production `SUPABASE_DB_URL` and removes audit entries older than 30 days, daily at 06:17 UTC. It is not a new runtime/build secret. `npm run check:legal` checks immutable policy snapshots; `npm run licenses:generate` creates dependency notices, also run automatically before development and production builds. The public `/open-source-licenses` page provides searchable, expandable notices; full texts load on demand from generated static files. `/third-party-notices.txt` remains the complete downloadable bundle. All generated catalog/notice files are ignored by Git and copied with `public` into the production image.
-
-| Capability | Description |
-| :--- | :--- |
-| 💼 **Track multiple jobs** | Keep job-specific colors, pay rates, deductions, and weekly caps organized in one workspace. |
-| 📅 **Plan shifts ahead** | Add upcoming work and see it included in projected weekly hours. |
-| ⚠️ **Stay under limits** | Get clear warnings at 80%, 90%, and 100% of global or per-job weekly caps. |
-| 💰 **Understand earnings** | Gross pay, tax, deductions, and net—filtered by this week, this month, the last 3 or 6 months, year to date, all time, or a custom span of months. |
-| 🧾 **Keep history honest** | A shift remembers the rate it was worked at, so a later raise never silently reprices work you already did. |
-| 🗓️ **See it on a calendar** | Week and month views of your shifts. Overnight shifts appear on both days and clashes are marked. |
-| 🔗 **Connect Google Calendar** | Optional and read-only: show your Google events beside your shifts and get a warning when a new shift clashes with one. A job can also opt in to adding shifts automatically from matching Google events. Nothing is ever written to Google. |
-| 🔒 **Use secure sign-in** | Sign in with email, Google, or GitHub through Supabase Auth. Signed out, the site's home page is a public landing page with an interactive example week. |
-| 📊 **See the week at a glance** | The overview draws this week's pay as a line that steps up with every shift: solid for what you've earned, dashed up to what the planned shifts will add by the end of the week. |
-| 📱 **Work comfortably anywhere** | Responsive dashboard, mobile navigation, keyboard-accessible controls, light or dark themes, a Help menu with the support address and the legal pages, and an installable app with an offline fallback page. |
-| 🎭 **Take a break** | Imposter, a small party word game for friends, with QR-code and link invites. |
-
-<br />
-
-## 🛠️ Tech Stack
-
-| Area | Technologies Used |
-| :--- | :--- |
-| **App Framework** | Next.js 16 App Router, React 19, TypeScript |
-| **Styling & Interaction** | Tailwind CSS v4, Radix Dropdown Menu, an in-house ARIA listbox, Inter, Outfit, CSS-only motion and native View Transitions |
-| **Landing Art** | A Three.js scene rendered offline to WebP by `scripts/render-welcome-3d.mjs`; Three.js is not part of the app bundle |
-| **Data & Auth** | Supabase Auth, PostgreSQL, Row Level Security, `@supabase/ssr`, `@supabase/server` |
-| **Server Admin** | Prisma 7 with PostgreSQL |
-| **Charts & Dates** | Recharts, `date-fns`, `date-fns-tz` |
-| **Integrations** | Google Calendar API (read-only scopes), tokens encrypted with AES-256-GCM |
-| **Validation & Tests** | Zod, Node.js test runner via `tsx`, SQL suites against a throwaway Postgres in Docker |
-| **Delivery** | Docker, GitHub Actions, Nginx behind a Cloudflare Tunnel |
-
-<br />
-
-## 🏗️ Architecture
+## 🗺️ Architecture
 
 ```mermaid
 flowchart LR
-  Browser[Browser] --> Next[Next.js App Router]
-  Next --> Actions[Server actions and route handlers]
-  Browser --> Auth[Supabase Auth]
-  Actions --> Database[Supabase Postgres with RLS]
-  Auth --> Database
-  Admin[Server-only admin operations] --> Prisma[Prisma]
-  Admin --> SecretClient[Supabase secret-key client]
-  Prisma --> Database
-  SecretClient --> Database
-  Actions -. optional, read-only .-> Google[Google Calendar API]
+    user([🌍 Visitor])
+
+    subgraph cf["☁️ Cloudflare"]
+        edge["Edge: TLS, proxy, DNS"]
+    end
+
+    subgraph home["🗄️ SandeepCloud VM · no open ports"]
+        cfd[cloudflared]
+        nginx["Nginx :443"]
+        app["ShiftSentry container<br/>Next.js standalone · non-root"]
+        wt["Watchtower<br/>every 5 min"]
+    end
+
+    subgraph sb["🟢 Supabase"]
+        auth[Auth<br/>email · Google · GitHub]
+        pg[("Postgres<br/>RLS · triggers · RPCs")]
+        rt[Realtime]
+    end
+
+    google["📅 Google Calendar API<br/>read-only scopes"]
+    hub[(Docker Hub)]
+
+    user -->|HTTPS| edge
+    cfd ==>|outbound tunnel| edge
+    edge -.->|requests come back down the tunnel| cfd
+    cfd --> nginx --> app
+    app -->|"publishable key · user's cookie"| pg
+    app -->|"secret key · Prisma · admin only"| pg
+    app --> auth
+    app -.->|server to server| google
+    user -.->|game updates| rt
+    wt -->|"pull :stable"| hub
+    wt -.->|recreate| app
 ```
 
-> **Note:** Browser-facing features use Supabase's publishable key and Row Level Security. Prisma and the secret-key client are server-only administrative tools; neither belongs in a browser bundle.
+- **The server has no inbound ports.** `cloudflared` dials out to Cloudflare and visitors' requests come back down that connection to Nginx. The host itself is built from code in [SandeepCloud-IaC](https://github.com/pokharelsandeep333-commits/SandeepCloud-IAC).
+- **Three database paths, kept apart on purpose:**
 
-<br />
+| Path | Key | Used for |
+|---|---|---|
+| `createServerSupabaseClient()` | publishable, bound to the user's cookie | **Every user-facing read and write.** Row Level Security scopes each row to its owner |
+| `createAdminSupabaseClient()` | `SUPABASE_SECRET_KEY` | Admin only: role changes, ban and unban, password-reset mail |
+| `prisma` | `DATABASE_URL` | Admin only: audit events and user lookups |
 
-## 🔐 Security Posture
+The last two bypass RLS, so they are server-only and never imported into a client component. When an RLS query is awkward, the policy gets fixed instead.
 
-* **Rules enforced twice.** Weekly caps, earnings snapshots, the tax-plus-deductions ceiling, and a no-overlapping-shifts constraint are enforced in TypeScript *and* independently by Postgres triggers—so a direct authenticated write that skips the app is rejected too.
-* **Row Level Security everywhere.** Every user-facing read and write goes through a cookie-bound publishable-key client; the secret key never reaches the browser.
-* **Strict CSP.** A per-request nonce with `'strict-dynamic'` and no `'unsafe-inline'` for scripts. No external script, style, image, or font hosts—fonts are bundled, not fetched.
-* **Disabled means disabled.** Disabling an account is enforced by database policies, so a session token issued before the ban cannot keep writing.
-* **Google access is read-only.** Calendar tokens are stored encrypted and every Google call is made server-to-server. Event titles and details are never stored. The only thing kept is the start and end times of events a job has opted in to sync, which become shifts.
-* **Guarded pipeline.** Gitleaks secret scanning, CodeQL, a production dependency audit, and a Docker build check all gate `main` before a release is built. Every high or critical production advisory blocks release; malformed audit reports fail closed. Dependabot alerts and security update PRs are enabled alongside the weekly audit and CodeQL runs.
+### 🔁 One rule, two layers
 
-Prisma's configuration dependency is pinned to patched `deepmerge-ts` 8.0.2 through a scoped override, verified with Prisma generation, validation, and a production build. Run `npm run audit:production` for the release-blocking runtime audit and `npm audit` for the full dependency audit; advisory results can change independently of this repository.
-
-<br />
-
-## 📁 Project Structure
-
-```
-src/
-├── app/                    App Router pages, actions, callbacks, integrations, and health route
-├── components/             Dashboard, calendar, game, landing, navigation, and UI primitives
-├── lib/                    Auth, Supabase, Google, validation, calculations, and types
-prisma/                     Prisma schema
-public/welcome/             Pre-rendered landing art and dashboard captures
-scripts/                    SQL test runner, audit gate, and the landing-art renderer
-supabase/migrations/        Immutable timestamped production SQL migrations
-supabase/tests/             SQL suites for the triggers, policies, and grants
-docs/screenshots/           Images used by this README
-.github/workflows/          CI, scheduled audit, and scheduled CodeQL workflows
+```mermaid
+flowchart LR
+    form([Shift form]) --> action["Server Action<br/>Zod + TypeScript helper"]
+    action -->|insert| trig{{"Postgres triggers<br/>and constraints"}}
+    api([Direct API call<br/>with a user's token]) -->|insert| trig
+    trig -->|passes| row[(shifts)]
+    trig -->|breaks a rule| reject[❌ Refused]
 ```
 
-<br />
+| Rule | In the app | In Postgres |
+|---|---|---|
+| Weekly hour caps (global and per job) | `src/lib/limit-check.ts`, `src/app/actions/work.ts` | `enforce_shift_weekly_limits` trigger |
+| Pay rate frozen onto the shift | `src/lib/earnings.ts` | `shifts_sync_earnings_snapshot` trigger |
+| Tax plus deductions can't exceed 100% | `checkCombinedRate` in `work.ts` | `enforce_job_compensation_rate` trigger on jobs and deductions |
+| No overlapping shifts | `src/lib/limit-check.ts` | `shifts_no_overlap` exclusion constraint |
+| Latest Terms accepted before any write | server guards | `require_current_legal_agreement` trigger |
+| A disabled account stops writing at once | `src/lib/auth.ts` redirect | restrictive `is_account_enabled()` policies |
 
-## 🚀 Local Setup
+The user-local week start is written out in three places that must match: the trigger, `shift_week_count_before`, and `weekStartFor()` in `src/lib/time.ts`. The SQL suites pin all of them.
 
-### Prerequisites
+## 🔄 CI/CD pipeline
 
-- **Node.js 24 LTS**, matching CI, the production image, and the Node 24 TypeScript declarations
-- A **Supabase project** with email, Google, and GitHub sign-in enabled
-- **Docker** (only for the SQL tests or for testing the production image locally)
-
-### 1. Install & Configure
-
+```mermaid
+flowchart LR
+    pr([🔀 Pull request<br/>or push to main]) --> leaks[🔐 Secret scanning]
+    leaks --> quality[✅ Application quality]
+    leaks --> sql[🗄️ Database rule tests]
+    leaks --> audit[📦 Production dependency audit]
+    leaks --> codeql[🛡️ CodeQL]
+    quality --> docker[🐳 Docker build verification]
+    quality & sql & audit & docker & codeql -->|main only| release[🚀 Build, migrate and release]
+    release --> image[(sha-commit image<br/>SBOM + provenance)]
+    release --> mig[(supabase db push)]
+    release --> stable[(promote to :stable)]
 ```
+
+| Job | What it runs | Required on `main` |
+|---|---|---|
+| 🔐 **Secret scanning** | gitleaks across the whole git history | ✅ |
+| ✅ **Application quality** | Prisma generate and validate, every unit suite, the legal snapshot check, `tsc`, ESLint, a production build | ✅ |
+| 🗄️ **Database rule tests** | All migrations onto a fresh Postgres, then the 28 SQL suites | ✅ |
+| 📦 **Production dependency audit** | `npm audit` on runtime dependencies. Any high or critical advisory fails, with no allowlist. A malformed report fails too | ✅ |
+| 🐳 **Docker build verification** | The production Dockerfile with placeholder values, plus the pinned Supabase CLI the release uses | ✅ |
+| 🛡️ **CodeQL** | JavaScript and TypeScript analysis into GitHub code scanning | ✅ |
+| 📋 **Dependency review** | New dependencies in a pull request, failing on high severity | PRs only |
+| 🚀 **Build, migrate and release** | Push `sha-<commit>`, dry-run then apply migrations, promote the same image to `stable` | Runs after merge |
+
+**How the pipeline is locked down**
+
+- 📌 Every third-party action is pinned to a **full commit SHA**.
+- 🔑 Every workflow starts at `contents: read`. Only the CodeQL jobs get `security-events: write`.
+- 🧱 Migrations run **before** `stable` moves, so a new schema never waits on an old image for long.
+- 🩺 `/api/health` returns `{ status, commit }`, with the commit baked into the image. A release counts as live only when that commit matches the merge.
+- 🗓️ Scheduled jobs: CodeQL weekly, the dependency audit weekly, and a daily purge of security audit rows older than 30 days. Dependabot proposes npm, Docker and Actions updates weekly.
+
+## 🛡️ Security controls in the code
+
+| Control | Where |
+|---|---|
+| 🧾 Nonce-based CSP with `'strict-dynamic'`, **no `'unsafe-inline'` for scripts**, no external script, style, image or font hosts | `src/lib/content-security-policy.ts`, `src/proxy.ts` |
+| 🔗 `connect-src` names this project's own Supabase origin, not `*.supabase.co`, so a stolen token can't be posted to another project | same |
+| 🔐 Google tokens encrypted with AES-256-GCM. Event titles are never stored | `src/lib/google/token-crypto.ts` |
+| 🚦 Per-user rate limits on account export and deletion, terms acceptance, the Google routes and the limit check | `src/lib/rate-limit.ts` |
+| ✅ Every Server Action input validated with Zod on the server | `src/lib/validation.ts`, `src/app/actions/` |
+| 🎲 Every game write goes through a security-definer RPC. The game's Server Actions never call `.insert()` or `.update()` | `src/app/actions/game.ts`, `supabase/migrations/` |
+| 🗑️ Deletion locks the account first, revokes sessions, then deletes. A failed step never unlocks automatically | `src/app/actions/account.ts` |
+| 📜 Published legal texts are immutable: a snapshot in a migration, checked in CI | `scripts/snapshot-legal.mjs` |
+| 🐳 Image runs as a non-root user with a health check | `Dockerfile` |
+
+## 📁 Repository layout
+
+```text
+.
+├── 🧭 src/app/                  App Router pages, Server Actions, auth and OAuth callbacks, /api/health
+├── 🧩 src/components/           Dashboard, calendar, shifts, game, admin, and the UI primitives
+├── 🧮 src/lib/                  Money, time, limits, period totals, Supabase clients, Google, CSP (+ unit tests)
+├── 🗄️ supabase/migrations/      37 immutable, timestamped migrations: schema, RLS, triggers, RPCs
+├── 🧪 supabase/tests/           28 SQL suites and the harness they run in
+├── 🔷 prisma/                   Typed mirror of the schema for the admin client (the SQL is the source of truth)
+├── 🛠️ scripts/                  SQL test runner, audit gate, retention purge, legal snapshot, license notices, landing-art renderer
+├── 🎨 public/                   Service worker and the pre-rendered landing art
+├── 📖 docs/                     Screenshots, privacy operations, and third-party license texts
+└── ⚙️ .github/                  CI/CD, CodeQL, dependency audit, data retention, Dependabot
+```
+
+## 🚀 Running it locally
+
+**You need** Node.js 24, a Supabase project, and Docker (only for the SQL tests or the production image).
+
+```bash
 git clone https://github.com/pokharelsandeep333-commits/ShiftSentry.git
 cd ShiftSentry
 npm install
-Copy-Item .env.example .env.local
+cp .env.example .env.local      # PowerShell: Copy-Item .env.example .env.local
+npm run dev                     # http://localhost:3000
 ```
 
-Fill in the five Supabase and admin placeholders in `.env.local`. The two `NEXT_PUBLIC_SUPABASE_*` values are safe for the browser; `SUPABASE_SECRET_KEY`, `DATABASE_URL`, and `ADMIN_EMAIL_ALLOWLIST` are server-only. The four `GOOGLE_*` values are optional and server-only: they enable the read-only Google Calendar connection, which stays off unless `GOOGLE_CALENDAR_ENABLED=true`. Never commit the file.
+> [!TIP]
+> With no Supabase values in `.env.local`, the app boots into a read-only preview with sample data. That is enough to click around.
 
-### 2. Initialize Database
+**With a real Supabase project**
 
-You must apply the database schema to your Supabase project before running the app.
+1. Fill in `.env.local`. Only the two `NEXT_PUBLIC_SUPABASE_*` values reach the browser; `SUPABASE_SECRET_KEY`, `DATABASE_URL` and `ADMIN_EMAIL_ALLOWLIST` stay on the server.
+2. Apply the schema:
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <your-project-ref>
+   npx supabase db push
+   ```
+3. In Supabase Auth, set the Site URL to `http://localhost:3000`, allow the redirect `http://localhost:3000/auth/callback`, and enable Email, Google and GitHub.
+4. *Optional, Google Calendar:* create a separate Google OAuth client with the redirect `http://localhost:3000/integrations/google/callback`, fill in the `GOOGLE_*` values (`.env.example` has the command for the encryption key), and set `GOOGLE_CALENDAR_ENABLED=true`.
 
-```
-npx supabase login
-npx supabase link --project-ref <your-project-ref>
-npx supabase db push
-```
+**Run what CI runs**
 
-### 3. Configure Supabase Auth
-
-Set the Supabase Auth **Site URL** to `http://localhost:3000` and add the local callback to the **Redirect URL allow list**:
-
-```
-http://localhost:3000/auth/callback
-```
-
-Enable Email, Google, and GitHub under **Authentication → Sign In / Providers**. Each OAuth provider points back to Supabase's provider callback, `https://<project-ref>.supabase.co/auth/v1/callback`; Supabase then redirects to this app's allowed callback.
-
-The optional Google Calendar connection is a separate Google OAuth client, not the Supabase Google provider. Register `http://localhost:3000/integrations/google/callback` as its authorized redirect URI, and generate `GOOGLE_TOKEN_ENCRYPTION_KEY` as 32 random bytes in base64 (the command is in `.env.example`).
-
-### 4. Verify & Run
-
-```
+```bash
 npm run db:generate
-npm run test:earnings
-npm run test:auth
-npm run test:game
-npm run test:security
-npm run test:sql
+npm run test:earnings && npm run test:auth && npm run test:game && npm run test:security
+npm run test:sql               # needs Docker; cleans up its container afterwards
+npm run check:legal
 npx tsc --noEmit
 npm run lint
 npm run audit:production
 npm run build
-npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+## 🚢 Shipping
 
-These are the same checks the pipeline runs on every pull request:
+`main` is protected by the six required checks above, with force-push and deletion turned off. The `production` environment has no approval gate, so **merging a green pull request deploys it**:
 
-<a href="https://github.com/pokharelsandeep333-commits/ShiftSentry/actions/workflows/ci.yml"><img alt="CI status" src="https://img.shields.io/github/actions/workflow/status/pokharelsandeep333-commits/ShiftSentry/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI" /></a>
+1. The release job pushes `sha-<commit>` with an SBOM and provenance.
+2. `supabase db push --dry-run`, then `supabase db push`.
+3. The same image is promoted to `stable`.
+4. Watchtower on the server pulls it within about five minutes.
+5. An operator polls [`/api/health`](https://sentry.sandeeppokharel.com.np/api/health) until `commit` matches the merge. GitHub-hosted runners get HTTP 403 from the public edge, so a green release job proves promotion, not what is serving.
 
-### Production release verification
+Migrations are never edited after they are applied. A schema change is always a new timestamped file.
 
-The required Docker build check also installs Supabase CLI 2.84.2 with the same pinned `supabase/setup-cli` action used by the release job, and checks the installed version without production credentials. Installer updates are therefore exercised on pull requests before release; the CLI version itself remains explicitly pinned.
-
-Merging a green PR into protected `main` deploys it. GitHub Actions builds an immutable `sha-<commit>` image, verifies and applies pending Supabase migrations, then promotes the same image to `stable`. Watchtower on the server polls every 300 seconds. After the release job succeeds, verify [the live health endpoint](https://sentry.sandeeppokharel.com.np/api/health) from an allowed external network until it returns `status: "ok"` and the exact merged commit. Allow up to ten minutes after promotion for the image pull and restart. GitHub-hosted runner requests to this endpoint receive HTTP 403, so public health verification is an operator step. A green release job confirms image promotion; the health response confirms the running deployment.
-
-Live configuration remains in `/home/ubuntu/sandeepcloud/docker-compose.yml` and `/home/ubuntu/sandeepcloud/nginx.conf`. Runtime credentials are interpolated from `/home/ubuntu/sandeepcloud/.env`, owned by `root:root` with mode `600`; run Compose through `sudo` so it can read that file. Watchtower's Docker Hub credentials remain in `/home/ubuntu/sandeepcloud/watchtower/config/config.json`, also `root:root` with mode `600`. Nginx is the public ingress; the app has no public port mapping.
-
-### Dependency updates and local sync
-
-Dependabot opens weekly proposals for npm packages, Docker images, and GitHub Actions. Review compatibility and run the required checks before merging. Related proposals can be merged into one integration branch, checked together, and delivered through one PR to `main`, producing one release. Keep the Node type declarations aligned with the supported runtime major.
-
-After a GitHub merge, update a clean local checkout with `git switch main`, `git pull --ff-only origin main`, and `npm ci`. Pulling updates tracked files, while `npm ci` installs the exact versions in `package-lock.json`. GitHub Actions and Dockerfile updates are applied by their respective builds; they do not upgrade the Node installation on your computer.
-
-> [!TIP]
-> Without Supabase configuration the root route intentionally renders a read-only dashboard preview with sample data, so the app boots and is browsable before you have any credentials. With Supabase configured, a signed-out visit to `/` shows the public landing page instead, at the same address.
-
-<br />
+---
 
 <div align="center">
-  <i>Built for clearer weeks, calmer planning, and better work-life boundaries.</i>
+<sub>Built by <a href="https://github.com/pokharelsandeep333-commits">Sandeep Pokharel</a> · Next.js · Supabase · Postgres · Docker · GitHub Actions · Cloudflare</sub>
 </div>
