@@ -21,6 +21,12 @@ updates:
       # different versions (ERESOLVE), so a bump of one alone always fails.
       react:
         patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+    ignore:
+      # @types/node must describe the Node major we run (Dockerfile and CI:
+      # node 24). A newer major types APIs the runtime lacks, so move it by
+      # hand together with the base image.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /
     schedule:
