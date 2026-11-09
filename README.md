@@ -160,7 +160,8 @@ flowchart LR
     leaks --> codeql[🛡️ CodeQL]
     quality --> docker[🐳 Docker build verification]
     quality & sql & audit & docker & codeql -->|main only| release[🚀 Build, migrate and release]
-    release --> image[(sha-commit image<br/>SBOM + provenance)]
+    release --> trivy[(Trivy scan<br/>before push)]
+    trivy --> image[(sha-commit image<br/>SBOM + provenance)]
     release --> mig[(supabase db push)]
     release --> stable[(promote to :stable)]
 ```
@@ -174,15 +175,16 @@ flowchart LR
 | 🐳 **Docker build verification** | The production Dockerfile with placeholder values, plus the pinned Supabase CLI the release uses | ✅ |
 | 🛡️ **CodeQL** | JavaScript and TypeScript analysis into GitHub code scanning | ✅ |
 | 📋 **Dependency review** | New dependencies in a pull request, failing on high severity | PRs only |
-| 🚀 **Build, migrate and release** | Push `sha-<commit>`, dry-run then apply migrations, promote the same image to `stable` | Runs after merge |
+| 🚀 **Build, migrate and release** | Build the image locally, scan it with Trivy (fixable critical/high, SARIF into code scanning; report-only for now), then push `sha-<commit>`, dry-run then apply migrations, promote the same image to `stable` | Runs after merge |
 
 **How the pipeline is locked down**
 
 - 📌 Every third-party action is pinned to a **full commit SHA**.
-- 🔑 Every workflow starts at `contents: read`. Only the CodeQL jobs get `security-events: write`.
+- 🔑 Every workflow starts at `contents: read`. Only the CodeQL jobs and the jobs that upload Trivy results get `security-events: write`.
+- 🔍 Trivy runs from its image pinned by digest, reading a `docker save` tarball with no Docker socket mounted. The Trivy GitHub Actions are not used.
 - 🧱 Migrations run **before** `stable` moves, so a new schema never waits on an old image for long.
 - 🩺 `/api/health` returns `{ status, commit }`, with the commit baked into the image. A release counts as live only when that commit matches the merge.
-- 🗓️ Scheduled jobs: CodeQL weekly, the dependency audit weekly, and a daily purge of security audit rows older than 30 days. Dependabot proposes npm, Docker and Actions updates weekly.
+- 🗓️ Scheduled jobs: CodeQL weekly, the dependency audit weekly, a weekly Trivy scan of the `stable` image production runs, and a daily purge of security audit rows older than 30 days. Dependabot proposes npm, Docker and Actions updates weekly.
 
 ## 🛡️ Security controls in the code
 
@@ -211,7 +213,7 @@ flowchart LR
 ├── 🛠️ scripts/                  SQL test runner, audit gate, retention purge, legal snapshot, license notices, landing-art renderer
 ├── 🎨 public/                   Service worker and the pre-rendered landing art
 ├── 📖 docs/                     Screenshots, privacy operations, and third-party license texts
-└── ⚙️ .github/                  CI/CD, CodeQL, dependency audit, data retention, Dependabot
+└── ⚙️ .github/                  CI/CD, CodeQL, dependency audit, image scan, data retention, Dependabot
 ```
 
 ## 🚀 Running it locally
@@ -258,7 +260,7 @@ npm run build
 
 `main` is protected by the six required checks above, with force-push and deletion turned off. The `production` environment has no approval gate, so **merging a green pull request deploys it**:
 
-1. The release job pushes `sha-<commit>` with an SBOM and provenance.
+1. The release job builds the image, scans it with Trivy, then pushes `sha-<commit>` with an SBOM and provenance.
 2. `supabase db push --dry-run`, then `supabase db push`.
 3. The same image is promoted to `stable`.
 4. Watchtower on the server pulls it within about five minutes.

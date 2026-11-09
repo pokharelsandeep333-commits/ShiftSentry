@@ -1,0 +1,92 @@
+# Weekly Trivy scan of the image production is running.
+#
+# The release job scans each candidate before it is pushed, but CVEs are
+# published after an image ships. This re-scans the tag Watchtower on the
+# SandeepCloud server pulls (`:stable`) against a fresh vulnerability DB and
+# uploads the result to code scanning, so new findings in the deployed image
+# show up without a new release.
+#
+# Trivy runs from its image pinned by digest (v0.76.1). Never use
+# aquasecurity/trivy-action or setup-trivy: their tags were hijacked in the
+# March 2026 supply-chain attack. The Docker socket is not mounted; Trivy
+# reads a `docker save` tarball.
+
+name: Image vulnerability scan
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/shiftsentry:stable
+      # Trivy v0.76.1, pinned by digest (identical on Docker Hub, GHCR, ECR Public).
+      TRIVY_IMAGE: aquasec/trivy@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+      # REPORT-ONLY: "0" uploads findings without failing the run. Change to
+      # "1" to make the run fail (and notify) on any fixable CRITICAL/HIGH
+      # finding once the current ones are fixed.
+      TRIVY_EXIT_CODE: "0"
+    steps:
+      # upload-sarif resolves the commit and ref from the checkout.
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The production repository on Docker Hub is private. login-action
+      # masks the token and logs out in its post step.
+      - name: Log in to Docker Hub
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Pull and export the production image
+        id: prep
+        run: |
+          TRIVY_WORKDIR="$RUNNER_TEMP/trivy"
+          echo "TRIVY_WORKDIR=$TRIVY_WORKDIR" >> "$GITHUB_ENV"
+          mkdir -p "$TRIVY_WORKDIR/cache"
+          docker pull --platform linux/amd64 "$IMAGE"
+          docker image inspect --format 'Scanning {{index .RepoDigests 0}}' "$IMAGE"
+          docker save "$IMAGE" -o "$TRIVY_WORKDIR/image.tar"
+          echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+      # Same key scheme as the release job, so the two share one DB per day.
+      - name: Restore Trivy vulnerability DB
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.TRIVY_WORKDIR }}/cache/db
+          key: trivy-db-${{ steps.prep.outputs.date }}
+          restore-keys: trivy-db-
+      - name: Scan production image (SARIF)
+        run: >-
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp
+          -v "$TRIVY_WORKDIR:/w" "$TRIVY_IMAGE"
+          image --scanners vuln --input /w/image.tar
+          --skip-version-check --disable-telemetry
+          --cache-dir /w/cache
+          --severity CRITICAL,HIGH --ignore-unfixed
+          --exit-code 0 --format sarif --output /w/trivy.sarif
+      - name: Upload Trivy results to code scanning
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: ${{ env.TRIVY_WORKDIR }}/trivy.sarif
+          category: trivy-production-stable
+      - name: Vulnerability report (table)
+        run: >-
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp
+          -v "$TRIVY_WORKDIR:/w" "$TRIVY_IMAGE"
+          image --scanners vuln --input /w/image.tar
+          --skip-version-check --disable-telemetry
+          --cache-dir /w/cache --skip-db-update
+          --severity CRITICAL,HIGH --ignore-unfixed
+          --exit-code "$TRIVY_EXIT_CODE" --format table
