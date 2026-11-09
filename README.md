@@ -175,12 +175,13 @@ flowchart LR
 | 🐳 **Docker build verification** | The production Dockerfile with placeholder values, plus the pinned Supabase CLI the release uses | ✅ |
 | 🛡️ **CodeQL** | JavaScript and TypeScript analysis into GitHub code scanning | ✅ |
 | 📋 **Dependency review** | New dependencies in a pull request, failing on high severity | PRs only |
-| 🚀 **Build, migrate and release** | Build the image locally, scan it with Trivy (fixable critical/high, SARIF into code scanning; report-only for now), then push `sha-<commit>`, dry-run then apply migrations, promote the same image to `stable` | Runs after merge |
+| 🚀 **Build, migrate and release** | Build the image locally, scan it with Trivy (fixable critical/high, SARIF into code scanning). A fixable critical or high finding blocks the push, so nothing ships and no migration runs. Then push `sha-<commit>`, dry-run then apply migrations, promote the same image to `stable` | Runs after merge |
 
 **How the pipeline is locked down**
 
 - 📌 Every third-party action is pinned to a **full commit SHA**.
 - 🔑 Every workflow starts at `contents: read`. Only the CodeQL jobs and the jobs that upload Trivy results get `security-events: write`.
+- 🧹 The runtime image has no npm, npx, corepack or yarn: production only runs `node server.js`, and the base image's npm was where its vulnerability findings came from.
 - 🔍 Trivy runs from its image pinned by digest, reading a `docker save` tarball with no Docker socket mounted. The Trivy GitHub Actions are not used.
 - 🧱 Migrations run **before** `stable` moves, so a new schema never waits on an old image for long.
 - 🩺 `/api/health` returns `{ status, commit }`, with the commit baked into the image. A release counts as live only when that commit matches the merge.

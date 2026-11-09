@@ -197,11 +197,11 @@ jobs:
       IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/shiftsentry
       # Trivy v0.76.1, pinned by digest (identical on Docker Hub, GHCR, ECR Public).
       TRIVY_IMAGE: aquasec/trivy@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
-      # REPORT-ONLY while the current findings are open: "0" logs and uploads
-      # fixable CRITICAL/HIGH findings but still pushes and releases.
-      # To BLOCK the push (and the migrations after it) on any fixable
-      # CRITICAL/HIGH finding, change this to "1".
-      TRIVY_EXIT_CODE: "0"
+      # BLOCKING: "1" stops the push, and the migrations and promotion after
+      # it, on any fixable CRITICAL/HIGH finding. SARIF is still uploaded.
+      # Set "0" for report-only (log and upload, but release anyway) only as a
+      # deliberate, temporary override while a finding is being fixed.
+      TRIVY_EXIT_CODE: "1"
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

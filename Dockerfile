@@ -16,6 +16,14 @@ COPY . .
 RUN npm run db:generate && npm run build
 
 FROM base AS runner
+# The runtime is `node server.js` and never calls a package manager. The base
+# image ships npm, npx, corepack and yarn, and their bundled dependencies are
+# where the image's vulnerability findings came from (Trivy, 2026-11-08), so
+# drop them here. The dependencies and builder stages still have npm. Kept
+# before ARG GIT_SHA so this layer stays cached across releases.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+      /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+      /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-v*
 # The commit this image was built from, so /api/health can say which build is
 # serving. Not a secret: it is the same SHA that names the image tag.
 ARG GIT_SHA
