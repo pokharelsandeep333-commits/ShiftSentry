@@ -62,12 +62,12 @@ export function WeekNote({ weekStart, label, note }: { weekStart: string; label:
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
   }
 
-  if (!editing) return <button ref={trigger} type="button" className="shift-note" onClick={open} aria-label={`${note ? "Edit the note" : "Add a note"} for ${label}`}>
-    <NotebookPen size={20} aria-hidden="true" /><span><strong>Week note</strong><span>{note?.body || "Add a note for this week"}</span></span><Pencil className="note-pencil" size={15} aria-hidden="true" />
+  if (!editing) return <button ref={trigger} type="button" className="week-note-line" data-empty={note ? undefined : ""} onClick={open} aria-label={`${note ? "Edit the note" : "Add a note"} for ${label}`}>
+    <NotebookPen size={16} aria-hidden="true" /><span>{note?.body || "Add a note for this week"}</span><Pencil className="note-pencil" size={14} aria-hidden="true" />
   </button>;
 
   const over = draft.length > WEEK_NOTE_MAX;
-  return <form action={formAction} className="space-y-2 rounded-2xl bg-[var(--surface-subtle)] p-3 sm:p-3.5">
+  return <form action={formAction} className="week-note-editor">
     <input type="hidden" name="weekStart" value={weekStart} />
     {note?.legacy && <input type="hidden" name="legacyId" value={note.id} />}
     <label htmlFor={textareaId} className="sr-only">Note for {label}</label>
