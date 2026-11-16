@@ -181,14 +181,6 @@
 .shift-form .field-control:focus, .shift-form .field-control:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
 .shift-form textarea, .note-editor textarea { display:block; width:100%; padding:12px 14px; min-height:78px; border:1px solid var(--shift-edge); border-radius:12px; background:var(--shift-white); resize:vertical; font-size:14px; color:var(--foreground); }
 .shift-form textarea::placeholder { color:var(--shift-copy); }
-.shift-pay-preview { padding:13px; border-radius:15px; background:linear-gradient(120deg,color-mix(in srgb,var(--shift-tint) 35%,var(--shift-white)),var(--surface-subtle)); border:1px solid var(--shift-edge); }
-.shift-pay-preview h2 { font-size:16px; font-weight:600; margin:0 0 8px; }
-.shift-pay-preview dl > div { display:flex; justify-content:space-between; gap:20px; padding:4px 0; font-size:14px; line-height:1.4; }
-.shift-pay-preview dl > div:nth-child(3) { padding-bottom:9px; border-bottom:1px solid var(--shift-edge); }
-.shift-pay-preview dt { color:var(--shift-copy); }
-.shift-pay-preview dd { margin:0; font-variant-numeric:tabular-nums; }
-.shift-pay-preview dl .receipt-net { margin-top:8px; padding:7px 9px; border-radius:8px; background:color-mix(in srgb,var(--success) 9%,var(--shift-white)); color:var(--shift-green); font-size:19px; font-weight:600; }
-.receipt-net dt { color:inherit; }
 .save-shift { width:100%; margin-top:0; min-height:42px; }
 .shift-error { color:var(--danger); font-size:13px; }
 .shift-menu [role=menuitem]:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
@@ -201,8 +193,6 @@
   .shift-form textarea { min-height:78px; }
   .shift-form label { font-size:13px; }
   .shift-form fieldset .field-label { margin-bottom:0; }
-  .shift-pay-preview { padding:12px; }
-  .shift-pay-preview dl>div { font-size:14px; }
   .editor-heading { margin-bottom:18px; }
   .shift-form fieldset > .flex > .grid { min-width:8rem; }
   .save-shift { min-height:44px; }
@@ -217,36 +207,86 @@
 @media (max-width:374px) { .shift-form fieldset > .flex > .grid { min-width:7.4rem; } }
 @media (max-width:349px) { .shift-schedule { grid-template-columns:minmax(0,1fr); } }
 
-/* Adding or editing a shift: an ordinary page with the form in one card. */
-.shift-page { max-width:64rem; }
+/* Adding or editing a shift: an ordinary page with the form in one white
+   card, in the shift log's language. Sections are divided by hairlines, not
+   boxed; the preview on the right draws the shift the way the log will (date
+   tile, 24-hour rail, hours) with net pay as the headline. */
+.shift-page { max-width:72rem; }
 .shift-page-back { display:inline-flex; align-items:center; gap:6px; min-height:36px; margin:-4px 0 10px -6px; padding:0 8px; border-radius:10px; color:var(--muted-foreground); font-size:13px; font-weight:600; }
 .shift-page-back:hover { background:var(--primary-soft); color:var(--primary); }
 .shift-page-back > svg { width:16px; height:16px; }
-.shift-page-card { container-type:inline-size; border:1px solid var(--border); border-radius:24px; background:var(--card); box-shadow:0 12px 38px -30px rgb(49 36 91 / .3); }
-.shift-page .shift-form-fields { padding:22px; gap:20px; }
-.shift-page .shift-form label { font-size:12px; color:var(--shift-copy); margin-bottom:6px; }
-.shift-page .shift-form .field-control { min-height:42px; border-radius:10px; border-color:color-mix(in srgb,var(--shift-edge) 65%,var(--shift-white)); }
-.shift-page .shift-form textarea { min-height:78px; border-radius:10px; font-size:13px; padding:10px 12px; }
-.shift-page .shift-pay-preview { border:0; border-radius:14px; padding:14px 16px; background:var(--surface-subtle); }
-.shift-page .shift-pay-preview h2 { font-size:14px; margin-bottom:7px; }
-.shift-page .shift-pay-preview dl>div { font-size:13px; padding-block:3px; }
-.shift-page .shift-pay-preview dl .receipt-net { margin-top:7px; padding:7px 8px; font-size:17px; }
-.shift-page .shift-editor-footer { display:flex; justify-content:flex-end; gap:10px; padding:16px 22px; border-top:1px solid color-mix(in srgb,var(--shift-edge) 65%,transparent); }
-.shift-page .save-shift { position:static; min-width:180px; min-height:42px; border-radius:10px; box-shadow:none; }
-@container (min-width:760px) {
-  .shift-page .shift-form-fields { grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); grid-template-areas:'job pay' 'times pay' 'times notes' 'times .'; gap:22px 32px; padding:26px; }
-  .shift-page .shift-job-field { grid-area:job; }
-  .shift-page .shift-times { grid-area:times; }
-  .shift-page .shift-pay-preview { grid-area:pay; align-self:start; }
-  .shift-page .shift-form-fields > div:has(#shift-notes) { grid-area:notes; }
-  .shift-page .shift-editor-footer { padding-inline:26px; }
+.shift-page-card { container-type:inline-size; border:1px solid var(--border); border-radius:16px; background:var(--card); overflow:clip; }
+
+.composer-body { display:grid; grid-template-columns:minmax(0,1fr); }
+.composer-fields { min-width:0; }
+.composer-section { min-width:0; margin:0; padding:22px 26px; border:0; }
+.composer-section + .composer-section { border-top:1px solid var(--hair); }
+/* A legend only takes margins once it is floated; the next element clears it. */
+.shift-page .shift-form .composer-label { display:block; float:left; width:100%; margin:0 0 12px; padding:0; font-family:var(--font-display); font-size:15px; font-weight:600; letter-spacing:-.02em; line-height:1.3; color:var(--foreground); }
+.composer-section > .composer-label + * { clear:both; }
+.composer-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 12px; margin-bottom:14px; }
+.shift-page .shift-form .composer-head .composer-label { float:none; width:auto; margin:0; }
+
+.job-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.shift-page .shift-form .job-chip { display:inline-flex; align-items:center; gap:10px; min-height:44px; max-width:100%; margin:0; padding:0 18px 0 14px; border:1px solid var(--border); border-radius:999px; background:var(--card); font-size:14px; font-weight:550; color:var(--foreground); cursor:pointer; transition:background-color .16s var(--ease-out), border-color .16s var(--ease-out), color .16s var(--ease-out); }
+.job-chip > i { width:10px; height:10px; flex-shrink:0; border-radius:50%; background:var(--job); }
+.job-chip > span { overflow-wrap:anywhere; }
+.job-chip-note { color:var(--shift-copy); font-weight:400; }
+.shift-page .shift-form .job-chip:hover { background:var(--surface-subtle); }
+.shift-page .shift-form .job-chip:has(input:checked) { border-color:color-mix(in srgb, var(--primary) 40%, var(--border)); background:var(--primary-soft); color:var(--primary); }
+.job-chip:has(input:checked) > i { box-shadow:0 0 0 3px var(--card), 0 0 0 4.5px var(--job); }
+.job-chip:has(input:focus-visible), .repeat-segment label:has(input:focus-visible) { outline:2px solid var(--primary); outline-offset:2px; }
+
+.repeat-segment { display:inline-flex; flex-wrap:wrap; gap:2px; padding:3px; border:1px solid var(--border); border-radius:999px; background:var(--card); }
+.shift-page .shift-form .repeat-segment label { display:inline-flex; align-items:center; min-height:34px; margin:0; padding:0 14px; border-radius:999px; font-size:13px; font-weight:600; color:var(--shift-copy); cursor:pointer; font-variant-numeric:tabular-nums; transition:background-color .16s var(--ease-out), color .16s var(--ease-out); }
+.shift-page .shift-form .repeat-segment label:hover { color:var(--foreground); background:var(--surface-subtle); }
+.shift-page .shift-form .repeat-segment label:has(input:checked) { color:var(--primary); background:var(--primary-soft); }
+
+.shift-page .shift-form .field-label, .shift-page .shift-schedule-fields label { font-size:12px; color:var(--shift-copy); margin-bottom:6px; }
+.shift-page .shift-form .field-control { min-height:44px; border-radius:12px; border-color:var(--border); }
+.shift-page .shift-form textarea { min-height:84px; border-color:var(--border); border-radius:12px; font-size:14px; padding:11px 13px; }
+
+/* The preview column. */
+.composer-preview { min-width:0; padding:22px 26px; border-top:1px solid var(--hair); background:color-mix(in srgb, var(--surface-subtle) 45%, var(--card)); }
+.composer-preview-inner { display:grid; gap:14px; }
+.shift-preview { display:grid; gap:14px; }
+.preview-ticket { display:grid; grid-template-columns:48px minmax(0,1fr); gap:12px; align-items:start; padding:14px; border:1px solid var(--border); border-radius:14px; background:var(--card); }
+.preview-ticket .day-tile { margin-top:0; }
+.preview-tile-empty > span { color:var(--shift-copy); }
+.preview-ticket-main { display:grid; gap:4px; min-width:0; }
+.preview-ticket .entry-time { padding-left:18px; font-size:13px; }
+.preview-ticket-rail { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; margin-top:6px; padding-left:18px; }
+.preview-ticket-rail .entry-rail { display:block; grid-area:auto; }
+.preview-ticket-rail .entry-hours { grid-area:auto; font-size:13px; }
+.preview-pay { display:grid; gap:10px; padding:16px 16px 14px; border:1px solid var(--border); border-radius:14px; background:var(--card); }
+.preview-net { display:flex; align-items:baseline; justify-content:space-between; gap:12px; font-size:13px; color:var(--shift-copy); }
+.preview-net strong { font-family:var(--font-display); font-size:34px; font-weight:600; line-height:1; letter-spacing:-.03em; color:var(--shift-green); font-variant-numeric:tabular-nums; }
+.preview-pay dl { display:grid; gap:4px; padding-top:10px; border-top:1px solid var(--hair); }
+.preview-pay dl > div { display:flex; justify-content:space-between; gap:16px; font-size:13px; }
+.preview-pay dt { color:var(--shift-copy); }
+.preview-pay dd { margin:0; font-variant-numeric:tabular-nums; }
+.preview-repeat { font-size:12px; line-height:1.5; color:var(--shift-copy); }
+.preview-repeat b { color:var(--shift-green); font-weight:600; }
+
+.shift-page .shift-editor-footer { display:flex; justify-content:flex-end; gap:10px; padding:16px 26px; border-top:1px solid var(--hair); }
+.shift-page .save-shift { width:auto; min-width:168px; min-height:44px; border-radius:999px; box-shadow:none; background:var(--primary); }
+.shift-page .shift-editor-footer > a { min-height:44px; border-radius:999px; }
+
+@container (min-width:820px) {
+  .composer-body { grid-template-columns:minmax(0,1fr) minmax(320px,380px); }
+  .composer-preview { border-top:0; border-left:1px solid var(--hair); }
+  .composer-preview-inner { position:sticky; top:96px; }
+}
+@container (max-width:520px) {
+  .repeat-segment { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); border-radius:18px; }
+  .shift-page .shift-form .repeat-segment label { justify-content:center; border-radius:14px; }
 }
 @media (max-width:639px) {
-  .shift-page .shift-form-fields { padding:18px 16px; }
-  .shift-page .shift-form .field-control { min-height:44px; }
+  .composer-section, .composer-preview { padding:18px 16px; }
   .shift-page .shift-form input, .shift-page .shift-form textarea { font-size:16px; }
   .shift-page .shift-editor-footer { padding:14px 16px; }
-  .shift-page .shift-editor-footer > * { min-height:44px; }
+  .shift-page .save-shift { flex:1; }
+  .preview-net strong { font-size:30px; }
 }
 .shift-workspace > .shift-log { width:100%; min-width:0; container-type:inline-size; }
 /* Existing schedule logic, presented in the approved paired rows. */
