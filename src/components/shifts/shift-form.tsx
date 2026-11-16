@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useState, type CSSProperties } from "react";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { History } from "lucide-react";
 import { createShift, updateShift, type ShiftActionState } from "@/app/actions/work";
@@ -9,9 +9,9 @@ import { Button, PendingLabel, buttonVariants } from "@/components/ui/button";
 import { CalendarClashNotice } from "@/components/shifts/calendar-clash-notice";
 import { LimitCheckNotice } from "@/components/shifts/limit-check-notice";
 import { ShiftScheduleFields, type ShiftDateTimeParts, type ShiftSchedule } from "@/components/shifts/date-time-picker";
-import { PremiumSelect } from "@/components/ui/premium-select";
 import { calculateEarnings, formatCents, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
 import { combineShiftDateAndTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
+import { railPosition } from "@/lib/shift-log";
 import { formatMinutes } from "@/lib/utils";
 
 type ShiftField = "startsAt" | "endsAt";
@@ -72,14 +72,6 @@ function fieldMessage(problem: FormProblem | null, state: ShiftActionState, dism
   return undefined;
 }
 
-const REPEAT_OPTIONS = [
-  { value: "1", label: "Just this shift" },
-  { value: "2", label: "Repeat weekly × 2" },
-  { value: "4", label: "Repeat weekly × 4" },
-  { value: "6", label: "Repeat weekly × 6" },
-  { value: "8", label: "Repeat weekly × 8" },
-  { value: "12", label: "Repeat weekly × 12" },
-];
 
 /**
  * Minutes between the two pickers, measured through the viewer's zone so an
@@ -196,29 +188,100 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
   const selectedJob = jobs.find((job) => job.id === jobId);
   return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="shift-form">
     {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id ?? ""} />}
-    <div className="shift-form-fields">
-      <div className="shift-job-field"><label id="job-label">Job</label><div className="shift-job-select"><PremiumSelect name="jobId" defaultValue={jobId} options={jobs.map((job) => ({ value: job.id, label: job.archived ? `${job.name} (archived)` : job.name }))} labelledBy="job-label" onValueChange={(value) => { markEdited(); setJobId(value); }} required /><span className="shift-job-dot" style={{ backgroundColor: selectedJob?.color }} aria-hidden="true" /></div></div>
-      <div className="shift-times">
-        {last && !lastApplied && <button type="button" className="shift-last-time" onClick={applyLastTimes}><History aria-hidden="true" /><span>Same as last time</span><span className="shift-last-time-value">{clockLabel(last.start)} – {clockLabel(last.end)}</span></button>}
-        <ShiftScheduleFields startsAt={startsAt} endsAt={endsAt} timeZone={timeZone} onChange={updateSchedule} startError={startError} endError={endError} />
-        {mode === "create" && <div><label id="repeat-label">Repeat</label><PremiumSelect name="repeatWeeks" defaultValue="1" options={REPEAT_OPTIONS} labelledBy="repeat-label" onValueChange={(value) => setRepeatWeeks(Number(value))} /></div>}
-        {/* What Save would meet, beside the times that decide it. */}
-        <div className="shift-form-notices">
-          <LimitCheckNotice start={localSpan?.start ?? null} end={localSpan?.end ?? null} jobId={jobId} repeatWeeks={repeatWeeks} excludeId={initialShift?.id} timeZone={timeZone} />
-          {calendarCheck && <CalendarClashNotice startsAt={span?.startsAt ?? null} endsAt={span?.endsAt ?? null} jobId={jobId} timeZone={timeZone} repeatWeeks={repeatWeeks} />}
+    <div className="composer-body">
+      <div className="composer-fields">
+        <fieldset className="composer-section">
+          <legend className="composer-label">Job</legend>
+          <div className="job-chips">
+            {jobs.map((job) => <label key={job.id} className="job-chip" style={jobColor(job.color)}>
+              <input type="radio" name="jobId" value={job.id} checked={jobId === job.id} onChange={() => { markEdited(); setJobId(job.id); }} required className="sr-only" />
+              <i aria-hidden="true" /><span>{job.name}{job.archived && <span className="job-chip-note"> · archived</span>}</span>
+            </label>)}
+          </div>
+        </fieldset>
+
+        <section className="composer-section" aria-labelledby="shift-when">
+          <div className="composer-head">
+            <h2 id="shift-when" className="composer-label">When</h2>
+            {last && !lastApplied && <button type="button" className="shift-last-time" onClick={applyLastTimes}><History aria-hidden="true" /><span>Same as last time</span><span className="shift-last-time-value">{clockLabel(last.start)} – {clockLabel(last.end)}</span></button>}
+          </div>
+          <ShiftScheduleFields startsAt={startsAt} endsAt={endsAt} timeZone={timeZone} onChange={updateSchedule} startError={startError} endError={endError} />
+        </section>
+
+        {mode === "create" && <fieldset className="composer-section">
+          <legend className="composer-label">Repeat weekly</legend>
+          <div className="repeat-segment">
+            {REPEAT_WEEKS.map((weeks) => <label key={weeks}>
+              <input type="radio" name="repeatWeeks" value={weeks} checked={repeatWeeks === weeks} onChange={() => setRepeatWeeks(weeks)} aria-label={weeks === 1 ? "Just this shift" : `Repeat for ${weeks} weeks`} className="sr-only" />
+              <span aria-hidden="true">{weeks === 1 ? "Once" : `${weeks} wks`}</span>
+            </label>)}
+          </div>
+        </fieldset>}
+
+        <div className="composer-section">
+          <label htmlFor="shift-notes" className="composer-label">Notes</label>
+          <textarea id="shift-notes" name="notes" defaultValue={initialShift?.notes ?? ""} maxLength={500} onInput={markEdited} rows={2} placeholder="Anything to remember: who you covered, a different room…" />
+          {generalMessage && <p role="alert" className="mt-4 rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{generalMessage}</p>}
         </div>
       </div>
-      <div className="shift-pay-preview" aria-live="polite"><h2>Pay preview</h2><dl>
-        <div><dt>Duration</dt><dd>{preview ? formatMinutes(preview.minutes) : "—"}</dd></div>
-        <div><dt>Gross</dt><dd>{preview ? formatCents(preview.pay.grossCents) : "—"}</dd></div>
-        <div><dt>Tax + deductions</dt><dd>{preview ? `−${formatCents(preview.pay.taxCents + preview.pay.deductionCents)}` : "—"}</dd></div>
-        <div className="receipt-net"><dt>Net</dt><dd>{preview ? formatCents(preview.pay.netCents) : "—"}</dd></div>
-      </dl>
-      {preview && repeatWeeks > 1 && <p className="mt-2 text-xs text-[var(--muted-foreground)]">Each week. {repeatWeeks} weeks would be {formatMinutes(preview.minutes * repeatWeeks)} and {formatCents(preview.pay.netCents * repeatWeeks)} net if all of them are saved.</p>}
-      </div>
-      <div><label htmlFor="shift-notes">Notes</label><textarea id="shift-notes" name="notes" defaultValue={initialShift?.notes ?? ""} maxLength={500} onInput={markEdited} rows={2} placeholder="Optional notes" /></div>
-      {generalMessage && <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{generalMessage}</p>}
+
+      <aside className="composer-preview" aria-label="Shift preview">
+        <div className="composer-preview-inner">
+          <ShiftPreview job={selectedJob} startsAt={startsAt} endsAt={endsAt} preview={preview} repeatWeeks={repeatWeeks} />
+          {/* What Save would meet, beside the shift it is about. */}
+          <div className="shift-form-notices">
+            <LimitCheckNotice start={localSpan?.start ?? null} end={localSpan?.end ?? null} jobId={jobId} repeatWeeks={repeatWeeks} excludeId={initialShift?.id} timeZone={timeZone} />
+            {calendarCheck && <CalendarClashNotice startsAt={span?.startsAt ?? null} endsAt={span?.endsAt ?? null} jobId={jobId} timeZone={timeZone} repeatWeeks={repeatWeeks} />}
+          </div>
+        </div>
+      </aside>
     </div>
     <div className="shift-editor-footer"><Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link><Button type="submit" className="shift-button save-shift" disabled={pending}><PendingLabel pending={pending} label={mode === "create" ? "Save shift" : "Save changes"} pendingLabel="Saving…" /></Button></div>
   </form>;
+}
+
+const REPEAT_WEEKS = [1, 2, 4, 6, 8, 12];
+
+function jobColor(color: string | undefined): CSSProperties {
+  return { "--job": color ?? "#98a2b3" } as CSSProperties;
+}
+
+/** A `YYYY-MM-DD` read at UTC noon, so naming its weekday cannot slip a day. */
+function dayName(date: string, pattern: string) {
+  return formatInTimeZone(new Date(`${date}T12:00:00.000Z`), "UTC", pattern);
+}
+
+/**
+ * The shift as the log will draw it: a date tile, the job, the times on a
+ * 24-hour rail, the hours, then what it pays. Net is the headline; gross and
+ * the deductions sit under it as the working.
+ */
+function ShiftPreview({ job, startsAt, endsAt, preview, repeatWeeks }: { job: ShiftFormJob | undefined; startsAt: ShiftDateTimeParts; endsAt: ShiftDateTimeParts; preview: { minutes: number; pay: ReturnType<typeof calculateEarnings> } | null; repeatWeeks: number }) {
+  const ready = Boolean(preview && startsAt.date && startsAt.time && endsAt.time);
+  const [hours, minutes] = startsAt.time ? startsAt.time.split(":").map(Number) : [0, 0];
+  const rail = preview ? railPosition(hours * 60 + minutes, preview.minutes) : null;
+  const overnight = Boolean(endsAt.date && startsAt.date && endsAt.date !== startsAt.date);
+  return <div className="shift-preview" aria-live="polite" style={jobColor(job?.color)}>
+    <div className="preview-ticket">
+      {startsAt.date
+        ? <span className="day-tile"><span>{dayName(startsAt.date, "EEE")}</span><span>{dayName(startsAt.date, "d")}</span></span>
+        : <span className="day-tile preview-tile-empty" aria-hidden="true"><span>Day</span><span>–</span></span>}
+      <span className="preview-ticket-main">
+        <span className="entry-job"><i aria-hidden="true" /><span>{job?.name ?? "Pick a job"}</span></span>
+        <span className="entry-time">{ready ? <><span>{clockLabel(startsAt.time)} – {clockLabel(endsAt.time)}</span>{overnight && <span>ends {dayName(endsAt.date, "EEE")}</span>}</> : <span>Pick a date and times</span>}</span>
+        <span className="preview-ticket-rail">
+          <span className="entry-rail" aria-hidden="true">{rail && <span style={{ left: `${rail.left}%`, width: `${rail.width}%` }} data-continues={rail.continues || undefined} />}</span>
+          <span className="entry-hours">{preview ? formatMinutes(preview.minutes) : "–"}</span>
+        </span>
+      </span>
+    </div>
+    <div className="preview-pay">
+      <p className="preview-net"><span>Net pay</span><strong>{preview ? formatCents(preview.pay.netCents) : "–"}</strong></p>
+      <dl>
+        <div><dt>Gross</dt><dd>{preview ? formatCents(preview.pay.grossCents) : "–"}</dd></div>
+        <div><dt>Tax and deductions</dt><dd>{preview ? `−${formatCents(preview.pay.taxCents + preview.pay.deductionCents)}` : "–"}</dd></div>
+      </dl>
+      {preview && repeatWeeks > 1 && <p className="preview-repeat">Over {repeatWeeks} weeks: {formatMinutes(preview.minutes * repeatWeeks)} and <b>{formatCents(preview.pay.netCents * repeatWeeks)}</b> net, if every week is saved.</p>}
+    </div>
+  </div>;
 }
