@@ -37,7 +37,9 @@ export function ShiftLogHeader({ weeks, filters, jobs, openableWeeks }: { weeks:
       actions={jobs.length ? <Link href="/shifts/new" className={cn(buttonVariants(), "sm:hidden")}><Plus className="size-4" aria-hidden="true" />Add shift</Link> : undefined}
     />
     {jobs.length > 0 && <nav aria-label="Filter shifts" className="mb-5 flex flex-wrap items-center gap-2">
-      {SHOWS.map((show) => <Chip key={show.value} href={shiftLogHref(weeks, { ...filters, show: show.value })} active={filters.show === show.value}>{show.label}</Chip>)}
+      <span className="shift-segment">
+        {SHOWS.map((show) => <Link key={show.value} href={shiftLogHref(weeks, { ...filters, show: show.value })} aria-current={filters.show === show.value ? "true" : undefined} scroll={false}>{show.label}</Link>)}
+      </span>
       {jobs.length > 1 && <>
         <span aria-hidden="true" className="mx-1 h-5 w-px bg-[var(--border)]" />
         <Chip href={shiftLogHref(weeks, { ...filters, job: "" })} active={!filters.job}>All jobs</Chip>

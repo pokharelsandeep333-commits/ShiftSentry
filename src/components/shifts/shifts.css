@@ -1,66 +1,102 @@
 /* Shifts workspace. All rules are scoped to the log or editor. The --shift-*
    names map onto the app's design tokens (globals.css), so the log follows the
-   same palette and both themes as every other page instead of its own. */
-.shift-log { --shift-tint: color-mix(in srgb, var(--primary) 8%, var(--card)); --shift-edge: color-mix(in srgb, var(--primary) 12%, var(--border)); --shift-copy: var(--muted-foreground); --shift-green: color-mix(in srgb, var(--success) 72%, var(--foreground)); --shift-white: var(--card); color: var(--foreground); max-width: 1320px; margin-inline: auto; }
-.shift-log h2, .week-title strong, .week-duration { font-family: var(--font-display); letter-spacing: -.035em; }
-.shift-weeks { display:grid; gap:16px; }
-.shift-week { border:1px solid var(--shift-edge); background:color-mix(in srgb,var(--shift-white) 86%,transparent); border-radius:20px; box-shadow:0 8px 30px -24px #7061ad50; }
-.shift-week > summary { cursor:pointer; display:flex; align-items:center; gap:18px; padding:19px 22px; list-style:none; border-radius:20px; transition:background-color .16s; }
+   same palette and both themes as every other page instead of its own.
+
+   The log is a ledger: one white card per week (no tint: only the dashboard's
+   cap card carries the lavender wash), a seven-day hour strip in each week's
+   header so even a closed week shows its shape, and the shifts filed under
+   date tiles, each with a 24-hour rail placing it in its day. */
+.shift-log { --shift-tint: color-mix(in srgb, var(--primary) 8%, var(--card)); --shift-edge: color-mix(in srgb, var(--primary) 12%, var(--border)); --shift-copy: var(--muted-foreground); --shift-green: color-mix(in srgb, var(--success) 72%, var(--foreground)); --shift-white: var(--card); --hair: color-mix(in srgb, var(--border) 70%, transparent); color: var(--foreground); max-width: 1320px; margin-inline: auto; }
+.dark .shift-log { --shift-green: var(--success); }
+.shift-log ::selection { background: color-mix(in srgb, var(--primary) 22%, transparent); }
+
+/* Filters: the show switch is one segmented control; job chips sit after it. */
+.shift-segment { display:inline-flex; gap:2px; padding:3px; border:1px solid var(--border); border-radius:999px; background:var(--card); }
+.shift-segment a { display:inline-flex; align-items:center; min-height:30px; padding:0 14px; border-radius:999px; font-size:13px; font-weight:600; color:var(--shift-copy); outline:none; transition:background-color .16s var(--ease-out), color .16s var(--ease-out); }
+.shift-segment a:hover { color:var(--foreground); background:var(--surface-subtle); }
+.shift-segment a[aria-current] { color:var(--primary); background:var(--primary-soft); }
+.shift-segment a:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+
+.shift-weeks { display:grid; gap:12px; }
+
+/* One week. */
+.shift-week { border:1px solid var(--border); border-radius:16px; background:var(--card); overflow:clip; }
+.shift-week > summary { display:flex; align-items:center; gap:20px; min-height:76px; padding:14px 20px 14px 22px; list-style:none; cursor:pointer; transition:background-color .16s var(--ease-out); }
 .shift-week > summary::-webkit-details-marker { display:none; }
-.shift-week > summary:hover { background:var(--primary-soft); }
-.week-title { display:flex; flex:1; align-items:baseline; gap:14px; min-width:0; }
-.week-title strong { font-size:16px; font-weight:600; }
-.week-title > span { font-size:14px; color:var(--shift-copy); }
-.week-title .week-number { font-size:12px; }
-.week-totals { display:flex; gap:22px; align-items:center; flex-shrink:0; font-variant-numeric:tabular-nums; }
-.week-duration { font-size:16px; font-weight:600; text-align:right; }
-.week-totals small { display:none; }
-.week-net { font-size:13px; color:var(--shift-green); font-weight:600; }
-.week-chevron { color:var(--shift-copy); flex-shrink:0; transition:transform .18s; }
+.shift-week > summary:hover { background:color-mix(in srgb, var(--surface-subtle) 60%, var(--card)); }
+.shift-week[open] > summary { border-bottom:1px solid var(--hair); }
+.week-title { display:grid; flex:1; gap:2px; min-width:0; }
+.week-title strong { font-family:var(--font-display); font-size:17px; font-weight:600; letter-spacing:-.03em; line-height:1.25; }
+.week-title > span { font-size:13px; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
+.current-week .week-title strong { font-size:20px; }
+.week-note-flag { display:grid; place-items:center; color:var(--primary); flex-shrink:0; }
+.shift-week[open] .week-note-flag { display:none; }
+.week-totals { display:flex; align-items:baseline; gap:4px; flex-shrink:0; font-variant-numeric:tabular-nums; }
+.week-hours { min-width:84px; text-align:right; font-family:var(--font-display); font-size:19px; font-weight:600; letter-spacing:-.03em; }
+.week-net { min-width:104px; text-align:right; font-family:var(--font-display); font-size:15px; font-weight:600; letter-spacing:-.02em; color:var(--shift-green); }
+.week-net small { margin-left:4px; font:500 11px/1 var(--font-sans); letter-spacing:0; color:var(--shift-copy); }
+.week-chevron { color:var(--shift-copy); flex-shrink:0; transition:transform .22s var(--ease-out); }
 .shift-week[open] > summary .week-chevron { transform:rotate(180deg); }
-.current-week { background:linear-gradient(118deg,var(--shift-tint),color-mix(in srgb,var(--shift-tint) 55%,var(--shift-white))); }
-.current-week > summary { padding:22px 24px 12px; }
-.current-week .week-title { display:grid; gap:4px; }
-.current-week .week-title strong { font-size:25px; }
-.current-week .week-title > span { font-size:15px; }
-.current-week .week-duration { font-size:32px; line-height:1; }
-.current-week .week-totals small { display:block; font:400 12px/1.7 var(--font-sans); color:var(--shift-copy); }
-.current-week .week-net { text-align:right; font-size:16px; }
-.week-note-wrap { padding:0 24px 20px; }
-.shift-note { width:100%; display:flex; align-items:flex-start; gap:12px; text-align:left; border:1px solid color-mix(in srgb,var(--shift-edge) 65%,var(--shift-white)); border-radius:16px; background:color-mix(in srgb,var(--shift-white) 67%,transparent); padding:15px 17px; }
-.shift-note > svg:first-child { color:var(--primary); margin-top:2px; flex-shrink:0; }
-.shift-note > span { flex:1; min-width:0; }
-.shift-note strong { font-size:13px; font-weight:550; display:block; margin-bottom:3px; }
-.shift-note span span { display:block; font-size:13px; line-height:1.5; color:var(--shift-copy); overflow-wrap:anywhere; }
-.note-pencil { color:var(--shift-copy); align-self:center; }
-.note-editor { display:grid; gap:9px; }
-.note-buttons { display:flex; justify-content:flex-end; gap:10px; }
-.shift-table { background:var(--shift-white); padding:0 20px 8px; border-radius:0 0 20px 20px; }
-.shift-table-head, .shift-row { display:grid; grid-template-columns:minmax(70px,.7fr) minmax(115px,1.25fr) minmax(175px,1.7fr) 70px 88px 36px; align-items:center; column-gap:14px; }
-.shift-table-head { min-height:46px; color:var(--shift-copy); font-size:12px; border-bottom:1px solid var(--shift-edge); padding:0 4px; }
-.shift-row { min-height:66px; padding:10px 4px; border-bottom:1px solid color-mix(in srgb,var(--shift-edge) 62%,var(--shift-white)); font-size:13px; }
-.shift-row:last-child { border:0; }
-.shift-row:hover { background:color-mix(in srgb,var(--shift-tint) 35%,var(--shift-white)); }
-.row-date { font-weight:550; }
-.row-job { display:flex; gap:9px; align-items:center; min-width:0; }
-.row-job i { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.row-job span { overflow-wrap:anywhere; font-weight:500; }
-/* The whole row opens the shift: the job link's hit area covers the row, and
-   the actions menu sits above it so it stays its own button. */
-.shift-row { position:relative; }
-.shift-row-link { color:inherit; outline:none; }
+
+/* The week's shape: seven columns on one fixed scale (DAY_SCALE_MINUTES),
+   worked time solid in the job's colour, upcoming time outlined. */
+.week-strip { display:grid; grid-template-columns:repeat(7, 14px); gap:5px; flex-shrink:0; }
+.strip-day { display:grid; justify-items:center; gap:5px; }
+.strip-track { display:flex; flex-direction:column-reverse; width:10px; height:30px; overflow:hidden; border-radius:4px; background:color-mix(in srgb, var(--foreground) 6%, transparent); }
+.strip-seg { flex-shrink:0; min-height:3px; background:var(--job); }
+.strip-seg.upcoming { background:color-mix(in srgb, var(--job) 24%, transparent); box-shadow:inset 0 0 0 1.5px var(--job); border-radius:3px; }
+.strip-letter { font-size:10px; font-weight:600; line-height:1; color:var(--shift-copy); }
+.strip-day[data-today] .strip-letter { color:var(--primary); }
+.strip-day[data-today] .strip-track { box-shadow:0 0 0 1.5px color-mix(in srgb, var(--primary) 45%, transparent); }
+
+/* The week note: a line of the week, not a card inside it. */
+.week-note-line { display:flex; width:100%; align-items:flex-start; gap:12px; padding:13px 22px; border-bottom:1px solid var(--hair); text-align:left; font-size:13px; line-height:1.55; color:var(--foreground); cursor:pointer; transition:background-color .16s var(--ease-out); }
+.week-note-line:hover { background:color-mix(in srgb, var(--surface-subtle) 60%, var(--card)); }
+.week-note-line > svg { flex-shrink:0; margin-top:2px; color:var(--primary); }
+.week-note-line > span { flex:1; min-width:0; overflow-wrap:anywhere; white-space:pre-line; }
+.week-note-line[data-empty] > span { color:var(--shift-copy); }
+.week-note-line .note-pencil { margin-top:2px; color:var(--shift-copy); opacity:0; transition:opacity .16s var(--ease-out); }
+.week-note-line:hover .note-pencil, .week-note-line:focus-visible .note-pencil { opacity:1; }
+.week-note-editor { display:grid; gap:10px; padding:14px 22px; border-bottom:1px solid var(--hair); background:color-mix(in srgb, var(--surface-subtle) 55%, var(--card)); }
+
+/* Days: a date tile, then that day's shifts. */
+.shift-days { list-style:none; margin:0; padding:4px 0; }
+.shift-day { display:grid; grid-template-columns:48px minmax(0,1fr); gap:14px; padding:10px 14px 10px 22px; }
+.shift-day + .shift-day { border-top:1px solid var(--hair); }
+.day-tile { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; width:48px; height:52px; margin-top:6px; border-radius:12px; background:var(--surface-subtle); line-height:1; }
+.day-tile > span:first-child { font-size:11px; font-weight:600; color:var(--shift-copy); }
+.day-tile > span:last-child { font-family:var(--font-display); font-size:19px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.day-tile[data-today] { background:var(--primary-soft); }
+.day-tile[data-today] > span { color:var(--primary); }
+.day-shifts { list-style:none; margin:0; padding:0; display:grid; gap:2px; }
+
+/* One shift. The job link's hit area is stretched over the row; the actions
+   menu sits above it and stays its own button. */
+.shift-entry { position:relative; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) 76px 96px 36px; grid-template-areas:"main rail hours net actions"; align-items:center; column-gap:18px; min-height:64px; padding:9px 4px 9px 12px; border-radius:12px; font-size:13px; transition:background-color .16s var(--ease-out); }
+.shift-entry:hover { background:color-mix(in srgb, var(--surface-subtle) 70%, var(--card)); }
+.entry-main { grid-area:main; display:grid; gap:3px; min-width:0; }
+.entry-job { display:flex; align-items:center; gap:9px; min-width:0; font-size:14px; font-weight:550; }
+.entry-job > i { width:9px; height:9px; flex-shrink:0; border-radius:50%; background:var(--job); }
+.entry-time { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; padding-left:18px; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
+.entry-tag { font-size:12px; font-weight:600; color:var(--primary); }
+.entry-note { display:flex; gap:6px; padding-left:18px; font-size:12px; color:var(--shift-copy); }
+.entry-note > svg { flex-shrink:0; margin-top:2px; color:var(--primary); }
+.entry-rail { grid-area:rail; position:relative; height:8px; border-radius:999px; background:linear-gradient(90deg, transparent calc(25% - .5px), var(--hair) calc(25% - .5px) calc(25% + .5px), transparent calc(25% + .5px) calc(50% - .5px), color-mix(in srgb, var(--foreground) 14%, transparent) calc(50% - .5px) calc(50% + .5px), transparent calc(50% + .5px) calc(75% - .5px), var(--hair) calc(75% - .5px) calc(75% + .5px), transparent calc(75% + .5px)), color-mix(in srgb, var(--foreground) 5%, transparent); }
+.entry-rail > span { position:absolute; top:0; bottom:0; min-width:4px; border-radius:999px; background:var(--job); }
+.entry-rail > span[data-continues] { border-radius:999px 2px 2px 999px; }
+.shift-entry[data-upcoming] .entry-rail > span { background:color-mix(in srgb, var(--job) 24%, transparent); box-shadow:inset 0 0 0 1.5px var(--job); }
+.entry-hours { grid-area:hours; text-align:right; color:var(--shift-copy); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.entry-net { grid-area:net; text-align:right; font-family:var(--font-display); font-size:15px; font-weight:600; letter-spacing:-.02em; color:var(--shift-green); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.shift-entry[data-upcoming] .entry-net { color:var(--shift-copy); }
+.entry-actions { grid-area:actions; position:relative; z-index:1; }
+.shift-row-link { color:inherit; outline:none; overflow-wrap:anywhere; }
 .shift-row-link::after { content:""; position:absolute; inset:0; border-radius:12px; }
-.shift-row-link:focus-visible::after { box-shadow:inset 0 0 0 3px color-mix(in srgb, var(--primary) 45%, transparent); }
-.shift-row:has(.shift-row-link) { cursor:pointer; }
-.row-actions { position:relative; z-index:1; }
-.shift-google-chip { display:inline-flex; align-items:center; gap:4px; margin-top:3px; padding:1px 7px; border-radius:999px; background:var(--primary-soft); color:var(--primary); font-size:11px; font-weight:600; }
-.row-time .row-note { display:flex; align-items:flex-start; gap:5px; }
-.row-time .row-note svg { flex-shrink:0; margin-top:2px; color:var(--primary); }
-.row-time, .row-duration { color:var(--shift-copy); font-variant-numeric:tabular-nums; }
-.row-time small { display:block; margin-top:3px; overflow-wrap:anywhere; }
-.row-duration { white-space:nowrap; }
-.status-chip { display:inline-flex; align-items:center; padding:5px 10px; background:var(--surface-subtle); color:var(--shift-copy); border-radius:10px; font-size:11px; font-weight:500; }
-.status-chip.scheduled { color:var(--primary); background:var(--primary-soft); }
+.shift-row-link:focus-visible::after { box-shadow:inset 0 0 0 2px var(--primary); }
+.shift-entry:has(.shift-row-link) { cursor:pointer; }
+.shift-google-chip { display:inline-flex; flex-shrink:0; align-items:center; gap:4px; padding:1px 7px; border-radius:999px; background:var(--primary-soft); color:var(--primary); font-size:11px; font-weight:600; }
+
+.shift-empty { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:18px 22px; font-size:14px; color:var(--shift-copy); }
+
 .shift-icon-button { display:grid; place-items:center; width:36px; height:36px; border-radius:10px; color:var(--shift-copy); cursor:pointer; }
 .shift-icon-button:hover { color:var(--primary); background:var(--primary-soft); }
 .shift-menu { z-index:80; min-width:194px; padding:6px; background:var(--card); border:1px solid var(--border); border-radius:14px; color:var(--foreground); box-shadow:0 12px 30px -12px #3c2e7460; }
@@ -72,12 +108,49 @@
 .shift-button:hover { filter:brightness(1.04); }
 .shift-button:active { transform:translateY(1px); }
 .shift-button:disabled { opacity:.65; cursor:wait; }
-.shift-text-button, .shift-back { display:inline-flex; align-items:center; justify-content:center; gap:8px; color:var(--primary); font-size:13px; font-weight:500; min-height:44px; padding:8px 12px; border-radius:10px; cursor:pointer; }
+.shift-text-button, .shift-back { display:inline-flex; align-items:center; justify-content:center; gap:8px; color:var(--primary); font-size:13px; font-weight:500; min-height:44px; padding:8px 14px; border-radius:999px; cursor:pointer; }
 .shift-text-button:hover, .shift-back:hover { background:var(--primary-soft); }
-.older-wrap { text-align:center; margin-top:12px; }
+.shift-text-button > span { color:var(--shift-copy); font-weight:400; }
+.older-wrap { text-align:center; margin-top:14px; }
 .shift-caption { text-align:center; color:var(--shift-copy); font-size:11px; line-height:1.6; padding:16px 0 0; }
 .shift-notice { display:flex; align-items:center; gap:9px; background:color-mix(in srgb,var(--success) 8%,var(--card)); color:var(--shift-green); border-radius:12px; padding:12px 16px; margin:0 0 16px; font-size:13px; }
-.shift-empty { padding:30px 14px; text-align:center; color:var(--shift-copy); font-size:14px; }
+.shift-log :is(button,a,summary,textarea):focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
+.shift-log summary:focus-visible { outline-offset:-2px; border-radius:16px; }
+
+/* The log measures itself (.shift-workspace > .shift-log is a size
+   container), so these follow the space beside the sidebar, not the window. */
+@container (max-width:860px) {
+  .shift-entry { grid-template-columns:minmax(0,1fr) 72px 88px 36px; grid-template-areas:"main hours net actions"; column-gap:12px; }
+  .entry-rail { display:none; }
+}
+@container (max-width:620px) {
+  .shift-week > summary { flex-wrap:wrap; gap:10px 14px; padding:14px 14px 14px 16px; }
+  .week-title { flex-basis:calc(100% - 210px); }
+  .week-totals { flex-direction:column; align-items:flex-end; gap:2px; }
+  .week-hours, .week-net { min-width:0; }
+  .week-hours { font-size:17px; }
+  .week-net { font-size:13px; }
+  .week-strip { order:5; flex-basis:100%; grid-template-columns:repeat(7, minmax(0,1fr)); gap:4px; }
+  .strip-day { grid-template-columns:auto; }
+  .strip-track { width:100%; max-width:24px; height:28px; }
+  .week-note-line, .week-note-editor { padding-inline:16px; }
+  .shift-day { grid-template-columns:40px minmax(0,1fr); gap:10px; padding:8px 6px 8px 14px; }
+  .day-tile { width:40px; height:46px; }
+  .day-tile > span:last-child { font-size:17px; }
+  .shift-entry { grid-template-columns:minmax(0,1fr) auto 44px; grid-template-areas:"main net actions" "main hours actions"; column-gap:8px; row-gap:2px; padding:10px 0 10px 8px; }
+  .entry-hours { align-self:start; font-size:12px; }
+  .entry-net { align-self:end; font-size:14px; }
+  .entry-job { font-size:14px; }
+  .entry-time { font-size:12px; }
+  .shift-empty { padding:16px; }
+}
+@container (max-width:380px) {
+  .week-title { flex-basis:calc(100% - 140px); }
+  .week-title strong { font-size:15px; }
+  .current-week .week-title strong { font-size:18px; }
+}
+
+/* ── Shift editor ─────────────────────────────────────────── */
 .shift-editor { max-width:380px; }
 .shift-back { margin:-8px 0 14px -10px; color:var(--shift-copy); }
 .editor-heading { display:flex; justify-content:space-between; gap:16px; align-items:center; margin-bottom:22px; }
@@ -118,42 +191,8 @@
 .receipt-net dt { color:inherit; }
 .save-shift { width:100%; margin-top:0; min-height:42px; }
 .shift-error { color:var(--danger); font-size:13px; }
-.shift-log :is(button,a,summary,textarea):focus-visible, .shift-menu [role=menuitem]:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
-@media (min-width:1280px) { .shift-table-head,.shift-row { grid-template-columns:minmax(78px,.65fr) minmax(135px,1.2fr) minmax(185px,1.5fr) 78px 96px 36px; column-gap:20px; } }
-@media (min-width:1024px) and (max-width:1199px) { .shift-table-head,.shift-row { column-gap:8px; grid-template-columns:64px minmax(90px,1fr) minmax(144px,1.4fr) 55px 80px 32px; font-size:12px; } .shift-table{padding-inline:14px;} }
+.shift-menu [role=menuitem]:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
 @media (max-width:767px) {
-  .shift-log h1 { font-size:29px; }
-  .shift-week>summary { padding:16px; gap:10px; }
-  .week-title { gap:5px; flex-direction:column; }
-  .week-title strong { font-size:14px; }
-  .week-title .week-number { font-size:11px; }
-  .week-totals { gap:10px; }
-  .week-net { font-size:12px; }
-  .current-week>summary { padding:18px 16px 12px; }
-  .current-week .week-title strong { font-size:23px; }
-  .current-week .week-title>span { font-size:13px; }
-  .current-week .week-duration { font-size:28px; }
-  .current-week .week-net { font-size:14px; }
-  .current-week .week-totals { gap:12px; }
-  .current-week .week-totals small { font-size:10px; }
-  .week-note-wrap { padding:0 14px 16px; }
-  .shift-note { padding:12px; gap:10px; }
-  .shift-note span span { font-size:12px; }
-  .shift-note strong { font-size:12px; }
-  .shift-table { padding:0 14px 3px; }
-  .shift-table-head { display:none; }
-  .shift-row { grid-template-columns:minmax(0,1fr) auto 40px; grid-template-areas:'job status actions' 'time duration actions' 'date duration actions'; row-gap:4px; column-gap:8px; padding:15px 0; }
-  .row-date { grid-area:date; font-size:11px; font-weight:400; color:var(--shift-copy); }
-  .row-job { grid-area:job; font-size:14px; }
-  .row-time { grid-area:time; font-size:12px; padding-left:19px; }
-  .row-date { padding-left:19px; }
-  .row-duration { grid-area:duration; text-align:right; font-size:12px; }
-  .row-status { grid-area:status; text-align:right; }
-  .row-actions { grid-area:actions; align-self:center; }
-  .shift-icon-button { width:44px; height:44px; }
-  .shift-menu [role=menuitem] { min-height:44px; }
-  .status-chip { font-size:10px; padding:5px 8px; }
-  .shift-caption { font-size:10px; }
   .shift-editor-frame { padding:8px; }
   .shift-editor-card { padding:19px 17px; border-radius:18px; }
   .shift-form { gap:16px; }
@@ -172,8 +211,10 @@
   .shift-time input { font-size:16px; letter-spacing:-.035em; }
   .shift-time button { width:26px; }
   .shift-time button:before { inset:-6px -1px; }
+  .shift-icon-button { width:44px; height:44px; }
+  .shift-menu [role=menuitem] { min-height:44px; }
 }
-@media (max-width:374px) { .current-week .week-net { display:none; } .week-net { display:none; } .shift-form fieldset > .flex > .grid { min-width:7.4rem; } }
+@media (max-width:374px) { .shift-form fieldset > .flex > .grid { min-width:7.4rem; } }
 @media (max-width:349px) { .shift-schedule { grid-template-columns:minmax(0,1fr); } }
 
 /* Adding or editing a shift: an ordinary page with the form in one card. */
@@ -208,28 +249,6 @@
   .shift-page .shift-editor-footer > * { min-height:44px; }
 }
 .shift-workspace > .shift-log { width:100%; min-width:0; container-type:inline-size; }
-@container (max-width:700px) {
-  .shift-table-head,.shift-row { grid-template-columns:46px 95px minmax(70px,1fr) 44px 74px 28px; column-gap:6px; }
-  .shift-table-head { font-size:10px; }
-  .shift-row { font-size:12px; }
-  .status-chip { font-size:10px; padding:5px 7px; }
-  .shift-table { padding-inline:12px; }
-  .current-week > summary { padding-inline:18px; }
-  .week-note-wrap { padding-inline:16px; }
-  .week-totals { gap:12px; }
-}
-@container (max-width:450px) {
-  .shift-table-head { display:none; }
-  .shift-row { grid-template-columns:minmax(0,1fr) auto 40px; grid-template-areas:'job status actions' 'time duration actions' 'date duration actions'; row-gap:4px; padding-block:14px; }
-  .row-date { grid-area:date; font-size:11px; color:var(--shift-copy); padding-left:19px; }
-  .row-job { grid-area:job; font-size:13px; }
-  .row-time { grid-area:time; font-size:12px; padding-left:19px; }
-  .row-duration { grid-area:duration; text-align:right; }
-  .row-status { grid-area:status; text-align:right; }
-  .row-actions { grid-area:actions; }
-}
-
-
 /* Existing schedule logic, presented in the approved paired rows. */
 .shift-schedule-fields { display:grid; gap:16px; min-width:0; }
 .shift-schedule-row { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:12px; }
