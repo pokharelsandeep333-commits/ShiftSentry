@@ -59,6 +59,6 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
   }
 
   return <ShiftEditorPage title="Edit shift">
-    <ShiftForm calendarCheck={calendarCheck} mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} />
+    <ShiftForm calendarCheck={calendarCheck} weekStartsOn={profile.week_starts_on} mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} />
   </ShiftEditorPage>;
 }

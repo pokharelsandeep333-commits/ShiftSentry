@@ -17,7 +17,7 @@ import { WeekNote } from "@/components/shifts/week-note";
 import { formatCents } from "@/lib/earnings";
 import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
 import { weekStartFor } from "@/lib/time";
-import { WEEKS_PER_PAGE, clampWeeks, dayFill, isFiltered, railPosition, readShiftFilters, shiftLogHref, weekShape, type DayShape, type ShiftFilters } from "@/lib/shift-log";
+import { WEEKS_PER_PAGE, clampWeeks, isFiltered, readShiftFilters, shiftLogHref, type ShiftFilters } from "@/lib/shift-log";
 import { formatMinutes } from "@/lib/utils";
 import { GoogleSyncTrigger } from "@/components/google-sync-trigger";
 import { LoadError } from "@/components/load-error";
@@ -251,21 +251,6 @@ function groupByDay(shifts: ShiftRow[], timeZone: string) {
   return [...days.entries()];
 }
 
-/**
- * The week's shape in its header: seven columns on one fixed scale, so a
- * closed week still shows which days were worked and how long. Read aloud as
- * the hours of each day that has any.
- */
-function WeekStrip({ days, today }: { days: DayShape[]; today: string }) {
-  const spoken = days.filter((day) => day.minutes > 0).map((day) => `${dayName(day.date, "EEEE")} ${formatMinutes(day.minutes)}`).join(", ");
-  return <span className="week-strip" role="img" aria-label={spoken ? `Hours by day: ${spoken}` : "No hours this week"}>
-    {days.map((day) => <span key={day.date} className="strip-day" data-today={day.date === today || undefined}>
-      <span className="strip-track">{day.segments.map((segment) => <span key={`${segment.color}-${segment.upcoming}`} className={segment.upcoming ? "strip-seg upcoming" : "strip-seg"} style={{ ...jobColor(segment.color), height: `${dayFill(segment.minutes)}%` }} />)}</span>
-      <span className="strip-letter" aria-hidden="true">{dayName(day.date, "EEEEE")}</span>
-    </span>)}
-  </span>;
-}
-
 export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, canAdd, now }: { group: WeekGroup; current: boolean; timeZone: string; weeks: number; filters: ShiftFilters; notes: WeekNoteRow[] | null; canAdd: boolean; now: Date }) {
   const range = weekRange(group.start, addDays(group.start, 6), timeZone);
   const weekStart = localDate(group.start, timeZone);
@@ -274,7 +259,6 @@ export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, can
   const counted = `${count} shift${count === 1 ? "" : "s"}`;
   const sorted = [...group.shifts].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const upcoming = (shift: ShiftRow) => new Date(shift.starts_at) > now;
-  const shape = weekShape(group.start, sorted.map((shift) => ({ startsAt: shift.starts_at, endsAt: shift.ends_at, color: jobOf(shift)?.color ?? NO_JOB_COLOR, upcoming: upcoming(shift) })), timeZone, localDate);
   const today = localDate(now, timeZone);
   const estimate = sorted.some(upcoming);
 
@@ -282,7 +266,6 @@ export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, can
     summary={<>
       <span className="week-title"><strong>{current ? "This week" : range}</strong><span>{current ? `${range} · ${counted}` : counted}</span></span>
       {note && <span className="week-note-flag" title="Has a note"><NotebookPen aria-hidden="true" size={15} /><span className="sr-only">Has a note</span></span>}
-      <WeekStrip days={shape} today={today} />
       <span className="week-totals">
         <span className="week-hours">{formatMinutes(group.minutes)}</span>
         <span className="week-net">{formatCents(group.netCents)}{estimate ? <small>est.</small> : null}<span className="sr-only"> net{estimate ? ", estimated" : ""}</span></span>
@@ -304,8 +287,7 @@ export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, can
 }
 
 /**
- * One shift: job and times, its place on a 24-hour rail of its day, hours and
- * net. The whole row opens it: the job name is a link whose hit area is
+ * One shift: job and times, hours and net. The whole row opens it: the job name is a link whose hit area is
  * stretched over the row (`.shift-row-link::after` in shifts.css), which keeps
  * the actions menu a separate, real button rather than a button inside a link.
  */
@@ -315,7 +297,6 @@ function ShiftListRow({ shift, timeZone, weeks, filters, upcoming }: { shift: Sh
   const date = formatInTimeZone(shift.starts_at, timeZone, "EEE, MMM d");
   const time = `${formatInTimeZone(shift.starts_at, timeZone, "h:mm a")} – ${formatInTimeZone(shift.ends_at, timeZone, "h:mm a")}`;
   const minutes = shiftMinutes(shift);
-  const rail = railPosition(Number(formatInTimeZone(shift.starts_at, timeZone, "H")) * 60 + Number(formatInTimeZone(shift.starts_at, timeZone, "m")), minutes);
   return <li className="shift-entry" data-upcoming={upcoming || undefined} style={jobColor(job?.color ?? NO_JOB_COLOR)}>
     <span className="entry-main">
       <span className="entry-job">
@@ -330,7 +311,6 @@ function ShiftListRow({ shift, timeZone, weeks, filters, upcoming }: { shift: Sh
       </span>
       {shift.notes && <span className="entry-note"><NotebookPen aria-hidden="true" size={12} /><span className="line-clamp-1">{shift.notes}</span></span>}
     </span>
-    <span className="entry-rail" aria-hidden="true"><span style={{ left: `${rail.left}%`, width: `${rail.width}%` }} data-continues={rail.continues || undefined} /></span>
     <span className="entry-hours">{formatMinutes(minutes)}</span>
     <span className="entry-net">{shift.net_cents === null ? "–" : formatCents(shift.net_cents)}<span className="sr-only"> net{upcoming ? ", estimated" : ""}</span></span>
     <span className="entry-actions"><ShiftRowActions shiftId={shift.id} editHref={`/shifts/${shift.id}/edit`} duplicateHref={job && !job.archived_at ? duplicateHref(shift, timeZone) : undefined} weeks={weeks} filters={filters} repeating={Boolean(shift.google_event_id && seriesIdOf({ id: shift.google_event_id }))} /></span>

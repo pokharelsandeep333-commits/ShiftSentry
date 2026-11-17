@@ -6,7 +6,7 @@ import { CircleCheck, OctagonAlert, TriangleAlert } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { formatMinutes } from "@/lib/utils";
 
-type WeekResult = { weekStart: string; globalAfter: number; jobAfter: number };
+export type WeekResult = { weekStart: string; globalAfter: number; jobAfter: number };
 type OccurrenceResult = {
   startsAt: string;
   endsAt: string;
@@ -16,12 +16,12 @@ type OccurrenceResult = {
   overlap: { jobName: string; startsAt: string; endsAt: string } | null;
   weeks: WeekResult[];
 };
-type Check = { jobName: string; globalLimit: number | null; jobLimit: number | null; occurrences: OccurrenceResult[] };
+export type LimitCheck = { jobName: string; globalLimit: number | null; jobLimit: number | null; occurrences: OccurrenceResult[] };
 // As in the clash notice: each result carries the request it answers, so a
 // result for the previous times is never drawn against new ones.
-type CheckState = { key: string } & ({ status: "idle" } | ({ status: "ok" } & Check));
+type CheckState = { key: string } & ({ status: "idle" } | ({ status: "ok" } & LimitCheck));
 
-function reason(occurrence: OccurrenceResult, check: Check, timeZone: string) {
+function reason(occurrence: OccurrenceResult, check: LimitCheck, timeZone: string) {
   if (occurrence.overlap) {
     const { overlap } = occurrence;
     return `overlaps your ${overlap.jobName} shift, ${formatInTimeZone(overlap.startsAt, timeZone, "EEE h:mm a")}–${formatInTimeZone(overlap.endsAt, timeZone, "h:mm a")}`;
@@ -32,17 +32,14 @@ function reason(occurrence: OccurrenceResult, check: Check, timeZone: string) {
   return "is not a valid span";
 }
 
-function Tally({ label, after, limit }: { label: string; after: number; limit: number | null }) {
-  return <span className="whitespace-nowrap"><span className="text-[var(--muted-foreground)]">{label}</span> <b className="font-semibold text-[var(--foreground)]">{formatMinutes(after)}</b>{limit !== null && <span className="text-[var(--muted-foreground)]"> of {formatMinutes(limit)}</span>}</span>;
-}
 
 /**
- * What Save would meet: the week's totals once this shift is in, or which
- * limit or shift would refuse it. Asks `/shifts/limit-check` after the pickers
- * settle, the way the calendar clash check does. The database decides on
- * Save; this only says so earlier.
+ * Asks `/shifts/limit-check` what Save would meet, after the pickers settle,
+ * the way the calendar clash check does. Returns the answer only while it is
+ * for the current times; null while waiting or when the check cannot run
+ * (advisory: say nothing rather than guess). The database decides on Save.
  */
-export function LimitCheckNotice({ start, end, jobId, repeatWeeks, excludeId, timeZone }: { start: string | null; end: string | null; jobId: string; repeatWeeks: number; excludeId?: string; timeZone: string }) {
+export function useLimitCheck({ start, end, jobId, repeatWeeks, excludeId }: { start: string | null; end: string | null; jobId: string; repeatWeeks: number; excludeId?: string }): LimitCheck | null {
   const [state, setState] = useState<CheckState>({ key: "", status: "idle" });
   const key = `${start}|${end}|${jobId}|${repeatWeeks}`;
 
@@ -54,11 +51,10 @@ export function LimitCheckNotice({ start, end, jobId, repeatWeeks, excludeId, ti
       if (excludeId) query.set("exclude", excludeId);
       try {
         const response = await fetch(`/shifts/limit-check?${query}`, { signal: controller.signal, cache: "no-store" });
-        const body = (await response.json()) as { status: string } & Partial<Check>;
+        const body = (await response.json()) as { status: string } & Partial<LimitCheck>;
         if (body.status === "ok" && body.occurrences) setState({ key, status: "ok", jobName: body.jobName ?? "", globalLimit: body.globalLimit ?? null, jobLimit: body.jobLimit ?? null, occurrences: body.occurrences });
         else setState({ key, status: "idle" });
       } catch (error) {
-        // Advisory: when the check cannot run, say nothing rather than guess.
         if (!(error instanceof DOMException && error.name === "AbortError")) setState({ key, status: "idle" });
       }
     }, 400);
@@ -66,6 +62,22 @@ export function LimitCheckNotice({ start, end, jobId, repeatWeeks, excludeId, ti
   }, [start, end, jobId, repeatWeeks, excludeId, key]);
 
   if (!start || !end || state.key !== key || state.status !== "ok") return null;
+  return state;
+}
+
+/** Whether a fitting shift brings a week to 80% of a limit or past it. */
+export function isNearLimit(check: LimitCheck, week: WeekResult) {
+  return (check.globalLimit !== null && week.globalAfter >= check.globalLimit * 0.8) || (check.jobLimit !== null && week.jobAfter >= check.jobLimit * 0.8);
+}
+
+/**
+ * What Save would meet, in words: which limit or shift would refuse it, or
+ * which weeks of a repeat would be skipped. A single shift that fits says
+ * nothing here: the form's footer already shows the week with it.
+ */
+export function LimitCheckNotice({ check, jobId, timeZone }: { check: LimitCheck | null; jobId: string; timeZone: string }) {
+  if (!check) return null;
+  const state = check;
   const [first, ...rest] = state.occurrences;
   if (!first) return null;
 
@@ -91,16 +103,5 @@ export function LimitCheckNotice({ start, end, jobId, repeatWeeks, excludeId, ti
     </div>
   </div>;
 
-  // It fits: the totals for the week (or each week, for one across the boundary).
-  const close = first.weeks.some((week) => (state.globalLimit !== null && week.globalAfter >= state.globalLimit * 0.8) || (state.jobLimit !== null && week.jobAfter >= state.jobLimit * 0.8));
-  return <div role="status" className={`shift-check ${close ? "shift-check-warn" : "shift-check-ok"}`}>
-    {close ? <TriangleAlert aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
-    <div className="min-w-0">
-      {first.weeks.map((week) => <p key={week.weekStart} className="flex flex-wrap gap-x-3 gap-y-0.5">
-        <span className="font-semibold">{first.weeks.length > 1 ? `Week of ${formatInTimeZone(week.weekStart, timeZone, "MMM d")}` : "This week with it"}</span>
-        <Tally label="All jobs" after={week.globalAfter} limit={state.globalLimit} />
-        <Tally label={state.jobName} after={week.jobAfter} limit={state.jobLimit} />
-      </p>)}
-    </div>
-  </div>;
+  return null;
 }

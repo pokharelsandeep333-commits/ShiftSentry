@@ -3,9 +3,9 @@
    same palette and both themes as every other page instead of its own.
 
    The log is a ledger: one white card per week (no tint: only the dashboard's
-   cap card carries the lavender wash), a seven-day hour strip in each week's
-   header so even a closed week shows its shape, and the shifts filed under
-   date tiles, each with a 24-hour rail placing it in its day. */
+   cap card carries the lavender wash), its title on the left and hours and
+   net on the right, and the shifts filed under date tiles. No bars: the
+   header's week meter is the one chart of the week (owner's call, 2026-11-17). */
 .shift-log { --shift-tint: color-mix(in srgb, var(--primary) 8%, var(--card)); --shift-edge: color-mix(in srgb, var(--primary) 12%, var(--border)); --shift-copy: var(--muted-foreground); --shift-green: color-mix(in srgb, var(--success) 72%, var(--foreground)); --shift-white: var(--card); --hair: color-mix(in srgb, var(--border) 70%, transparent); color: var(--foreground); max-width: 1320px; margin-inline: auto; }
 .dark .shift-log { --shift-green: var(--success); }
 .shift-log ::selection { background: color-mix(in srgb, var(--primary) 22%, transparent); }
@@ -38,17 +38,6 @@
 .week-chevron { color:var(--shift-copy); flex-shrink:0; transition:transform .22s var(--ease-out); }
 .shift-week[open] > summary .week-chevron { transform:rotate(180deg); }
 
-/* The week's shape: seven columns on one fixed scale (DAY_SCALE_MINUTES),
-   worked time solid in the job's colour, upcoming time outlined. */
-.week-strip { display:grid; grid-template-columns:repeat(7, 14px); gap:5px; flex-shrink:0; }
-.strip-day { display:grid; justify-items:center; gap:5px; }
-.strip-track { display:flex; flex-direction:column-reverse; width:10px; height:30px; overflow:hidden; border-radius:4px; background:color-mix(in srgb, var(--foreground) 6%, transparent); }
-.strip-seg { flex-shrink:0; min-height:3px; background:var(--job); }
-.strip-seg.upcoming { background:color-mix(in srgb, var(--job) 24%, transparent); box-shadow:inset 0 0 0 1.5px var(--job); border-radius:3px; }
-.strip-letter { font-size:10px; font-weight:600; line-height:1; color:var(--shift-copy); }
-.strip-day[data-today] .strip-letter { color:var(--primary); }
-.strip-day[data-today] .strip-track { box-shadow:0 0 0 1.5px color-mix(in srgb, var(--primary) 45%, transparent); }
-
 /* The week note: a line of the week, not a card inside it. */
 .week-note-line { display:flex; width:100%; align-items:flex-start; gap:12px; padding:13px 22px; border-bottom:1px solid var(--hair); text-align:left; font-size:13px; line-height:1.55; color:var(--foreground); cursor:pointer; transition:background-color .16s var(--ease-out); }
 .week-note-line:hover { background:color-mix(in srgb, var(--surface-subtle) 60%, var(--card)); }
@@ -72,7 +61,7 @@
 
 /* One shift. The job link's hit area is stretched over the row; the actions
    menu sits above it and stays its own button. */
-.shift-entry { position:relative; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) 76px 96px 36px; grid-template-areas:"main rail hours net actions"; align-items:center; column-gap:18px; min-height:64px; padding:9px 4px 9px 12px; border-radius:12px; font-size:13px; transition:background-color .16s var(--ease-out); }
+.shift-entry { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 76px 96px 36px; grid-template-areas:"main hours net actions"; align-items:center; column-gap:18px; min-height:64px; padding:9px 4px 9px 12px; border-radius:12px; font-size:13px; transition:background-color .16s var(--ease-out); }
 .shift-entry:hover { background:color-mix(in srgb, var(--surface-subtle) 70%, var(--card)); }
 .entry-main { grid-area:main; display:grid; gap:3px; min-width:0; }
 .entry-job { display:flex; align-items:center; gap:9px; min-width:0; font-size:14px; font-weight:550; }
@@ -81,10 +70,6 @@
 .entry-tag { font-size:12px; font-weight:600; color:var(--primary); }
 .entry-note { display:flex; gap:6px; padding-left:18px; font-size:12px; color:var(--shift-copy); }
 .entry-note > svg { flex-shrink:0; margin-top:2px; color:var(--primary); }
-.entry-rail { grid-area:rail; position:relative; height:8px; border-radius:999px; background:linear-gradient(90deg, transparent calc(25% - .5px), var(--hair) calc(25% - .5px) calc(25% + .5px), transparent calc(25% + .5px) calc(50% - .5px), color-mix(in srgb, var(--foreground) 14%, transparent) calc(50% - .5px) calc(50% + .5px), transparent calc(50% + .5px) calc(75% - .5px), var(--hair) calc(75% - .5px) calc(75% + .5px), transparent calc(75% + .5px)), color-mix(in srgb, var(--foreground) 5%, transparent); }
-.entry-rail > span { position:absolute; top:0; bottom:0; min-width:4px; border-radius:999px; background:var(--job); }
-.entry-rail > span[data-continues] { border-radius:999px 2px 2px 999px; }
-.shift-entry[data-upcoming] .entry-rail > span { background:color-mix(in srgb, var(--job) 24%, transparent); box-shadow:inset 0 0 0 1.5px var(--job); }
 .entry-hours { grid-area:hours; text-align:right; color:var(--shift-copy); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .entry-net { grid-area:net; text-align:right; font-family:var(--font-display); font-size:15px; font-weight:600; letter-spacing:-.02em; color:var(--shift-green); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .shift-entry[data-upcoming] .entry-net { color:var(--shift-copy); }
@@ -120,8 +105,7 @@
 /* The log measures itself (.shift-workspace > .shift-log is a size
    container), so these follow the space beside the sidebar, not the window. */
 @container (max-width:860px) {
-  .shift-entry { grid-template-columns:minmax(0,1fr) 72px 88px 36px; grid-template-areas:"main hours net actions"; column-gap:12px; }
-  .entry-rail { display:none; }
+  .shift-entry { grid-template-columns:minmax(0,1fr) 72px 88px 36px; column-gap:12px; }
 }
 @container (max-width:620px) {
   .shift-week > summary { flex-wrap:wrap; gap:10px 14px; padding:14px 14px 14px 16px; }
@@ -130,9 +114,6 @@
   .week-hours, .week-net { min-width:0; }
   .week-hours { font-size:17px; }
   .week-net { font-size:13px; }
-  .week-strip { order:5; flex-basis:100%; grid-template-columns:repeat(7, minmax(0,1fr)); gap:4px; }
-  .strip-day { grid-template-columns:auto; }
-  .strip-track { width:100%; max-width:24px; height:28px; }
   .week-note-line, .week-note-editor { padding-inline:16px; }
   .shift-day { grid-template-columns:40px minmax(0,1fr); gap:10px; padding:8px 6px 8px 14px; }
   .day-tile { width:40px; height:46px; }
@@ -209,16 +190,15 @@
 
 /* Adding or editing a shift: an ordinary page with the form in one white
    card, in the shift log's language. Sections are divided by hairlines, not
-   boxed; the preview on the right draws the shift the way the log will (date
-   tile, 24-hour rail, hours) with net pay as the headline. */
+   boxed. "When" is a week of date tiles over the picked day's 24-hour track
+   (owner's pick, 2026-11-17); a sticky footer carries net pay, the week with
+   the shift in, and Save. */
 .shift-page { max-width:72rem; }
 .shift-page-back { display:inline-flex; align-items:center; gap:6px; min-height:36px; margin:-4px 0 10px -6px; padding:0 8px; border-radius:10px; color:var(--muted-foreground); font-size:13px; font-weight:600; }
 .shift-page-back:hover { background:var(--primary-soft); color:var(--primary); }
 .shift-page-back > svg { width:16px; height:16px; }
 .shift-page-card { container-type:inline-size; border:1px solid var(--border); border-radius:16px; background:var(--card); overflow:clip; }
 
-.composer-body { display:grid; grid-template-columns:minmax(0,1fr); }
-.composer-fields { min-width:0; }
 .composer-section { min-width:0; margin:0; padding:22px 26px; border:0; }
 .composer-section + .composer-section { border-top:1px solid var(--hair); }
 /* A legend only takes margins once it is floated; the next element clears it. */
@@ -246,47 +226,130 @@
 .shift-page .shift-form .field-control { min-height:44px; border-radius:12px; border-color:var(--border); }
 .shift-page .shift-form textarea { min-height:84px; border-color:var(--border); border-radius:12px; font-size:14px; padding:11px 13px; }
 
-/* The preview column. */
-.composer-preview { min-width:0; padding:22px 26px; border-top:1px solid var(--hair); background:color-mix(in srgb, var(--surface-subtle) 45%, var(--card)); }
-.composer-preview-inner { display:grid; gap:14px; }
-.shift-preview { display:grid; gap:14px; }
-.preview-ticket { display:grid; grid-template-columns:48px minmax(0,1fr); gap:12px; align-items:start; padding:14px; border:1px solid var(--border); border-radius:14px; background:var(--card); }
-.preview-ticket .day-tile { margin-top:0; }
-.preview-tile-empty > span { color:var(--shift-copy); }
-.preview-ticket-main { display:grid; gap:4px; min-width:0; }
-.preview-ticket .entry-time { padding-left:18px; font-size:13px; }
-.preview-ticket-rail { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; margin-top:6px; padding-left:18px; }
-.preview-ticket-rail .entry-rail { display:block; grid-area:auto; }
-.preview-ticket-rail .entry-hours { grid-area:auto; font-size:13px; }
-.preview-pay { display:grid; gap:10px; padding:16px 16px 14px; border:1px solid var(--border); border-radius:14px; background:var(--card); }
-.preview-net { display:flex; align-items:baseline; justify-content:space-between; gap:12px; font-size:13px; color:var(--shift-copy); }
-.preview-net strong { font-family:var(--font-display); font-size:34px; font-weight:600; line-height:1; letter-spacing:-.03em; color:var(--shift-green); font-variant-numeric:tabular-nums; }
-.preview-pay dl { display:grid; gap:4px; padding-top:10px; border-top:1px solid var(--hair); }
-.preview-pay dl > div { display:flex; justify-content:space-between; gap:16px; font-size:13px; }
-.preview-pay dt { color:var(--shift-copy); }
-.preview-pay dd { margin:0; font-variant-numeric:tabular-nums; }
-.preview-repeat { font-size:12px; line-height:1.5; color:var(--shift-copy); }
-.preview-repeat b { color:var(--shift-green); font-weight:600; }
+/* When: a week of date tiles, then the picked day as one 24-hour track. */
+.day-pick { display:grid; gap:20px; }
+.day-week-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.day-week-month { font-size:13px; font-weight:600; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
+.day-week-nav { display:flex; align-items:center; gap:4px; }
+.day-week-arrow { display:grid; place-items:center; width:36px; height:36px; border-radius:10px; color:var(--shift-copy); cursor:pointer; transition:background-color .16s var(--ease-out), color .16s var(--ease-out); }
+.day-week-arrow:hover { color:var(--primary); background:var(--primary-soft); }
+.day-week-arrow > svg { width:18px; height:18px; }
+.day-week-back { min-height:32px; padding:0 12px; border-radius:999px; color:var(--primary); font-size:12px; font-weight:600; cursor:pointer; }
+.day-week-back:hover { background:var(--primary-soft); }
+.day-week-tiles { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px; }
+.day-week-tile { position:relative; display:grid; justify-items:center; gap:3px; min-width:0; padding:10px 0 9px; border:1px solid transparent; border-radius:14px; background:var(--surface-subtle); line-height:1; cursor:pointer; transition:background-color .16s var(--ease-out), border-color .16s var(--ease-out), color .16s var(--ease-out); }
+.day-week-tile > span:first-child { font-size:11px; font-weight:600; color:var(--shift-copy); }
+.day-week-tile > span:nth-child(2) { font-family:var(--font-display); font-size:20px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.day-week-tile > i { width:5px; height:5px; margin-top:3px; border-radius:50%; background:transparent; }
+.day-week-tile > i[data-busy] { background:color-mix(in srgb, var(--foreground) 32%, transparent); }
+.day-week-tile:hover { border-color:color-mix(in srgb, var(--primary) 30%, var(--border)); background:var(--card); }
+.day-week-tile[data-today] > span { color:var(--primary); }
+.day-week-tile[aria-pressed=true] { border-color:var(--primary); background:var(--primary); }
+.day-week-tile[aria-pressed=true] > span { color:var(--primary-foreground); }
+.day-week-tile[aria-pressed=true] > span:first-child { color:color-mix(in srgb, var(--primary-foreground) 78%, transparent); }
+.day-week-tile[aria-pressed=true] > i[data-busy] { background:color-mix(in srgb, var(--primary-foreground) 70%, transparent); }
 
-.shift-page .shift-editor-footer { display:flex; justify-content:flex-end; gap:10px; padding:16px 26px; border-top:1px solid var(--hair); }
-.shift-page .save-shift { width:auto; min-width:168px; min-height:44px; border-radius:999px; box-shadow:none; background:var(--primary); }
-.shift-page .shift-editor-footer > a { min-height:44px; border-radius:999px; }
+.day-track { display:grid; gap:8px; }
+.track-hours { position:relative; height:14px; font-size:11px; font-weight:500; line-height:14px; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
+.track-hours > span { position:absolute; top:0; transform:translateX(-50%); white-space:nowrap; }
+.track-hours > span:first-child { transform:none; }
+.track-hours > span:last-child { transform:translateX(-100%); }
+/* An hour line per hour, a darker one every six: the track is a ruler. */
+.track-lane { position:relative; height:64px; border:1px solid var(--border); border-radius:14px; background-color:var(--card); background-image:linear-gradient(90deg, color-mix(in srgb, var(--foreground) 11%, transparent) 1px, transparent 1px), linear-gradient(90deg, var(--hair) 1px, transparent 1px); background-size:25% 100%, calc(100% / 24) 100%; background-position:-1px 0; touch-action:none; user-select:none; -webkit-user-select:none; cursor:crosshair; }
+.day-track[data-empty] .track-lane { cursor:default; opacity:.55; }
+.track-block { position:absolute; top:10px; bottom:10px; display:flex; align-items:center; gap:6px; min-width:4px; padding:0 8px; overflow:hidden; border-radius:8px; background:color-mix(in srgb, var(--foreground) 7%, var(--card)); font-size:11px; font-weight:500; color:var(--shift-copy); pointer-events:none; }
+.track-block > i { width:6px; height:6px; flex-shrink:0; border-radius:50%; background:var(--block); }
+.track-block > span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.track-block[data-before] { border-top-left-radius:2px; border-bottom-left-radius:2px; }
+.track-block[data-continues] { border-top-right-radius:2px; border-bottom-right-radius:2px; }
+.track-now { position:absolute; top:-5px; bottom:-5px; width:2px; margin-left:-1px; border-radius:2px; background:var(--primary); pointer-events:none; z-index:1; }
+.track-now::before { content:""; position:absolute; top:-3px; left:-3px; width:8px; height:8px; border-radius:50%; background:var(--primary); }
+.track-shift { position:absolute; top:6px; bottom:6px; z-index:2; display:flex; align-items:center; min-width:6px; padding:0 16px; border-radius:10px; background:color-mix(in srgb, var(--job) 24%, var(--card)); box-shadow:inset 0 0 0 1.5px var(--job), 0 6px 14px -10px color-mix(in srgb, var(--job) 80%, transparent); cursor:grab; transition:left .22s var(--ease-out), width .22s var(--ease-out), background-color .16s var(--ease-out), box-shadow .16s var(--ease-out); }
+.day-track[data-dragging] .track-shift { transition:background-color .16s var(--ease-out), box-shadow .16s var(--ease-out); }
+.day-track[data-dragging=move] .track-shift, .day-track[data-dragging=move] .track-lane { cursor:grabbing; }
+.day-track:is([data-dragging=start],[data-dragging=end]) .track-lane { cursor:ew-resize; }
+.track-shift[data-continues] { border-top-right-radius:3px; border-bottom-right-radius:3px; }
+.track-shift[data-clash] { background:color-mix(in srgb, var(--danger) 14%, var(--card)); box-shadow:inset 0 0 0 1.5px var(--danger); }
+.track-shift-label { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:12px; font-weight:600; color:color-mix(in srgb, var(--job) 40%, var(--foreground)); pointer-events:none; }
+.track-shift[data-clash] .track-shift-label { color:var(--danger); }
+.track-handle { position:absolute; top:50%; width:10px; height:30px; margin-top:-15px; border-radius:6px; background:var(--card); box-shadow:0 0 0 1.5px var(--job), 0 2px 6px -2px rgb(16 24 40 / .25); cursor:ew-resize; touch-action:none; outline:none; }
+.track-handle[data-edge=start] { left:-5px; }
+.track-handle[data-edge=end] { right:-5px; }
+.track-handle::before { content:""; position:absolute; inset:-12px -14px; }
+.track-handle::after { content:""; position:absolute; top:9px; bottom:9px; left:50%; width:2px; margin-left:-1px; border-radius:1px; background:var(--job); }
+.track-shift[data-clash] .track-handle { box-shadow:0 0 0 1.5px var(--danger), 0 2px 6px -2px rgb(16 24 40 / .25); }
+.track-shift[data-clash] .track-handle::after { background:var(--danger); }
+.track-handle:focus-visible { box-shadow:0 0 0 1.5px var(--job), 0 0 0 4px color-mix(in srgb, var(--primary) 45%, transparent); }
+.track-readout { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; min-height:20px; font-size:13px; line-height:1.5; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
+.track-readout b { font-size:14px; font-weight:600; color:var(--foreground); }
+.track-next-day { font-weight:600; color:var(--primary); }
+.track-clash { font-weight:600; color:var(--danger); }
 
-@container (min-width:820px) {
-  .composer-body { grid-template-columns:minmax(0,1fr) minmax(320px,380px); }
-  .composer-preview { border-top:0; border-left:1px solid var(--hair); }
-  .composer-preview-inner { position:sticky; top:96px; }
+/* The typed fields: the precise way in, quieter than the track. */
+.composer-exact { margin-top:18px; padding-top:18px; border-top:1px solid var(--hair); }
+.composer-exact .shift-schedule-fields { gap:14px 24px; }
+
+/* The note folds away until it is wanted. */
+.composer-note > summary { display:flex; align-items:center; gap:10px; width:fit-content; min-height:32px; list-style:none; cursor:pointer; font-family:var(--font-display); font-size:15px; font-weight:600; letter-spacing:-.02em; }
+.composer-note > summary::-webkit-details-marker { display:none; }
+.composer-note > summary > svg { width:16px; height:16px; color:var(--primary); }
+.composer-note-hint { font-family:var(--font-sans); font-size:13px; font-weight:400; letter-spacing:0; color:var(--shift-copy); }
+.composer-note[open] .composer-note-hint { display:none; }
+.composer-note > summary:focus-visible { outline:2px solid var(--primary); outline-offset:3px; border-radius:8px; }
+.composer-note textarea { margin-top:12px; }
+
+.composer-checks { padding:0 26px 18px; }
+
+/* What Save would mean, next to it, kept in view while the form scrolls. */
+.composer-footer { position:sticky; bottom:0; z-index:5; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px 24px; padding:16px 26px; border-top:1px solid var(--hair); background:var(--card); }
+.composer-sum { display:grid; gap:3px; min-width:0; }
+.sum-net { display:flex; align-items:baseline; gap:6px; }
+.sum-net strong { font-family:var(--font-display); font-size:28px; font-weight:600; line-height:1.05; letter-spacing:-.03em; color:var(--shift-green); font-variant-numeric:tabular-nums; }
+.sum-net span { font-size:13px; color:var(--shift-copy); }
+.sum-net[data-empty] strong { color:var(--shift-copy); }
+.sum-detail { font-size:12.5px; line-height:1.45; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
+.sum-detail b { font-weight:600; color:var(--shift-green); }
+.sum-week { display:flex; flex-wrap:wrap; gap:2px 12px; font-size:12.5px; line-height:1.45; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
+.sum-week b { font-weight:600; color:var(--foreground); }
+.sum-week[data-near] { color:color-mix(in srgb, var(--warning) 60%, var(--foreground)); }
+.composer-actions { display:flex; gap:10px; margin-left:auto; }
+.shift-page .save-shift { width:auto; min-width:156px; min-height:44px; border-radius:999px; box-shadow:none; background:var(--primary); }
+.composer-actions > a { min-height:44px; border-radius:999px; }
+
+@container (min-width:720px) {
+  .composer-exact .shift-schedule-fields { grid-template-columns:repeat(2, minmax(0,1fr)); }
 }
 @container (max-width:520px) {
   .repeat-segment { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); border-radius:18px; }
   .shift-page .shift-form .repeat-segment label { justify-content:center; border-radius:14px; }
+  .track-hours > span[data-minor] { display:none; }
+  .day-week-tiles { gap:4px; }
+  .day-week-tile { padding:8px 0 7px; border-radius:12px; }
+  .day-week-tile > span:nth-child(2) { font-size:17px; }
+  .composer-note-hint { display:none; }
+}
+/* The phone's bottom bar is fixed under the page: the footer stops above it. */
+@media (max-width:1023px) {
+  .composer-footer { bottom:calc(4.75rem + env(safe-area-inset-bottom)); }
 }
 @media (max-width:639px) {
-  .composer-section, .composer-preview { padding:18px 16px; }
+  .composer-section { padding:18px 16px; }
+  .composer-checks { padding:0 16px 16px; }
   .shift-page .shift-form input, .shift-page .shift-form textarea { font-size:16px; }
-  .shift-page .shift-editor-footer { padding:14px 16px; }
-  .shift-page .save-shift { flex:1; }
-  .preview-net strong { font-size:30px; }
+  .composer-footer { padding:12px 16px; gap:10px 16px; }
+  .sum-net strong { font-size:24px; }
+  .composer-actions { flex:1 1 100%; }
+  .composer-actions > a { flex:0 0 auto; }
+  .shift-page .save-shift { flex:1; min-width:0; }
+  .track-lane { height:72px; }
+  /* A phone draws a 2-hour shift about 25px wide: the handles sit just
+     outside its edges so the shift itself stays free to drag. */
+  .track-handle { width:12px; height:36px; margin-top:-18px; }
+  .track-handle[data-edge=start] { left:-13px; }
+  .track-handle[data-edge=end] { right:-13px; }
+  .track-handle::before { inset:-12px -8px; }
+  .track-handle::after { top:11px; bottom:11px; }
+  .track-shift { padding:0 8px; }
 }
 .shift-workspace > .shift-log { width:100%; min-width:0; container-type:inline-size; }
 /* Existing schedule logic, presented in the approved paired rows. */
