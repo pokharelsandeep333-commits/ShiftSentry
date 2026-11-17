@@ -51,6 +51,6 @@ export default async function NewShiftPage({ searchParams }: { searchParams: Pro
   }
 
   return <ShiftEditorPage title="Add shift" description="Pick the job and the times. You'll see your weekly totals before you save.">
-    {selectableJobs.length ? <ShiftForm calendarCheck={calendarCheck} lastTimes={lastTimes} mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="shift-google-editor"><p className="mb-4 text-sm text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs/new" className={buttonVariants()}>Create a job</Link></div>}
+    {selectableJobs.length ? <ShiftForm calendarCheck={calendarCheck} lastTimes={lastTimes} weekStartsOn={profile.week_starts_on} mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="shift-google-editor"><p className="mb-4 text-sm text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs/new" className={buttonVariants()}>Create a job</Link></div>}
   </ShiftEditorPage>;
 }
