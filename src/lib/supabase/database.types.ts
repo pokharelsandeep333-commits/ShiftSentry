@@ -12,6 +12,36 @@ export type Database = {
   };
   public: {
     Tables: {
+      break_periods: {
+        Row: {
+          id: string;
+          user_id: string;
+          start_date: string;
+          end_date: string;
+          weekly_limit_minutes: number;
+          label: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          start_date: string;
+          end_date: string;
+          weekly_limit_minutes: number;
+          label?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["break_periods"]["Insert"]>;
+        Relationships: [{
+          foreignKeyName: "break_periods_user_id_fkey";
+          columns: ["user_id"];
+          isOneToOne: false;
+          referencedRelation: "profiles";
+          referencedColumns: ["id"];
+        }];
+      };
       legal_versions: {
         Row: { version: string; minimum_age: number; documents: Json; published_at: string };
         Insert: { version: string; minimum_age: number; documents: Json; published_at?: string };
@@ -935,6 +965,17 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      change_break_period: {
+        Args: {
+          p_id: string;
+          p_start_date?: string;
+          p_end_date?: string;
+          p_weekly_limit_minutes?: number;
+          p_label?: string;
+          p_confirmation?: string;
+        };
+        Returns: { confirmation: string | null; weeks: Json }[];
+      };
       has_current_legal_acceptance: { Args: Record<PropertyKey, never>; Returns: boolean };
       accept_legal_terms: { Args: { p_version: string; p_agreed: boolean; p_eligible: boolean }; Returns: undefined };
       export_account_data: { Args: Record<PropertyKey, never>; Returns: Json };

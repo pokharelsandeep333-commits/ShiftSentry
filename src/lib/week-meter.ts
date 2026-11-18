@@ -1,4 +1,4 @@
-import { allocateShiftMinutes, percentage, weekStartFor } from "@/lib/time";
+import { percentage, weekEndFor, weekStartFor } from "@/lib/time";
 import type { LiveTimer } from "@/lib/shift-timer";
 
 /**
@@ -34,24 +34,25 @@ export type WeekMeterShift = { jobId: string; startsAt: Date; endsAt: Date };
 export type WeekMeterSource = { jobs: WeekMeterJob[]; limitMinutes: number | null; countedAt: string; timer: LiveTimer | null; timeZone: string; weekStartsOn: number };
 
 /**
- * Minutes per job inside the week that contains `now`, split at local
- * midnights so an overnight shift that crosses the week boundary counts only
- * its own side. A shift already started counts as logged, as on the dashboard.
+ * Minutes per job inside the week that contains `now`, rounded per shift
+ * after clipping to the week, as in the weekly-limit trigger. A shift already
+ * started counts as logged.
  */
 export function allocateWeekMinutes<J extends { id: string }>(jobs: J[], shifts: WeekMeterShift[], now: Date, timeZone: string, weekStartsOn: number): (J & { usedMinutes: number; scheduledMinutes: number })[] {
   const weekStart = weekStartFor(now, timeZone, weekStartsOn).getTime();
+  const weekEnd = weekEndFor(now, timeZone, weekStartsOn).getTime();
   const totals = jobs.map((job) => ({ ...job, usedMinutes: 0, scheduledMinutes: 0 }));
   const lookup = new Map(totals.map((job) => [job.id, job]));
 
   shifts.forEach((shift) => {
     const job = lookup.get(shift.jobId);
     if (!job) return;
-    const scheduled = shift.startsAt > now;
-    for (const allocation of allocateShiftMinutes(shift.startsAt, shift.endsAt, timeZone)) {
-      if (weekStartFor(new Date(`${allocation.date}T12:00:00Z`), timeZone, weekStartsOn).getTime() !== weekStart) continue;
-      if (scheduled) job.scheduledMinutes += allocation.minutes;
-      else job.usedMinutes += allocation.minutes;
-    }
+    const from = Math.max(shift.startsAt.getTime(), weekStart);
+    const to = Math.min(shift.endsAt.getTime(), weekEnd);
+    if (to <= from) return;
+    const minutes = Math.round((to - from) / 60_000);
+    if (shift.startsAt > now) job.scheduledMinutes += minutes;
+    else job.usedMinutes += minutes;
   });
   return totals;
 }

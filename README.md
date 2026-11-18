@@ -66,7 +66,7 @@
 | | Feature | What it does |
 |---|---|---|
 | 💼 | **Multiple jobs** | Each job has its own color, pay rate, tax and deductions, weekly cap and payday schedule. Archiving a job hides it while its shifts stay in the history |
-| ⚠️ | **Weekly limits** | A global cap and per-job caps. The shift form checks a new shift (and its weekly repeats) against them before you save |
+| ⚠️ | **Weekly limits** | A default cap across all jobs, optional break-period caps, and per-job caps. The shift form checks each shift and its weekly repeats before you save |
 | 💰 | **Earnings** | Gross, tax, deductions and net for this week, this month, the last 3 or 6 months, year to date, all time or a custom span. Pay periods show what lands on each payday |
 | 🧾 | **Honest history** | A shift remembers the rate it was worked at, so a later raise never reprices past work |
 | 🗓️ | **Calendar** | Week and month views. Overnight shifts appear on both days and clashes are marked |
@@ -76,6 +76,8 @@
 | 🛠️ | **Admin area** | Users, audit log, health, integrations, announcements and game moderation. It never shows job names, shift times or note contents |
 | 📱 | **Installable** | Responsive layout, light and dark themes, keyboard-accessible controls, and an installable app with an offline page |
 | 🎭 | **Imposter** | A small party word game for friends, with QR-code and link invites, built on Supabase Realtime |
+
+In **Settings → Profile and week → Break periods**, enter inclusive local dates and a cap across all jobs. A workweek uses the break cap when its first day falls in that range. For a Monday-start week and a break from Wednesday, December 16 through Monday, January 4, the week starting December 14 uses the default cap and the week starting January 4 uses the break cap. Individual job caps still apply. If editing or deleting a break would leave any weeks over their new cap, Settings lists the affected weeks and asks for confirmation. Existing shifts stay on the schedule.
 
 ## 🗺️ Architecture
 

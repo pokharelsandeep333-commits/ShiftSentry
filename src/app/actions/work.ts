@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { requireUser } from "@/lib/auth";
+import type { BreakPeriodActionState } from "@/lib/break-periods";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/database.types";
 import { UNLINKED_SHIFT } from "@/lib/google/unlink";
 import { seriesIdOf, withEventIgnored, withSeriesIgnored } from "@/lib/google-sync-plan";
 import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalDeductionRate, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
-import { deductionSchema, jobSchema, payScheduleFormSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, timerStartedAtSchema, weekNoteSchema } from "@/lib/validation";
+import { breakPeriodConfirmationSchema, breakPeriodImpactWeeksSchema, breakPeriodSchema, deductionSchema, jobSchema, payScheduleFormSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, timerStartedAtSchema, weekNoteSchema } from "@/lib/validation";
 import { isWeekStart } from "@/lib/week-notes";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { clampWeeks, readShiftFilters, shiftLogHref } from "@/lib/shift-log";
@@ -35,6 +37,72 @@ function paySchedule(formData: FormData) {
 function resourceId(formData: FormData, name = "id") { const parsed = resourceIdSchema.safeParse(formData.get(name)); return parsed.success ? parsed.data : fail("Invalid resource identifier."); }
 
 export type ShiftActionState = { message: string; field: "startsAt" | "endsAt" | null };
+
+function breakPeriodSaved(): BreakPeriodActionState {
+  revalidatePath("/");
+  revalidatePath("/settings");
+  return { message: "", savedAt: Date.now() };
+}
+
+async function changeBreakPeriod(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  values: Database["public"]["Functions"]["change_break_period"]["Args"],
+  formData: FormData,
+): Promise<BreakPeriodActionState> {
+  const confirmation = breakPeriodConfirmationSchema.safeParse(formData.get("confirmation"));
+  const { data, error } = await supabase.rpc("change_break_period", {
+    ...values,
+    p_confirmation: formData.get("acknowledgeImpact") === "on" && confirmation.success ? confirmation.data : undefined,
+  }).single();
+  if (error?.code === "23P01") return { message: "These dates overlap another break period.", savedAt: null };
+  if (error?.code === "P0002") return { message: "This break period could not be found.", savedAt: null };
+  const failure = values.p_start_date ? "Couldn't save the break period. Please try again." : "Couldn't delete the break period. Please try again.";
+  if (error || !data) return { message: failure, savedAt: null };
+  if (data.confirmation !== null) {
+    const weeks = breakPeriodImpactWeeksSchema.safeParse(data.weeks);
+    if (!weeks.success) return { message: failure, savedAt: null };
+    return { message: "", savedAt: null, impact: { confirmation: data.confirmation, weeks: weeks.data } };
+  }
+  return breakPeriodSaved();
+}
+
+export async function saveBreakPeriod(id: string | null, formData: FormData): Promise<BreakPeriodActionState> {
+  const profile = await requireUser();
+  let result: BreakPeriodActionState | undefined;
+  const problem = await attempt(async () => {
+    const periodId = id === null ? null : resourceIdSchema.safeParse(id);
+    if (periodId && !periodId.success) fail("This break period could not be found.");
+    const parsed = breakPeriodSchema.safeParse({
+      startDate: formData.get("startDate"),
+      endDate: formData.get("endDate"),
+      weeklyLimitMinutes: weeklyLimitMinutes(formData.get("weeklyLimitHours")),
+      label: formData.get("label") ?? "",
+    });
+    if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Check the break period details.");
+    const { startDate, endDate, weeklyLimitMinutes: minutes, label } = parsed.data;
+    const values = { start_date: startDate, end_date: endDate, weekly_limit_minutes: minutes, label: label || null };
+    const supabase = await createServerSupabaseClient();
+    if (periodId) {
+      result = await changeBreakPeriod(supabase, {
+        p_id: periodId.data, p_start_date: startDate, p_end_date: endDate, p_weekly_limit_minutes: minutes,
+        p_label: label || undefined,
+      }, formData);
+      return;
+    }
+    const { data, error } = await supabase.from("break_periods").insert({ ...values, user_id: profile.id }).select("id").single();
+    if (error?.code === "23P01") fail("These dates overlap another break period.");
+    if (error || !data) fail("Couldn't save the break period. Please try again.");
+  });
+  if (problem) return { message: problem, savedAt: null };
+  return result ?? breakPeriodSaved();
+}
+
+export async function deleteBreakPeriod(id: string, formData: FormData): Promise<BreakPeriodActionState> {
+  await requireUser();
+  const parsed = resourceIdSchema.safeParse(id);
+  if (!parsed.success) return { message: "This break period could not be found.", savedAt: null };
+  return changeBreakPeriod(await createServerSupabaseClient(), { p_id: parsed.data }, formData);
+}
 
 /**
  * Run a mutation and turn a rejection into a message the form can render.

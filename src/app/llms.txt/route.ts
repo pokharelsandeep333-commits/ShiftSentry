@@ -13,7 +13,7 @@ export function GET() {
   const body = [
     "# ShiftSentry",
     "",
-    "> A free work hours tracker for students and anyone with more than one job. It keeps one weekly hour limit across every job (plus an optional cap per job), counts planned shifts straight away, warns at 80% and 90%, refuses a shift that would pass a limit, and estimates take-home pay from the rate, tax and deductions entered for each job.",
+    "> A free work hours tracker for students and anyone with more than one job. It applies a default weekly cap or the configured break cap across all jobs, alongside optional per-job caps. Planned shifts count toward the cap straight away. ShiftSentry warns as the week approaches the cap, refuses shifts that would exceed it, and estimates take-home pay.",
     "",
     "## Pages",
     "",

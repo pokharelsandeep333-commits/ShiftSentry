@@ -7,6 +7,27 @@ export const resourceIdSchema = z.string().uuid("Invalid resource identifier.");
 
 export const weekStartsOnSchema = z.coerce.number().int().min(0).max(6);
 
+function breakDate(message: string) {
+  return z.string({ error: message }).refine((value) => !value.startsWith("0000-") && isCalendarDate(value), message);
+}
+
+export const breakPeriodSchema = z.object({
+  startDate: breakDate("Enter a valid start date."),
+  endDate: breakDate("Enter a valid end date."),
+  weeklyLimitMinutes: z.number({ error: "Enter a weekly break limit." }).int().min(1, "The cap must be at least one minute.").max(10_080),
+  label: z.string().trim().max(100, "Use 100 characters or fewer for the label."),
+}).refine(({ startDate, endDate }) => startDate <= endDate, {
+  message: "End date must be on or after the start date.",
+  path: ["endDate"],
+});
+
+export const breakPeriodConfirmationSchema = z.string().regex(/^[a-f0-9]{64}$/);
+export const breakPeriodImpactWeeksSchema = z.array(z.object({
+  week_start: z.string(),
+  scheduled_minutes: z.number().int(),
+  cap_minutes: z.number().int(),
+})).min(1);
+
 export const profileSettingsSchema = z.object({
   displayName: z.string().trim().max(100).optional().or(z.literal("")),
   timeZone: z.string().trim().min(1).max(100).refine((value) => {
