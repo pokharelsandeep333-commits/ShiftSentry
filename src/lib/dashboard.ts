@@ -4,7 +4,8 @@ import type { DashboardData, MonthTotals } from "@/lib/types";
 import type { DeductionSnapshot } from "@/lib/earnings";
 import { addWorkedMinutes, bucketWorkedShiftsByMonth, createTotals, finalizeTotals } from "@/lib/period-totals";
 import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-allocation";
-import { allocateWeekMinutes, buildWeekMeter, type WeekMeter } from "@/lib/week-meter";
+import { allocateWeekMinutes, type WeekMeterSource } from "@/lib/week-meter";
+import { getRunningTimer } from "@/lib/shift-timer-server";
 import { JOB_PAY_COLUMNS, payPeriodQueryWindow, payScheduleFromColumns, summarizePayPeriods, type JobPayColumns } from "@/lib/pay-period";
 import { buildDashboardInsights, recentCompletedShifts, type DashboardShift, type RecentCompletedShift } from "@/lib/dashboard-insights";
 
@@ -70,21 +71,21 @@ async function fetchHistory(supabase: Awaited<ReturnType<typeof createServerSupa
 
 /**
  * The header meter's numbers, for every signed-in page. One shift query for
- * the current week plus the jobs, both through the RLS client. A failure
- * resolves to null and the header simply draws no meter: the chrome must never
- * take a page down with it.
+ * the current week plus the jobs, both through the RLS client, and the running
+ * timer, which the shell adds as it ticks. A failure resolves to null and the
+ * header simply draws no meter: the chrome must never take a page down with it.
  */
-export async function getWeekMeter(profile: WeekProfile): Promise<WeekMeter | null> {
-  const jobs = await loadCurrentWeek(profile);
-  return jobs ? buildWeekMeter(jobs, profile.global_weekly_limit_minutes) : null;
+export async function getWeekMeter(profile: WeekProfile): Promise<WeekMeterSource | null> {
+  const countedAt = new Date();
+  const [jobs, timer] = await Promise.all([loadCurrentWeek(profile, countedAt), getRunningTimer(profile.id).catch(() => null)]);
+  return jobs ? { jobs, limitMinutes: profile.global_weekly_limit_minutes, countedAt: countedAt.toISOString(), timer, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on } : null;
 }
 
 type WeekProfile = { id: string; time_zone: string; week_starts_on: number; global_weekly_limit_minutes: number | null };
 
 /** Active jobs with this week's worked and scheduled minutes, archived jobs excluded as everywhere. */
-async function loadCurrentWeek(profile: WeekProfile) {
+async function loadCurrentWeek(profile: WeekProfile, now: Date) {
   try {
-    const now = new Date();
     const weekStart = weekStartFor(now, profile.time_zone, profile.week_starts_on);
     const weekEnd = weekEndFor(now, profile.time_zone, profile.week_starts_on);
     const supabase = await createServerSupabaseClient();

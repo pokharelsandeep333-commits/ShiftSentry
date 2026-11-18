@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Plus, TriangleAlert } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
@@ -27,7 +28,7 @@ function Chip({ href, active, children }: { href: string; active: boolean; child
  * refresh, a delete (which carries them back) and the back button. The job
  * chips are the active jobs, in their colours.
  */
-export function ShiftLogHeader({ weeks, filters, jobs, openableWeeks }: { weeks: number; filters: ShiftFilters; jobs: { id: string; name: string; color: string }[]; openableWeeks: { key: string; defaultOpen: boolean }[] }) {
+export function ShiftLogHeader({ weeks, filters, jobs, openableWeeks, clock }: { weeks: number; filters: ShiftFilters; jobs: { id: string; name: string; color: string }[]; openableWeeks: { key: string; defaultOpen: boolean }[]; clock?: ReactNode }) {
   return <>
     <PageHeader
       title="Shifts"
@@ -36,6 +37,7 @@ export function ShiftLogHeader({ weeks, filters, jobs, openableWeeks }: { weeks:
       // the header shows only a "+", so the page offers the labelled one.
       actions={jobs.length ? <Link href="/shifts/new" className={cn(buttonVariants(), "sm:hidden")}><Plus className="size-4" aria-hidden="true" />Add shift</Link> : undefined}
     />
+    {clock}
     {jobs.length > 0 && <nav aria-label="Filter shifts" className="mb-5 flex flex-wrap items-center gap-2">
       <span className="shift-segment">
         {SHOWS.map((show) => <Link key={show.value} href={shiftLogHref(weeks, { ...filters, show: show.value })} aria-current={filters.show === show.value ? "true" : undefined} scroll={false}>{show.label}</Link>)}

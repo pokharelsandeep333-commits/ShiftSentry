@@ -30,6 +30,7 @@ model Profile {
   auditEvents              AuditEvent[] @relation("AuditActor")
   googleCalendarConnection GoogleCalendarConnection?
   weekNotes                WeekNote[]
+  shiftTimer               ShiftTimer?
   legalAcceptances         LegalAcceptance[]
   supportNotes             AdminUserNote[] @relation("NoteSubject")
   supportNotesWritten      AdminUserNote[] @relation("NoteAuthor")
@@ -83,6 +84,7 @@ model Job {
   user                     Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
   shifts                   Shift[]
   deductions               JobDeduction[]
+  shiftTimers              ShiftTimer[]
 
   @@index([userId, archivedAt])
   @@map("jobs")
@@ -109,6 +111,7 @@ model Shift {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
   job       Job      @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  timers    ShiftTimer[]
 
   @@unique([userId, jobId, startsAt, endsAt], map: "shifts_no_duplicate_span")
   @@index([userId, startsAt])
@@ -127,6 +130,21 @@ model WeekNote {
 
   @@unique([userId, weekStart], map: "week_notes_one_per_week")
   @@map("week_notes")
+}
+
+/// At most one running clock-in per user (20261117120000). Stopping it inserts an ordinary shift, or updates the shift it adopted.
+model ShiftTimer {
+  userId    String   @id @map("user_id") @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  startedAt DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  shiftId   String?  @map("shift_id") @db.Uuid
+  profile   Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  shift     Shift?   @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@index([jobId], map: "shift_timers_job")
+  @@index([shiftId], map: "shift_timers_shift")
+  @@map("shift_timers")
 }
 
 model JobDeduction {

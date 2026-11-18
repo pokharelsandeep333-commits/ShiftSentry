@@ -22,3 +22,13 @@ export const emptyFormState: FormActionState = { message: "" };
 export type SavedFormState = { message: string; savedAt: number | null };
 
 export const emptySavedFormState: SavedFormState = { message: "", savedAt: null };
+
+/**
+ * What the clock-in card gets back from starting, stopping or discarding.
+ * `editHref` is the shift editor filled in with the timer's times, offered when
+ * stopping now is refused or would be wrong (`timerEditorHref`). `loggedAt`
+ * changes on each successful stop, which the card watches to confirm it.
+ */
+export type TimerActionState = { message: string; editHref: string | null; logged: string; loggedAt: number | null };
+
+export const emptyTimerState: TimerActionState = { message: "", editHref: null, logged: "", loggedAt: null };

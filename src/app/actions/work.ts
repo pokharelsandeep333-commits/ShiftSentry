@@ -8,11 +8,13 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { UNLINKED_SHIFT } from "@/lib/google/unlink";
 import { seriesIdOf, withEventIgnored, withSeriesIgnored } from "@/lib/google-sync-plan";
 import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalDeductionRate, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
-import { deductionSchema, jobSchema, payScheduleFormSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, weekNoteSchema } from "@/lib/validation";
+import { deductionSchema, jobSchema, payScheduleFormSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, timerStartedAtSchema, weekNoteSchema } from "@/lib/validation";
 import { isWeekStart } from "@/lib/week-notes";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { clampWeeks, readShiftFilters, shiftLogHref } from "@/lib/shift-log";
-import type { FormActionState, SavedFormState } from "@/lib/form-state";
+import { emptyTimerState, type FormActionState, type SavedFormState, type TimerActionState } from "@/lib/form-state";
+import { ADOPT_EARLY_MINUTES, adoptableShift, timerEditorHref, timerShift } from "@/lib/shift-timer";
+import { formatMinutes } from "@/lib/utils";
 
 function fail(message: string): never { throw new Error(message); }
 function cents(value: FormDataEntryValue | null) { const result = parseMoneyToCents(String(value ?? "")); return result === null ? fail("Enter a valid hourly rate, such as 18.50.") : result; }
@@ -158,6 +160,7 @@ export async function createShift(_previousState: ShiftActionState, formData: Fo
   const weeks = repeatWeeksFrom(formData);
   const snapshot = paySnapshotFromJob(job);
   let created = 0;
+  let firstCreated = false;
   let firstFailure: ShiftActionState | null = null;
 
   for (let week = 0; week < weeks; week += 1) {
@@ -165,10 +168,15 @@ export async function createShift(_previousState: ShiftActionState, formData: Fo
     if (!occurrence) { firstFailure ??= shiftError("We couldn't schedule one of the repeats."); continue; }
     const { error } = await supabase.from("shifts").insert({ user_id: profile.id, ...shiftPayload(occurrence, snapshot) });
     if (error) firstFailure ??= shiftDatabaseError(error.message);
-    else created += 1;
+    else { created += 1; if (week === 0) firstCreated = true; }
   }
 
   if (!created) return firstFailure ?? shiftError("We couldn't save this shift. Please try again.");
+  // Opened from a running timer (timerEditorHref): the shift just saved is that
+  // timer's, so the clock stops. Matched on the exact start, so a link to a
+  // timer that has since been stopped and restarted leaves the new one alone.
+  const timer = timerStartedAtSchema.safeParse(formData.get("timerStartedAt"));
+  if (firstCreated && timer.success) await supabase.from("shift_timers").delete().eq("user_id", profile.id).eq("started_at", timer.data);
   revalidatePath("/"); revalidatePath("/shifts");
   redirect(`/shifts?created=${created}&skipped=${weeks - created}`);
 }
@@ -197,7 +205,149 @@ export async function updateShift(_previousState: ShiftActionState, formData: Fo
     : paySnapshotFromJob(job);
   const { error } = await supabase.from("shifts").update(shiftPayload(input.data, snapshot)).eq("id", existing.id).eq("user_id", profile.id);
   if (error) return shiftDatabaseError(error.message);
+  // Opened from a running timer that adopted this shift (timerEditorHref):
+  // saving the corrected times is the clock-out, so the timer stops. Matched
+  // on the exact start and this shift, so a stale link stops nothing else.
+  const timer = timerStartedAtSchema.safeParse(formData.get("timerStartedAt"));
+  if (timer.success) await supabase.from("shift_timers").delete().eq("user_id", profile.id).eq("started_at", timer.data).eq("shift_id", existing.id);
   revalidatePath("/"); revalidatePath("/shifts"); revalidatePath(`/shifts/${existing.id}/edit`); redirect("/shifts");
+}
+
+function timerError(message: string, editHref: string | null = null): TimerActionState {
+  return { ...emptyTimerState, message, editHref };
+}
+
+function revalidateTimer() { revalidatePath("/"); revalidatePath("/shifts"); }
+
+/**
+ * Clock in: start the one running timer this account may have, on one of its
+ * active jobs. The database stamps the start (`prepare_shift_timer`), so the
+ * clock reads the same on every device and cannot be backdated from here.
+ *
+ * A shift already logged for this time is adopted rather than refused
+ * (`adoptableShift`): the one under way, or the chosen job's next one starting
+ * within half an hour. Stop then rewrites that shift's times instead of adding
+ * a second shift that could only overlap it. A shift under way on a different
+ * job is refused, with a way to edit it, rather than logged under a job the
+ * person did not pick.
+ */
+export async function startShiftTimer(_previous: TimerActionState, formData: FormData): Promise<TimerActionState> {
+  const profile = await requireUser();
+  const jobId = resourceIdSchema.safeParse(formData.get("jobId"));
+  if (!jobId.success) return timerError("Choose one of your active jobs.");
+  const supabase = await createServerSupabaseClient();
+  const now = new Date();
+  const soon = new Date(now.getTime() + ADOPT_EARLY_MINUTES * 60_000);
+  const [{ data: job, error: jobError }, { data: nearby, error: nearbyError }] = await Promise.all([
+    supabase.from("jobs").select("id,archived_at").eq("id", jobId.data).eq("user_id", profile.id).maybeSingle(),
+    supabase.from("shifts").select("id,job_id,starts_at,ends_at,jobs(name)").eq("user_id", profile.id).lte("starts_at", soon.toISOString()).gt("ends_at", now.toISOString()).order("starts_at").limit(10),
+  ]);
+  if (jobError || !job || job.archived_at) return timerError("Choose one of your active jobs.");
+  if (nearbyError) return timerError("We couldn't start the timer. Please try again.");
+
+  const adoption = adoptableShift((nearby ?? []).map((row) => ({ ...row, jobId: row.job_id, startsAt: new Date(row.starts_at), endsAt: new Date(row.ends_at) })), job.id, now);
+  if (adoption && !adoption.sameJob) {
+    const name = adoption.shift.jobs?.name ?? "Another job";
+    const span = `${formatInTimeZone(adoption.shift.starts_at, profile.time_zone, "h:mm a")}–${formatInTimeZone(adoption.shift.ends_at, profile.time_zone, "h:mm a")}`;
+    return timerError(`${name} ${span} is logged for right now. Choose ${name} to clock into it, or edit that shift if you are working something else.`, `/shifts/${adoption.shift.id}/edit`);
+  }
+
+  const { error } = await supabase.from("shift_timers").insert({ user_id: profile.id, job_id: job.id, shift_id: adoption?.shift.id ?? null });
+  if (error) {
+    // Started on another device a moment ago: show that one.
+    if (error.code === "23505") { revalidateTimer(); return timerError("A shift is already on the clock."); }
+    if (error.code === "23514") return timerError("Choose one of your active jobs.");
+    return timerError("We couldn't start the timer. Please try again.");
+  }
+  revalidateTimer();
+  return emptyTimerState;
+}
+
+/**
+ * Clock out. A timer on its own becomes a new shift through exactly the path
+ * `createShift` takes; one that adopted a logged shift rewrites that shift
+ * through the path `updateShift` takes, keeping its pay snapshot and notes as
+ * any edit that keeps the job does. Either way it is Zod's span checks, then an
+ * ordinary write the triggers and constraints judge like any other. Only once
+ * that write is accepted is the timer deleted, so a refused stop (a weekly cap,
+ * an overlap, a span over 24 hours) leaves the clock running and nothing is
+ * lost; the card then offers the editor, filled in with these times.
+ *
+ * Both ends are whole minutes (`timerShift`). A second Stop from another
+ * device cannot log the shift twice: it finds the timer gone, or its insert
+ * overlaps the first and `shifts_no_overlap` refuses it.
+ */
+export async function stopShiftTimer(_previous: TimerActionState, formData: FormData): Promise<TimerActionState> {
+  const profile = await requireUser();
+  const supabase = await createServerSupabaseClient();
+  const { data: timer, error: timerReadError } = await supabase.from("shift_timers").select("job_id,started_at,shift_id,jobs(name)").eq("user_id", profile.id).maybeSingle();
+  if (timerReadError) return timerError("We couldn't stop the timer. Please try again.");
+  if (!timer) { revalidateTimer(); return timerError("This shift was already stopped."); }
+  const shown = timerStartedAtSchema.safeParse(formData.get("startedAt"));
+  if (shown.success && Date.parse(shown.data) !== Date.parse(timer.started_at)) { revalidateTimer(); return timerError("This timer changed on another device. Check it and try again."); }
+
+  // The adopted shift, if it still exists (deleting it sets shift_id to null).
+  const { data: adopted } = timer.shift_id
+    ? await supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,google_event_id").eq("id", timer.shift_id).eq("user_id", profile.id).maybeSingle()
+    : { data: null };
+
+  const now = new Date();
+  const shift = timerShift(new Date(timer.started_at), now);
+  const editHref = timerEditorHref({ jobId: timer.job_id, startedAt: timer.started_at, adopted: adopted ? { shiftId: adopted.id, startsAt: adopted.starts_at, endsAt: adopted.ends_at } : null }, now, profile.time_zone);
+  if (shift.status === "too-short") {
+    await supabase.from("shift_timers").delete().eq("user_id", profile.id).eq("started_at", timer.started_at);
+    revalidateTimer();
+    return { ...emptyTimerState, logged: adopted ? "Stopped within a minute, so the shift was left as planned." : "Stopped within a minute, so nothing was logged.", loggedAt: Date.now() };
+  }
+  if (shift.status === "too-long") return timerError("This timer has run for more than 24 hours, longer than one shift can be. Set the time you actually stopped.", editHref);
+
+  const jobName = timer.jobs?.name;
+  if (adopted) {
+    const parsed = shiftSchema.safeParse({ jobId: adopted.job_id, startsAt: shift.startsAt, endsAt: shift.endsAt, notes: adopted.notes ?? "" });
+    if (!parsed.success) return timerError(parsed.error.issues[0]?.message ?? "Invalid shift.", editHref);
+    // Same job, so the snapshot it was logged at carries over untouched, as in
+    // updateShift (sync_shift_earnings_snapshot is authoritative).
+    const snapshot: PaySnapshot = { hourlyRateCents: adopted.hourly_rate_cents, taxRateBasisPoints: adopted.tax_rate_basis_points, deductions: Array.isArray(adopted.deductions_snapshot) ? adopted.deductions_snapshot as DeductionSnapshot[] : [] };
+    // A shift from Google Calendar stops following it, exactly as "Stop
+    // following Google" does before an edit: its event is remembered so sync
+    // does not add it back, and the real times stay. Sync never moves a
+    // started shift anyway.
+    if (adopted.google_event_id && !(await forgetGoogleEvent(supabase, profile.id, adopted.id))) return timerError("We couldn't stop the timer. Please try again.", editHref);
+    const { error } = await supabase.from("shifts").update({ ...shiftPayload(parsed.data, snapshot), ...(adopted.google_event_id ? UNLINKED_SHIFT : {}) }).eq("id", adopted.id).eq("user_id", profile.id);
+    if (error) return timerError(shiftDatabaseError(error.message).message, editHref);
+  } else {
+    const parsed = shiftSchema.safeParse({ jobId: timer.job_id, startsAt: shift.startsAt, endsAt: shift.endsAt });
+    if (!parsed.success) return timerError(parsed.error.issues[0]?.message ?? "Invalid shift.", editHref);
+    const { job, error: jobError } = await jobSnapshot(profile.id, timer.job_id);
+    if (jobError || !job) return timerError("This job could not be found.");
+    if (job.archived_at) return timerError("This job was archived while the shift was running. Restore it under Jobs, or discard the timer.");
+    const problem = await attempt(async () => {
+      const { error } = await supabase.from("shifts").insert({ user_id: profile.id, ...shiftPayload(parsed.data, paySnapshotFromJob(job)) });
+      if (error) fail(shiftDatabaseError(error.message).message);
+    });
+    if (problem) return timerError(problem, editHref);
+  }
+
+  const { error: clearError } = await supabase.from("shift_timers").delete().eq("user_id", profile.id).eq("started_at", timer.started_at);
+  revalidateTimer(); revalidatePath("/calendar");
+  if (adopted) revalidatePath(`/shifts/${adopted.id}/edit`);
+  const logged = `Logged ${formatMinutes(shift.minutes)}${jobName ? ` at ${jobName}` : ""}`;
+  // Saved, but the clock is still showing: a later Stop would overlap this
+  // shift and be refused, so say so rather than leave it to look stuck.
+  if (clearError) return { ...timerError(`${logged}, but the timer kept running. Discard it.`), logged, loggedAt: Date.now() };
+  return { ...emptyTimerState, logged, loggedAt: Date.now() };
+}
+
+/** Throws the running timer away without logging anything. */
+export async function discardShiftTimer(formData: FormData) {
+  const profile = await requireUser();
+  const supabase = await createServerSupabaseClient();
+  let query = supabase.from("shift_timers").delete().eq("user_id", profile.id);
+  const shown = timerStartedAtSchema.safeParse(formData.get("startedAt"));
+  if (shown.success) query = query.eq("started_at", shown.data);
+  const { error } = await query;
+  if (error) fail("Unable to discard the timer. Please try again.");
+  revalidateTimer();
 }
 
 export async function deleteShift(formData: FormData) {

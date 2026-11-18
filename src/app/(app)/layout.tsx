@@ -5,7 +5,6 @@ import { requireUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getWeekMeter } from "@/lib/dashboard";
 import { demoDashboardFor } from "@/lib/dashboard-demo";
-import { buildWeekMeter } from "@/lib/week-meter";
 
 /**
  * The chrome for every signed-in route. It lives here rather than inside each
@@ -20,7 +19,7 @@ import { buildWeekMeter } from "@/lib/week-meter";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!isSupabaseConfigured()) {
     const demo = demoDashboardFor(new Date());
-    return <AppShell isDemo weekMeter={Promise.resolve(buildWeekMeter(demo.jobs, demo.globalLimitMinutes))}>{children}</AppShell>;
+    return <AppShell isDemo weekMeter={Promise.resolve({ jobs: demo.jobs, limitMinutes: demo.globalLimitMinutes, countedAt: demo.snapshotAt, timer: null, timeZone: demo.viewer.timeZone, weekStartsOn: demo.viewer.weekStartsOn })}>{children}</AppShell>;
   }
   const profile = await requireUser();
 
