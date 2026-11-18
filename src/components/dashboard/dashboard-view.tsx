@@ -90,7 +90,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
   return <div className={styles.root}>
     <DashboardHeading data={data} />
-    <WeekCard jobs={data.jobs} workedMinutes={data.totals.week.minutes} limitMinutes={data.globalLimitMinutes} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
+    <WeekCard jobs={data.jobs} workedMinutes={data.totals.week.minutes} limitMinutes={data.globalLimitMinutes} activeBreakLabel={data.activeBreakLabel} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
 
     {/* The week, then what is next: the same order stacked and side by side. */}
     <section className={styles.topGrid}>

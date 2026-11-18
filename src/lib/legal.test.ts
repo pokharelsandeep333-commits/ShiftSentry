@@ -13,6 +13,7 @@ test("acceptance requires the current version and both explicit confirmations", 
 test("every published version stays readable, and the current one is the default", () => {
   assert.equal(legalDocuments()?.version, LEGAL_VERSION);
   assert.equal(legalDocuments("2026-10-11.1")?.version, "2026-10-11.1");
+  assert.equal(legalDocuments("2026-11-02.1")?.version, "2026-11-02.1");
   assert.equal(legalDocuments("2099-01-01.1"), null);
   assert.match(legalDocuments("2026-10-11.1")!.privacy.sections.map((s) => s.paragraphs?.join(" ")).join(" "), /Amazon Web Services hosts the application/);
   assert.doesNotMatch(JSON.stringify(legalDocuments()), /Amazon Web Services/);

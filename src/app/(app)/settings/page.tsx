@@ -3,6 +3,7 @@ import { CalendarClock, Palette, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { SavedToast } from "@/components/saved-toast";
 import { AccountLinks } from "@/components/settings/account-links";
+import { BreakPeriodsForm } from "@/components/settings/break-periods-form";
 import { GoogleCalendarCard, GoogleCalendarCardSkeleton } from "@/components/settings/google-calendar-card";
 import { SETTINGS_SECTIONS } from "@/components/settings/sections";
 import { SettingsForm } from "@/components/settings/settings-form";
@@ -10,7 +11,9 @@ import { SettingsNav } from "@/components/settings/settings-nav";
 import { SettingsSection } from "@/components/settings/settings-section";
 import { ThemeChoice } from "@/components/settings/theme-choice";
 import { requireUser } from "@/lib/auth";
+import type { BreakPeriod } from "@/lib/break-periods";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { timeZoneOptions } from "@/lib/time-zones";
 
 export const metadata = { title: "Settings | ShiftSentry" };
@@ -26,12 +29,26 @@ const GOOGLE_PROBLEMS: Record<string, string> = {
   busy: "Too many connection attempts. Wait a few minutes and try again.",
 };
 
+async function loadBreakPeriods(userId: string): Promise<BreakPeriod[] | null> {
+  const supabase = await createServerSupabaseClient();
+  const periods: BreakPeriod[] = [];
+  const pageSize = 1_000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from("break_periods").select("id,start_date,end_date,weekly_limit_minutes,label")
+      .eq("user_id", userId).order("start_date").range(offset, offset + pageSize - 1);
+    if (error) return null;
+    periods.push(...data);
+    if (data.length < pageSize) return periods;
+  }
+}
+
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string | string[]; google?: string | string[] }> }) {
   const [profile, { saved, google }] = await Promise.all([requireUser(), searchParams]);
   const savedMessage = typeof saved === "string" ? SAVED_MESSAGES[saved] : undefined;
   const googleProblem = typeof google === "string" ? GOOGLE_PROBLEMS[google] : undefined;
   const googleOn = isGoogleCalendarEnabled();
   const sections = SETTINGS_SECTIONS.filter((section) => googleOn || section.id !== "google-calendar");
+  const periods = await loadBreakPeriods(profile.id);
 
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
@@ -49,6 +66,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             weekStartsOn={profile.week_starts_on}
             globalWeeklyLimitMinutes={profile.global_weekly_limit_minutes}
           />
+          {periods ? <BreakPeriodsForm periods={periods} /> : <p role="alert" className="mt-5 border-t pt-5 text-sm text-[var(--danger)]">Couldn&apos;t load break periods. Refresh to try again.</p>}
         </SettingsSection>
 
         {googleOn && <Suspense fallback={<GoogleCalendarCardSkeleton />}><GoogleCalendarCard userId={profile.id} /></Suspense>}

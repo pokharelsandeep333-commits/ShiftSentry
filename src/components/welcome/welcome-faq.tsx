@@ -15,7 +15,7 @@ export type FaqItem = { question: string; answer: string };
 export function faqItems(calendarEnabled: boolean): FaqItem[] {
   return [
     { question: "Is ShiftSentry free?", answer: "Yes. There are no paid accounts, subscriptions or in-app purchases, and it never asks for payment details." },
-    { question: "How does the weekly hour limit work?", answer: "You set one weekly limit that covers every job, and you can add a separate cap for any single job. Logged and planned shifts both count. You're warned at 80% and 90%, and a shift that would take you past either limit is refused." },
+    { question: "How does the weekly hour limit work?", answer: "Set a default weekly limit across all your jobs. If the first day of your workweek falls within a break period you set, that period's cap applies for the whole week. Separate caps for individual jobs still apply. Logged and planned shifts count, and ShiftSentry refuses shifts that would put you over a cap." },
     { question: "Does it know my visa, school or employer hour limit?", answer: "No. You enter the limit yourself, so set it to whatever applies to you. Its warnings and totals are not legal, immigration, employment or tax advice." },
     { question: "How are overnight shifts counted?", answer: "Midnight splits the shift: each part counts toward the day it falls on, in your own time zone. A shift can run up to 24 hours, two shifts can't overlap, and your week can start on any day." },
     { question: "How are my earnings estimated?", answer: "From the hourly rate, tax and deductions you enter for each job. Each shift keeps the rate and tax it was worked at, so a raise next month doesn't change last month's totals. It's an estimate, not a payslip." },

@@ -294,7 +294,7 @@ function ShiftSum({ preview, repeatWeeks, check, timeZone, weekStartsOn }: { pre
     {preview && repeatWeeks > 1 && <p className="sum-detail">Over {repeatWeeks} weeks: <b>{formatCents(preview.pay.netCents * repeatWeeks)}</b> net, {formatMinutes(preview.minutes * repeatWeeks)}, if every week is saved</p>}
     {check && week && <p className="sum-week" data-near={isNearLimit(check, week) || undefined}>
       <span>{weekName} with it</span>
-      <span><b>{formatMinutes(week.globalAfter)}</b>{check.globalLimit !== null && ` of ${formatMinutes(check.globalLimit)}`}</span>
+      <span><b>{formatMinutes(week.globalAfter)}</b>{week.globalLimit !== null && ` of ${formatMinutes(week.globalLimit)}`}</span>
       {check.jobLimit !== null && <span>{check.jobName} <b>{formatMinutes(week.jobAfter)}</b> of {formatMinutes(check.jobLimit)}</span>}
     </p>}
   </div>;

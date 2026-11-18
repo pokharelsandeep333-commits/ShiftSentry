@@ -50,7 +50,7 @@ import { cn } from "@/lib/utils";
  * `src/app/login/page.tsx`).
  */
 const CAPABILITIES = [
-  { icon: Layers, title: "All your jobs, one week", body: "One weekly limit across every job, plus an optional cap for each job." },
+  { icon: Layers, title: "All your jobs, one week", body: "Set a default weekly limit across all jobs, a different limit for break weeks, and optional caps for individual jobs." },
   { icon: CalendarClock, title: "Planned shifts count now", body: "Schedule Friday on Monday and it counts toward this week straight away." },
   { icon: Wallet, title: "Take-home estimates", body: "Estimate net earnings from the hourly rate, tax and deductions you enter for each job." },
   { icon: Smartphone, title: "On your phone", body: "Installs to your home screen. Sign in with Google, GitHub, or email." },

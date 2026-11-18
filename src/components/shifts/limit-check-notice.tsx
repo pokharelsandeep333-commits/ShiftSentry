@@ -6,7 +6,7 @@ import { CircleCheck, OctagonAlert, TriangleAlert } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { formatMinutes } from "@/lib/utils";
 
-export type WeekResult = { weekStart: string; globalAfter: number; jobAfter: number };
+export type WeekResult = { weekStart: string; globalAfter: number; jobAfter: number; globalLimit: number | null };
 type OccurrenceResult = {
   startsAt: string;
   endsAt: string;
@@ -16,7 +16,7 @@ type OccurrenceResult = {
   overlap: { jobName: string; startsAt: string; endsAt: string } | null;
   weeks: WeekResult[];
 };
-export type LimitCheck = { jobName: string; globalLimit: number | null; jobLimit: number | null; occurrences: OccurrenceResult[] };
+export type LimitCheck = { jobName: string; jobLimit: number | null; occurrences: OccurrenceResult[] };
 // As in the clash notice: each result carries the request it answers, so a
 // result for the previous times is never drawn against new ones.
 type CheckState = { key: string } & ({ status: "idle" } | ({ status: "ok" } & LimitCheck));
@@ -26,8 +26,8 @@ function reason(occurrence: OccurrenceResult, check: LimitCheck, timeZone: strin
     const { overlap } = occurrence;
     return `overlaps your ${overlap.jobName} shift, ${formatInTimeZone(overlap.startsAt, timeZone, "EEE h:mm a")}–${formatInTimeZone(overlap.endsAt, timeZone, "h:mm a")}`;
   }
-  const week = occurrence.weeks.find((candidate) => occurrence.over === "global" ? check.globalLimit !== null && candidate.globalAfter > check.globalLimit : check.jobLimit !== null && candidate.jobAfter > check.jobLimit);
-  if (occurrence.over === "global" && week && check.globalLimit !== null) return `puts that week at ${formatMinutes(week.globalAfter)}, over your ${formatMinutes(check.globalLimit)} weekly limit`;
+  const week = occurrence.weeks.find((candidate) => occurrence.over === "global" ? candidate.globalLimit !== null && candidate.globalAfter > candidate.globalLimit : check.jobLimit !== null && candidate.jobAfter > check.jobLimit);
+  if (occurrence.over === "global" && week && week.globalLimit !== null) return `puts that week at ${formatMinutes(week.globalAfter)}, over your ${formatMinutes(week.globalLimit)} weekly limit`;
   if (occurrence.over === "job" && week && check.jobLimit !== null) return `puts ${check.jobName} at ${formatMinutes(week.jobAfter)} that week, over its ${formatMinutes(check.jobLimit)} limit`;
   return "is not a valid span";
 }
@@ -52,7 +52,7 @@ export function useLimitCheck({ start, end, jobId, repeatWeeks, excludeId }: { s
       try {
         const response = await fetch(`/shifts/limit-check?${query}`, { signal: controller.signal, cache: "no-store" });
         const body = (await response.json()) as { status: string } & Partial<LimitCheck>;
-        if (body.status === "ok" && body.occurrences) setState({ key, status: "ok", jobName: body.jobName ?? "", globalLimit: body.globalLimit ?? null, jobLimit: body.jobLimit ?? null, occurrences: body.occurrences });
+        if (body.status === "ok" && body.occurrences) setState({ key, status: "ok", jobName: body.jobName ?? "", jobLimit: body.jobLimit ?? null, occurrences: body.occurrences });
         else setState({ key, status: "idle" });
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) setState({ key, status: "idle" });
@@ -67,7 +67,7 @@ export function useLimitCheck({ start, end, jobId, repeatWeeks, excludeId }: { s
 
 /** Whether a fitting shift brings a week to 80% of a limit or past it. */
 export function isNearLimit(check: LimitCheck, week: WeekResult) {
-  return (check.globalLimit !== null && week.globalAfter >= check.globalLimit * 0.8) || (check.jobLimit !== null && week.jobAfter >= check.jobLimit * 0.8);
+  return (week.globalLimit !== null && week.globalAfter >= week.globalLimit * 0.8) || (check.jobLimit !== null && week.jobAfter >= check.jobLimit * 0.8);
 }
 
 /**

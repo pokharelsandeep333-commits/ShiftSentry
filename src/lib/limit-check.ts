@@ -1,4 +1,5 @@
-import { weekEndFor, weekStartFor } from "@/lib/time";
+import { breakPeriodForWeek, type BreakPeriod } from "@/lib/break-periods";
+import { weekEndFor, weekStartDateFor, weekStartFor } from "@/lib/time";
 
 export type ExistingShift = { id: string; jobId: string; startsAt: Date; endsAt: Date };
 export type Occurrence = { startsAt: Date; endsAt: Date };
@@ -10,6 +11,7 @@ export type WeekCheck = {
   /** Totals once this shift is added: every job, and this shift's job. */
   globalAfter: number;
   jobAfter: number;
+  globalLimit: number | null;
 };
 
 export type OccurrenceCheck = Occurrence & {
@@ -52,7 +54,7 @@ function minutesWithin(shift: Occurrence, start: Date, end: Date) {
  * Advisory only: the database decides on Save, and this can be wrong if
  * something else writes a shift in between.
  */
-export function checkOccurrences({ occurrences, jobId, existing, excludeId, timeZone, weekStartsOn, globalLimit, jobLimit }: {
+export function checkOccurrences({ occurrences, jobId, existing, excludeId, timeZone, weekStartsOn, globalLimit, jobLimit, breakPeriods = [] }: {
   occurrences: Occurrence[];
   jobId: string;
   existing: ExistingShift[];
@@ -61,6 +63,7 @@ export function checkOccurrences({ occurrences, jobId, existing, excludeId, time
   weekStartsOn: number;
   globalLimit: number | null;
   jobLimit: number | null;
+  breakPeriods?: readonly BreakPeriod[];
 }): OccurrenceCheck[] {
   const placed = existing.filter((shift) => shift.id !== excludeId);
   const results: OccurrenceCheck[] = [];
@@ -86,9 +89,10 @@ export function checkOccurrences({ occurrences, jobId, existing, excludeId, time
             existingGlobal += within;
             if (shift.jobId === jobId) existingJob += within;
           }
-          const check = { weekStart, minutes, globalAfter: existingGlobal + minutes, jobAfter: existingJob + minutes };
+          const period = breakPeriodForWeek(breakPeriods, weekStartDateFor(weekStart, timeZone, weekStartsOn));
+          const check = { weekStart, minutes, globalAfter: existingGlobal + minutes, jobAfter: existingJob + minutes, globalLimit: period?.weekly_limit_minutes ?? globalLimit };
           weeks.push(check);
-          if (!over && globalLimit !== null && check.globalAfter > globalLimit) over = "global";
+          if (!over && check.globalLimit !== null && check.globalAfter > check.globalLimit) over = "global";
           if (!over && jobLimit !== null && check.jobAfter > jobLimit) over = "job";
         }
         weekStart = weekEnd;

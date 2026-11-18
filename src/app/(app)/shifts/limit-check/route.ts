@@ -5,7 +5,7 @@ import { checkOccurrences, type Occurrence } from "@/lib/limit-check";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { weekEndFor, weekStartFor } from "@/lib/time";
+import { weekEndFor, weekStartDateFor, weekStartFor } from "@/lib/time";
 import { resourceIdSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -54,11 +54,14 @@ export async function GET(request: Request) {
   const windowEnd = weekEndFor(weekStartFor(last.endsAt, timeZone, profile.week_starts_on), timeZone, profile.week_starts_on);
 
   const supabase = await createServerSupabaseClient();
-  const [jobs, shifts] = await Promise.all([
+  const [jobs, shifts, breaks] = await Promise.all([
     supabase.from("jobs").select("id,name,weekly_limit_minutes").eq("user_id", profile.id),
     supabase.from("shifts").select("id,job_id,starts_at,ends_at").eq("user_id", profile.id).lt("starts_at", windowEnd.toISOString()).gt("ends_at", windowStart.toISOString()).order("starts_at").limit(1000),
+    supabase.from("break_periods").select("id,start_date,end_date,weekly_limit_minutes,label").eq("user_id", profile.id)
+      .gte("end_date", weekStartDateFor(windowStart, timeZone, profile.week_starts_on))
+      .lt("start_date", weekStartDateFor(windowEnd, timeZone, profile.week_starts_on)),
   ]);
-  if (jobs.error || shifts.error) return json({ status: "unavailable" }, 500);
+  if (jobs.error || shifts.error || breaks.error) return json({ status: "unavailable" }, 500);
   const chosen = jobs.data.find((candidate) => candidate.id === job.data);
   if (!chosen) return json({ status: "unavailable" }, 404);
   const jobNames = new Map(jobs.data.map((candidate) => [candidate.id, candidate.name]));
@@ -72,12 +75,12 @@ export async function GET(request: Request) {
     weekStartsOn: profile.week_starts_on,
     globalLimit: profile.global_weekly_limit_minutes,
     jobLimit: chosen.weekly_limit_minutes,
+    breakPeriods: breaks.data,
   });
 
   return json({
     status: "ok",
     jobName: chosen.name,
-    globalLimit: profile.global_weekly_limit_minutes,
     jobLimit: chosen.weekly_limit_minutes,
     occurrences: results.map((result) => ({
       startsAt: result.startsAt.toISOString(),
@@ -86,7 +89,7 @@ export async function GET(request: Request) {
       over: result.over,
       badSpan: result.badSpan,
       overlap: result.overlap ? { jobName: jobNames.get(result.overlap.jobId) ?? "Another job", startsAt: result.overlap.startsAt.toISOString(), endsAt: result.overlap.endsAt.toISOString() } : null,
-      weeks: result.weeks.map((week) => ({ weekStart: week.weekStart.toISOString(), globalAfter: week.globalAfter, jobAfter: week.jobAfter })),
+      weeks: result.weeks.map((week) => ({ weekStart: week.weekStart.toISOString(), globalAfter: week.globalAfter, jobAfter: week.jobAfter, globalLimit: week.globalLimit })),
     })),
   });
 }

@@ -8,6 +8,7 @@ import { resolve } from "node:path";
 const PAIRS = [
   ["2026-10-11.1", "20261012002439_legal_account_privacy.sql"],
   ["2026-11-02.1", "20261102120000_legal_hosting_update.sql"],
+  ["2026-11-17.1", "20261118045051_break_period_weekly_caps.sql"],
 ];
 const start = "-- BEGIN LEGAL SNAPSHOT";
 const end = "-- END LEGAL SNAPSHOT";

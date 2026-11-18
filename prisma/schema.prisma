@@ -30,6 +30,7 @@ model Profile {
   auditEvents              AuditEvent[] @relation("AuditActor")
   googleCalendarConnection GoogleCalendarConnection?
   weekNotes                WeekNote[]
+  breakPeriods             BreakPeriod[]
   legalAcceptances         LegalAcceptance[]
   supportNotes             AdminUserNote[] @relation("NoteSubject")
   supportNotesWritten      AdminUserNote[] @relation("NoteAuthor")
@@ -114,6 +115,21 @@ model Shift {
   @@index([userId, startsAt])
   @@index([jobId, startsAt])
   @@map("shifts")
+}
+
+model BreakPeriod {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  startDate          DateTime @map("start_date") @db.Date
+  endDate            DateTime @map("end_date") @db.Date
+  weeklyLimitMinutes Int      @map("weekly_limit_minutes")
+  label              String?
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile            Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The SQL exclusion constraint forbids overlapping date ranges per user.
+  @@map("break_periods")
 }
 
 model WeekNote {
