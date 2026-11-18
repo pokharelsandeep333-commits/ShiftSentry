@@ -10,6 +10,8 @@ import { getConnectionSummary } from "@/lib/google/connection";
 import { stopFollowingGoogle, updateShiftNotes } from "@/app/actions/work";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { parseShiftDateTimeInput } from "@/lib/shift-date-time";
+import { timerStartedAtSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +20,13 @@ function hasStarted(startsAt: string) {
   return Date.parse(startsAt) <= new Date().getTime();
 }
 
-export default async function EditShiftPage({ params }: { params: Promise<{ id: string }> }) {
+type SearchParams = Record<string, string | string[] | undefined>;
+const single = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+
+export default async function EditShiftPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<SearchParams> }) {
   const profile = await requireUser();
   const calendarCheck = isGoogleCalendarEnabled() && (await getConnectionSummary(profile.id)) !== null;
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const supabase = await createServerSupabaseClient();
   const [{ data: shift }, { data: jobs }] = await Promise.all([
     supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,google_event_id").eq("id", id).eq("user_id", profile.id).maybeSingle(),
@@ -58,7 +63,15 @@ export default async function EditShiftPage({ params }: { params: Promise<{ id: 
         </div></ShiftEditorPage>;
   }
 
+  // Opened from a running timer that adopted this shift (timerEditorHref): the
+  // form starts on the clocked times, and saving also stops that timer. Both
+  // times must parse, or the stored ones are shown as usual.
+  const clockedStart = parseShiftDateTimeInput(single(query.startsAt) ?? "");
+  const clockedEnd = parseShiftDateTimeInput(single(query.endsAt) ?? "");
+  const timer = timerStartedAtSchema.safeParse(single(query.timer));
+  const clocked = clockedStart && clockedEnd && timer.success ? { startsAt: clockedStart.value, endsAt: clockedEnd.value, timerStartedAt: timer.data } : null;
+
   return <ShiftEditorPage title="Edit shift">
-    <ShiftForm calendarCheck={calendarCheck} weekStartsOn={profile.week_starts_on} mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} />
+    <ShiftForm calendarCheck={calendarCheck} weekStartsOn={profile.week_starts_on} mode="edit" jobs={selectableJobs} timeZone={profile.time_zone} timerStartedAt={clocked?.timerStartedAt} initialShift={{ id: shift.id, jobId: shift.job_id, startsAt: clocked?.startsAt ?? formatInTimeZone(shift.starts_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), endsAt: clocked?.endsAt ?? formatInTimeZone(shift.ends_at, profile.time_zone, "yyyy-MM-dd'T'HH:mm"), notes: shift.notes, paySnapshot }} />
   </ShiftEditorPage>;
 }

@@ -1,4 +1,5 @@
 import { allocateShiftMinutes, percentage, weekStartFor } from "@/lib/time";
+import type { LiveTimer } from "@/lib/shift-timer";
 
 /**
  * The header's "this week" meter: the same planned total the dashboard's cap
@@ -24,6 +25,13 @@ export type WeekMeter = {
 };
 
 export type WeekMeterShift = { jobId: string; startsAt: Date; endsAt: Date };
+
+/**
+ * What the header meter is drawn from: the server's per-job minutes for the
+ * week, the moment they were counted, and any running timer, which the shell
+ * folds in as it ticks (`liveWeekJobs` in shift-timer.ts) before `buildWeekMeter`.
+ */
+export type WeekMeterSource = { jobs: WeekMeterJob[]; limitMinutes: number | null; countedAt: string; timer: LiveTimer | null; timeZone: string; weekStartsOn: number };
 
 /**
  * Minutes per job inside the week that contains `now`, split at local

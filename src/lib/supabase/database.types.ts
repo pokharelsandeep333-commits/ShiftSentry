@@ -726,6 +726,49 @@ export type Database = {
         };
         Relationships: [];
       };
+      shift_timers: {
+        Row: {
+          job_id: string;
+          shift_id: string | null;
+          started_at: string;
+          user_id: string;
+        };
+        Insert: {
+          job_id: string;
+          shift_id?: string | null;
+          started_at?: string;
+          user_id: string;
+        };
+        Update: {
+          job_id?: string;
+          shift_id?: string | null;
+          started_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shift_timers_job_id_fkey";
+            columns: ["job_id"];
+            isOneToOne: false;
+            referencedRelation: "jobs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shift_timers_shift_id_fkey";
+            columns: ["shift_id"];
+            isOneToOne: false;
+            referencedRelation: "shifts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shift_timers_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       shifts: {
         Row: {
           created_at: string;

@@ -44,6 +44,14 @@ export const shiftSchema = z.object({
 });
 
 /**
+ * A running timer's `started_at` exactly as PostgREST returned it, carried
+ * through a form or link and matched back with `.eq("started_at", …)`. Kept as
+ * the original string because it has microseconds, which a JS Date would drop
+ * and the equality would then miss.
+ */
+export const timerStartedAtSchema = z.string().max(40).regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/).refine((value) => !Number.isNaN(Date.parse(value)));
+
+/**
  * An invite code as typed. Validated before it reaches the database rather than
  * after, so a mistyped character is answered by the form instead of by
  * `join_game_room` reporting that no such game exists -- which is true but reads

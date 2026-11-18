@@ -9,7 +9,8 @@ import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ChevronRight, Cir
 import { useTheme } from "@/components/theme-provider";
 import { createLocalPreference } from "@/lib/local-preference";
 import { cn, formatMinutes } from "@/lib/utils";
-import { limitPosition, type WeekMeter } from "@/lib/week-meter";
+import { buildWeekMeter, limitPosition, type WeekMeter, type WeekMeterSource } from "@/lib/week-meter";
+import { useLiveWeekJobs } from "@/components/use-live-week";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
 import { Brand, BrandMark } from "@/components/brand";
@@ -382,9 +383,15 @@ function meterNote(meter: WeekMeter) {
  * and the figure turns amber from 80% and coral at the
  * limit -- the dashboard's ladder, from the same total.
  */
-function WeekMeterLink({ weekMeter }: { weekMeter: Promise<WeekMeter | null> }) {
-  const meter = use(weekMeter);
-  if (!meter) return null;
+function WeekMeterLink({ weekMeter }: { weekMeter: Promise<WeekMeterSource | null> }) {
+  const source = use(weekMeter);
+  return source ? <LiveWeekMeter source={source} /> : null;
+}
+
+/** The meter, with a running timer's minutes counted as they tick (`useLiveWeekJobs`). */
+function LiveWeekMeter({ source }: { source: WeekMeterSource }) {
+  const { jobs } = useLiveWeekJobs(source.jobs, source.timer, source.countedAt, source.timeZone, source.weekStartsOn);
+  const meter = buildWeekMeter(jobs, source.limitMinutes);
   const tick = limitPosition(meter);
   const summary = meter.limitMinutes === null
     ? `This week: ${formatMinutes(meter.plannedMinutes)} planned, no weekly limit set. Open overview.`
@@ -411,7 +418,7 @@ function WeekMeterPlaceholder() {
   </span>;
 }
 
-export function AppShell({ children, isAdmin = false, isDemo = false, userEmail, userName, weekMeter }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string; userName?: string | null; weekMeter?: Promise<WeekMeter | null> }) {
+export function AppShell({ children, isAdmin = false, isDemo = false, userEmail, userName, weekMeter }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string; userName?: string | null; weekMeter?: Promise<WeekMeterSource | null> }) {
   const pathname = usePathname();
   const railExtras = isAdmin ? [...railExtraNavigation, ADMIN_ITEM] : railExtraNavigation;
   const railItems = [...railMainNavigation, ...railExtras, ...railSettings];

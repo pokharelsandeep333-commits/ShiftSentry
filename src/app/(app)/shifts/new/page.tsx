@@ -10,6 +10,7 @@ import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { getConnectionSummary } from "@/lib/google/connection";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { parseShiftDateTimeInput } from "@/lib/shift-date-time";
+import { timerStartedAtSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -45,12 +46,16 @@ export default async function NewShiftPage({ searchParams }: { searchParams: Pro
   ]);
   const selectableJobs: ShiftFormJob[] = (jobs ?? []).map((job) => ({ id: job.id, name: job.name, color: job.color, hourlyRateCents: job.hourly_rate_cents, taxRateBasisPoints: job.tax_rate_basis_points, deductions: (job.job_deductions ?? []).map((deduction) => ({ name: deduction.name, rateBasisPoints: deduction.rate_basis_points })) }));
   const initialShift = prefillFromQuery(params, selectableJobs);
+  // Opened from a running timer: saving also stops it (createShift checks the
+  // value names the timer that is still running, so a stale link stops nothing).
+  const timer = timerStartedAtSchema.safeParse(single(params.timer));
+  const timerStartedAt = initialShift && timer.success ? timer.data : undefined;
   const lastTimes: Record<string, LastTimes> = {};
   for (const shift of recent ?? []) {
     lastTimes[shift.job_id] ??= { start: formatInTimeZone(shift.starts_at, profile.time_zone, "HH:mm"), end: formatInTimeZone(shift.ends_at, profile.time_zone, "HH:mm") };
   }
 
   return <ShiftEditorPage title="Add shift" description="Pick the job and the times. You'll see your weekly totals before you save.">
-    {selectableJobs.length ? <ShiftForm calendarCheck={calendarCheck} lastTimes={lastTimes} weekStartsOn={profile.week_starts_on} mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} /> : <div className="shift-google-editor"><p className="mb-4 text-sm text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs/new" className={buttonVariants()}>Create a job</Link></div>}
+    {selectableJobs.length ? <ShiftForm calendarCheck={calendarCheck} lastTimes={lastTimes} weekStartsOn={profile.week_starts_on} mode="create" jobs={selectableJobs} timeZone={profile.time_zone} initialShift={initialShift} timerStartedAt={timerStartedAt} /> : <div className="shift-google-editor"><p className="mb-4 text-sm text-[var(--muted-foreground)]">Create a job before adding a shift.</p><Link href="/jobs/new" className={buttonVariants()}>Create a job</Link></div>}
   </ShiftEditorPage>;
 }
