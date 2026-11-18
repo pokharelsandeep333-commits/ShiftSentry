@@ -3,6 +3,7 @@
 //
 //   node scripts/render-welcome-3d.mjs
 //   node scripts/render-welcome-3d.mjs --variants   (only rebuild the smaller copies)
+//   node scripts/render-welcome-3d.mjs --avif       (only rebuild the .avif siblings)
 //
 // It serves the scene folder on localhost, drives headless Edge or Chrome over
 // the DevTools protocol, renders each scene at 2x over white and over black,
@@ -14,10 +15,23 @@
 // the full render, for the page's `srcset`: a phone draws the hero about
 // 350px wide, so even at 3x it never needs all 1400. `--variants` rebuilds
 // only those from the webp already on disk, with no browser and no network.
+//
+// Every image the landing shows also gets an AVIF sibling, served first
+// through `<picture>` with the webp as the fallback: the hero and its copies,
+// and the `dashboard-*` captures (which are screenshots, not renders, so they
+// only ever get the offline step). Qualities were picked by eye against the
+// webp on 2026-11-18: the hero at 65, because 55 and 60 put faint block edges
+// into the lavender floor shadow; the captures at 70, because 60 softened the
+// grey text on the dark phone capture. Each AVIF is encoded from its own webp
+// sibling, after the full render too: the webp's encode smooths the render's
+// fine noise, and an AVIF made straight from the lanczos copy came out 50 to
+// 60% larger for no visible gain. `--avif` does only that step, offline, and
+// touches no webp. Each AVIF gets a `.avif.json` sidecar.
+//
 // The scene file still has a `cta` camera; the closing card that used it was
 // removed on 2026-11-02, so nothing renders it.
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -30,10 +44,18 @@ const outDir = join(root, "..", "public", "welcome");
 const SCENES = [
   { name: "hero-3d", scene: "hero", width: 1400, height: 1400, variants: [720, 1080] },
 ];
+const CAPTURES = ["dashboard-desktop-light", "dashboard-desktop-dark", "dashboard-mobile-light", "dashboard-mobile-dark"];
 const WEBP = { quality: 86, alphaQuality: 90, effort: 6 };
+const AVIF_ART = { quality: 65, effort: 6, chromaSubsampling: "4:4:4" };
+const AVIF_CAPTURE = { quality: 70, effort: 6, chromaSubsampling: "4:4:4" };
 
 if (process.argv.includes("--variants")) {
   for (const scene of SCENES) await writeVariants(scene);
+  process.exit(0);
+}
+if (process.argv.includes("--avif")) {
+  for (const scene of SCENES) await writeSceneAvifs(scene);
+  for (const name of CAPTURES) await writeAvif(name, AVIF_CAPTURE);
   process.exit(0);
 }
 const SUPERSAMPLE = 2;
@@ -102,6 +124,7 @@ try {
     await sharp(out, { raw: { width: w, height: h, channels: 4 } }).resize(width, height, { kernel: "lanczos3" }).webp(WEBP).toFile(file);
     console.log(`wrote ${file}`);
     await writeVariants({ name, width, height, variants });
+    await writeSceneAvifs({ name, variants });
   }
   socket.close();
 } finally {
@@ -115,6 +138,19 @@ async function writeVariants({ name, width, height, variants }) {
     await sharp(join(outDir, `${name}.webp`)).resize(variant, Math.round((height * variant) / width), { kernel: "lanczos3" }).webp(WEBP).toFile(file);
     console.log(`wrote ${file}`);
   }
+}
+
+async function writeSceneAvifs({ name, variants }) {
+  for (const file of [name, ...variants.map((variant) => `${name}-${variant}`)]) await writeAvif(file, AVIF_ART);
+}
+
+/** `<name>.avif` from `<name>.webp`, and a sidecar saying how it was made. */
+async function writeAvif(name, settings) {
+  const file = join(outDir, `${name}.avif`);
+  await sharp(join(outDir, `${name}.webp`)).avif(settings).toFile(file);
+  const prompt = `AVIF sibling of ${name}.webp, encoded from that webp at the same size by scripts/render-welcome-3d.mjs (the --avif step; sharp avif, quality ${settings.quality}, effort ${settings.effort}, chroma ${settings.chromaSubsampling}). Same image, smaller file; the landing serves it through <picture> with the webp as the fallback.`;
+  writeFileSync(`${file}.json`, `${JSON.stringify({ prompt, createdAt: new Date().toISOString() }, null, 2)}\n`);
+  console.log(`wrote ${file}`);
 }
 
 async function rawPixels(dataUrl) {
