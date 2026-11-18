@@ -869,3 +869,42 @@ select {
   background-color: var(--card);
   color: var(--foreground);
 }
+
+/*
+ * Print. Any app page prints as its content alone: the sidebar, header, bottom
+ * bar and announcement are dropped, the grid that reserved the sidebar column
+ * collapses, and the light tokens apply whatever theme is on screen, so a
+ * timesheet prints black on white. Built for /pay-periods/timesheet, whose
+ * controls carry print:hidden and whose tables reflow to every column.
+ */
+@media print {
+  @page { margin: 14mm 12mm; }
+
+  :root, .dark {
+    color-scheme: light;
+    --background: #ffffff;
+    --foreground: #101828;
+    --card: #ffffff;
+    --muted: #f2f4f7;
+    --muted-foreground: #475467;
+    --border: #d0d5dd;
+    --success: #067647;
+    --danger: #b42318;
+    --surface-subtle: #ffffff;
+    --shadow-color: 255 255 255;
+  }
+
+  html { overflow-y: visible; }
+  body { background: #ffffff; padding: 0; }
+  .app-canvas, .app-frame, :root[data-sidebar="collapsed"] .app-frame { display: block; background: #ffffff; }
+  .app-sidebar, .app-bottom-bar, section[aria-label="Announcement"] { display: none !important; }
+  .premium-card { box-shadow: none !important; }
+
+  .timesheet { font-size: 10.5pt; }
+  .timesheet h1 { font-size: 18pt; }
+  .timesheet table { border-collapse: collapse; }
+  .timesheet tr, .timesheet-day { break-inside: avoid; }
+  .timesheet thead { display: table-header-group; }
+  .timesheet section { break-inside: auto; }
+  .timesheet-dot { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}

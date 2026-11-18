@@ -59,6 +59,7 @@ type NavigationItem = typeof navigation[number];
 const SHOW_LABELS: Record<string, string> = { upcoming: "Upcoming", worked: "Worked" };
 function pageLabel(section: NavigationItem, pathname: string, show: string | null) {
   if (pathname === "/pay-periods") return "Pay periods";
+  if (pathname === "/pay-periods/timesheet") return "Timesheet";
   if (pathname.endsWith("/new")) return "New";
   if (pathname.endsWith("/edit")) return "Edit";
   if (pathname === "/shifts" && show) return SHOW_LABELS[show] ?? null;
@@ -76,8 +77,8 @@ function pageLabel(section: NavigationItem, pathname: string, show: string | nul
  * path exactly, so opening a form left nothing highlighted.
  */
 function isNavigationActive(pathname: string, href: string) {
-  // Pay-period history is opened from the dashboard, so it belongs to Overview.
-  if (href === "/") return pathname === "/" || pathname === "/pay-periods";
+  // Pay-period history (and its timesheets) is opened from the dashboard, so it belongs to Overview.
+  if (href === "/") return pathname === "/" || pathname === "/pay-periods" || pathname.startsWith("/pay-periods/");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -446,7 +447,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
           lines up with the sidebar card's. The calendar page's
           `100dvh - 6rem` counts this: change both together. The account
           avatar sits at the bar's right end at every width. */}
-      <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-2"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-2.5">
+      <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-2 print:hidden"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-2.5">
         <div className="flex min-w-0 flex-auto items-center gap-1 sm:gap-2 md:flex-1 md:basis-0">
           <SidebarToggle />
           <MobileNavigation pathname={pathname} isAdmin={isAdmin} />
@@ -460,7 +461,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
           {!isDemo && <AccountMenu email={userEmail} name={userName} />}
         </div>
       </div></header>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12">{children}</main>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12 print:max-w-none print:p-0">{children}</main>
       <BottomNavigation pathname={pathname} />
     </div>
   </div>;
