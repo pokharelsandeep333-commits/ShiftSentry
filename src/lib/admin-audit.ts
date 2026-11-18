@@ -39,21 +39,8 @@ export function describeAuditEvent(action: string, actor: string | null, target:
   return target ? `${who} ${known.verb} ${target}` : `${who} ${known.verb}`;
 }
 
-/**
- * A CSV cell. Quoted always, quotes doubled, and a leading = + - @ (or a tab
- * or carriage return) defused with an apostrophe: spreadsheet apps execute a
- * cell that starts with one as a formula, and an email or a display name is
- * user-controlled text.
- */
-export function csvCell(value: string | number | null | undefined) {
-  const text = value === null || value === undefined ? "" : String(value);
-  const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
-
-export function csvRow(values: (string | number | null | undefined)[]) {
-  return values.map(csvCell).join(",");
-}
+/** The CSV helpers moved to `csv.ts` so the timesheet export shares them. */
+export { csvCell, csvRow } from "@/lib/csv";
 
 export const AUDIT_PAGE_SIZE = 50;
 export const AUDIT_DAY_OPTIONS = [1, 7, 30] as const;
