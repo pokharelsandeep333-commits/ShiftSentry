@@ -9,7 +9,8 @@ import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ChevronRight, Cir
 import { useTheme } from "@/components/theme-provider";
 import { createLocalPreference } from "@/lib/local-preference";
 import { cn, formatMinutes } from "@/lib/utils";
-import { limitPosition, type WeekMeter } from "@/lib/week-meter";
+import { buildWeekMeter, limitPosition, type WeekMeter, type WeekMeterSource } from "@/lib/week-meter";
+import { useLiveWeekJobs } from "@/components/use-live-week";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AccountMenu } from "@/components/account-menu";
 import { Brand, BrandMark } from "@/components/brand";
@@ -59,6 +60,7 @@ type NavigationItem = typeof navigation[number];
 const SHOW_LABELS: Record<string, string> = { upcoming: "Upcoming", worked: "Worked" };
 function pageLabel(section: NavigationItem, pathname: string, show: string | null) {
   if (pathname === "/pay-periods") return "Pay periods";
+  if (pathname === "/pay-periods/timesheet") return "Timesheet";
   if (pathname.endsWith("/new")) return "New";
   if (pathname.endsWith("/edit")) return "Edit";
   if (pathname === "/shifts" && show) return SHOW_LABELS[show] ?? null;
@@ -76,8 +78,8 @@ function pageLabel(section: NavigationItem, pathname: string, show: string | nul
  * path exactly, so opening a form left nothing highlighted.
  */
 function isNavigationActive(pathname: string, href: string) {
-  // Pay-period history is opened from the dashboard, so it belongs to Overview.
-  if (href === "/") return pathname === "/" || pathname === "/pay-periods";
+  // Pay-period history (and its timesheets) is opened from the dashboard, so it belongs to Overview.
+  if (href === "/") return pathname === "/" || pathname === "/pay-periods" || pathname.startsWith("/pay-periods/");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -381,9 +383,15 @@ function meterNote(meter: WeekMeter) {
  * and the figure turns amber from 80% and coral at the
  * limit -- the dashboard's ladder, from the same total.
  */
-function WeekMeterLink({ weekMeter }: { weekMeter: Promise<WeekMeter | null> }) {
-  const meter = use(weekMeter);
-  if (!meter) return null;
+function WeekMeterLink({ weekMeter }: { weekMeter: Promise<WeekMeterSource | null> }) {
+  const source = use(weekMeter);
+  return source ? <LiveWeekMeter source={source} /> : null;
+}
+
+/** The meter, with a running timer's minutes counted as they tick (`useLiveWeekJobs`). */
+function LiveWeekMeter({ source }: { source: WeekMeterSource }) {
+  const { jobs } = useLiveWeekJobs(source.jobs, source.timer, source.countedAt, source.timeZone, source.weekStartsOn);
+  const meter = buildWeekMeter(jobs, source.limitMinutes);
   const tick = limitPosition(meter);
   const summary = meter.limitMinutes === null
     ? `This week: ${formatMinutes(meter.plannedMinutes)} planned, no weekly limit set. Open overview.`
@@ -410,7 +418,7 @@ function WeekMeterPlaceholder() {
   </span>;
 }
 
-export function AppShell({ children, isAdmin = false, isDemo = false, userEmail, userName, weekMeter }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string; userName?: string | null; weekMeter?: Promise<WeekMeter | null> }) {
+export function AppShell({ children, isAdmin = false, isDemo = false, userEmail, userName, weekMeter }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string; userName?: string | null; weekMeter?: Promise<WeekMeterSource | null> }) {
   const pathname = usePathname();
   const railExtras = isAdmin ? [...railExtraNavigation, ADMIN_ITEM] : railExtraNavigation;
   const railItems = [...railMainNavigation, ...railExtras, ...railSettings];
@@ -446,7 +454,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
           lines up with the sidebar card's. The calendar page's
           `100dvh - 6rem` counts this: change both together. The account
           avatar sits at the bar's right end at every width. */}
-      <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-2"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-2.5">
+      <header className="px-3 pt-3 sm:px-5 lg:px-6 lg:pt-2 print:hidden"><div className="mx-auto flex h-14 max-w-[96rem] items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-2.5">
         <div className="flex min-w-0 flex-auto items-center gap-1 sm:gap-2 md:flex-1 md:basis-0">
           <SidebarToggle />
           <MobileNavigation pathname={pathname} isAdmin={isAdmin} />
@@ -460,7 +468,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
           {!isDemo && <AccountMenu email={userEmail} name={userName} />}
         </div>
       </div></header>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12">{children}</main>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-[96rem] p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] outline-none sm:p-6 lg:p-8 lg:pb-12 print:max-w-none print:p-0">{children}</main>
       <BottomNavigation pathname={pathname} />
     </div>
   </div>;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -10,6 +10,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NextShiftCard } from "@/components/dashboard/next-shift-card";
 import { WeekCard } from "@/components/dashboard/week-card";
+import { useLiveWeekJobs } from "@/components/use-live-week";
+import type { LiveTimer } from "@/lib/shift-timer";
 import { PayClimb } from "@/components/dashboard/pay-climb";
 import { PaydaySummary } from "@/components/dashboard/payday-summary";
 import { RecentShifts } from "@/components/dashboard/recent-shifts";
@@ -81,7 +83,16 @@ function useHoverPointer() {
   return useSyncExternalStore(subscribeToPointer, readHoverPointer, () => true);
 }
 
-export function DashboardView({ data }: { data: DashboardData }) {
+/**
+ * `clock` is the clock-in card (`ShiftClock`), rendered by the page because it
+ * needs a session; the demo passes none. It sits straight under the greeting,
+ * above the cap card: on a phone, starting and stopping a shift is the action
+ * people open the app for. `timer` is the same running timer, which the cap
+ * card counts as it ticks, as the header meter does.
+ */
+export function DashboardView({ data, clock, timer = null }: { data: DashboardData; clock?: ReactNode; timer?: LiveTimer | null }) {
+  // Before the first-run early return, so the hook order never changes.
+  const live = useLiveWeekJobs(data.jobs, timer, data.snapshotAt, data.viewer.timeZone, data.viewer.weekStartsOn);
   // Nothing has been set up yet, so there is nothing to total. The full
   // dashboard here is a wall of zeros -- an empty hero, four $0.00 metrics, two
   // blank charts and three separate empty states -- which says what is missing
@@ -90,7 +101,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
   return <div className={styles.root}>
     <DashboardHeading data={data} />
-    <WeekCard jobs={data.jobs} workedMinutes={data.totals.week.minutes} limitMinutes={data.globalLimitMinutes} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
+    {clock}
+    <WeekCard jobs={live.jobs} workedMinutes={data.totals.week.minutes + live.workedDelta} limitMinutes={data.globalLimitMinutes} activeBreakLabel={data.activeBreakLabel} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
 
     {/* The week, then what is next: the same order stacked and side by side. */}
     <section className={styles.topGrid}>

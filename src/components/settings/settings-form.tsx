@@ -52,7 +52,7 @@ export function SettingsForm({ email, displayName, timeZone, timeZones, weekStar
       <p className="-mt-1 text-xs leading-5 text-[var(--muted-foreground)]" aria-live="polite">Your week runs {weekdays[weekStart]} to {weekdays[(weekStart + 6) % 7]}.</p>
 
       <label className="field-label">
-        <span>Weekly hour limit, all jobs combined</span>
+        <span>Default weekly hour limit, all jobs combined</span>
         <input name="globalWeeklyLimitHours" type="number" min={1} max={168} defaultValue={globalWeeklyLimitMinutes ? globalWeeklyLimitMinutes / 60 : ""} className="field-control sm:max-w-56" placeholder="No limit" />
         <small className="block text-xs font-normal leading-5 text-[var(--muted-foreground)]">Leave blank for no limit. A job can also have its own limit, set on <Link href="/jobs" className="font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Jobs</Link>.</small>
       </label>

@@ -11,6 +11,21 @@ function midnightUtc(localDay: string, timeZone: string) {
   return fromZonedTime(`${localDay}T00:00:00`, timeZone);
 }
 
+/** Match PostgreSQL's later instant when a local week boundary is skipped or repeated. */
+function weekMidnightUtc(localDay: string, timeZone: string) {
+  const wall = `${localDay}T00:00:00`;
+  const utc = Date.parse(`${wall}Z`);
+  const day = 86_400_000;
+  const wallAt = (time: number) => formatInTimeZone(new Date(time), timeZone, "yyyy-MM-dd'T'HH:mm:ss");
+  const atOffsetOf = (time: number) => utc - (Date.parse(`${wallAt(time)}Z`) - time);
+  const before = atOffsetOf(utc - day);
+  const after = atOffsetOf(utc + day);
+  if (!Number.isFinite(before) || !Number.isFinite(after)) return midnightUtc(localDay, timeZone);
+  if (before === after) return new Date(before);
+  const matching = [before, after].filter((time) => wallAt(time) === wall);
+  return new Date(Math.max(...(matching.length ? matching : [before, after])));
+}
+
 /**
  * Move a local calendar day by whole days.
  *
@@ -46,9 +61,13 @@ export function allocateShiftMinutes(startsAt: Date, endsAt: Date, timeZone: str
   return allocations;
 }
 
-export function weekStartFor(date: Date, timeZone: string, weekStartsOn: number) {
+export function weekStartDateFor(date: Date, timeZone: string, weekStartsOn: number) {
   const day = localDate(date, timeZone);
-  return midnightUtc(addLocalDays(day, -daysIntoWeek(day, weekStartsOn)), timeZone);
+  return addLocalDays(day, -daysIntoWeek(day, weekStartsOn));
+}
+
+export function weekStartFor(date: Date, timeZone: string, weekStartsOn: number) {
+  return weekMidnightUtc(weekStartDateFor(date, timeZone, weekStartsOn), timeZone);
 }
 
 /**
@@ -58,7 +77,7 @@ export function weekStartFor(date: Date, timeZone: string, weekStartsOn: number)
  */
 export function weekEndFor(date: Date, timeZone: string, weekStartsOn: number) {
   const day = localDate(date, timeZone);
-  return midnightUtc(addLocalDays(day, 7 - daysIntoWeek(day, weekStartsOn)), timeZone);
+  return weekMidnightUtc(addLocalDays(day, 7 - daysIntoWeek(day, weekStartsOn)), timeZone);
 }
 
 export function percentage(usedMinutes: number, limitMinutes: number | null) {

@@ -23,6 +23,7 @@ export const demoDashboard: DashboardData = {
   recentShifts: [],
   viewer: { email: "demo@shiftsaas.app", name: null, timeZone: "America/Chicago", weekStartsOn: 0 },
   globalLimitMinutes: 1_200,
+  activeBreakLabel: null,
   loggedMinutes: 780,
   scheduledMinutes: 180,
   jobs: [

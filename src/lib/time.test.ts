@@ -107,3 +107,8 @@ test("percentage rounds and treats a missing limit as zero", () => {
   assert.equal(percentage(719, 1200), 60);
   assert.equal(percentage(600, null), 0);
 });
+test("week boundaries match PostgreSQL when midnight is skipped or repeated", () => {
+  const zone = "America/Havana";
+  assert.equal(weekStartFor(new Date("2026-03-08T15:00:00Z"), zone, 0).toISOString(), "2026-03-08T05:00:00.000Z");
+  assert.equal(weekEndFor(new Date("2026-10-31T15:00:00Z"), zone, 0).toISOString(), "2026-11-01T05:00:00.000Z");
+});

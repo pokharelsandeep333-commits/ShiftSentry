@@ -3,7 +3,7 @@ import { z } from "zod";
 export { acceptancePath, legalDestination } from "./legal-paths";
 
 /** Deliberately matches the immutable legal_versions row in the migration. */
-export const LEGAL_VERSION = "2026-11-02.1";
+export const LEGAL_VERSION = "2026-11-17.1";
 export const MINIMUM_AGE = 16;
 export const AUDIT_RETENTION_DAYS = 30;
 

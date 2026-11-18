@@ -1,10 +1,13 @@
+import { cache } from "react";
+import { breakPeriodForWeek } from "@/lib/break-periods";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { allocateShiftMinutes, weekEndFor, weekStartFor } from "@/lib/time";
+import { allocateShiftMinutes, weekEndFor, weekStartDateFor, weekStartFor } from "@/lib/time";
 import type { DashboardData, MonthTotals } from "@/lib/types";
 import type { DeductionSnapshot } from "@/lib/earnings";
 import { addWorkedMinutes, bucketWorkedShiftsByMonth, createTotals, finalizeTotals } from "@/lib/period-totals";
 import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-allocation";
-import { allocateWeekMinutes, buildWeekMeter, type WeekMeter } from "@/lib/week-meter";
+import { allocateWeekMinutes, type WeekMeterSource } from "@/lib/week-meter";
+import { getRunningTimer } from "@/lib/shift-timer-server";
 import { JOB_PAY_COLUMNS, payPeriodQueryWindow, payScheduleFromColumns, summarizePayPeriods, type JobPayColumns } from "@/lib/pay-period";
 import { buildDashboardInsights, recentCompletedShifts, type DashboardShift, type RecentCompletedShift } from "@/lib/dashboard-insights";
 
@@ -70,21 +73,37 @@ async function fetchHistory(supabase: Awaited<ReturnType<typeof createServerSupa
 
 /**
  * The header meter's numbers, for every signed-in page. One shift query for
- * the current week plus the jobs, both through the RLS client. A failure
- * resolves to null and the header simply draws no meter: the chrome must never
- * take a page down with it.
+ * the current week plus the jobs, both through the RLS client, and the running
+ * timer, which the shell adds as it ticks. A failure resolves to null and the
+ * header simply draws no meter: the chrome must never take a page down with it.
  */
-export async function getWeekMeter(profile: WeekProfile): Promise<WeekMeter | null> {
-  const jobs = await loadCurrentWeek(profile);
-  return jobs ? buildWeekMeter(jobs, profile.global_weekly_limit_minutes) : null;
+export async function getWeekMeter(profile: WeekProfile): Promise<WeekMeterSource | null> {
+  const countedAt = new Date();
+  try {
+    const date = weekStartDateFor(countedAt, profile.time_zone, profile.week_starts_on);
+    const [jobs, period, timer] = await Promise.all([loadCurrentWeek(profile, countedAt), loadWeekBreak(profile.id, date), getRunningTimer(profile.id).catch(() => null)]);
+    if (!jobs) return null;
+    const limitMinutes = period?.weekly_limit_minutes ?? profile.global_weekly_limit_minutes;
+    return { jobs, limitMinutes, countedAt: countedAt.toISOString(), timer, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on };
+  } catch {
+    return null;
+  }
 }
 
 type WeekProfile = { id: string; time_zone: string; week_starts_on: number; global_weekly_limit_minutes: number | null };
 
+// The dashboard and shell can share the lookup within a render.
+const loadWeekBreak = cache(async (userId: string, date: string) => {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.from("break_periods").select("id,start_date,end_date,weekly_limit_minutes,label")
+    .eq("user_id", userId).lte("start_date", date).gte("end_date", date);
+  if (error) throw error;
+  return breakPeriodForWeek(data, date);
+});
+
 /** Active jobs with this week's worked and scheduled minutes, archived jobs excluded as everywhere. */
-async function loadCurrentWeek(profile: WeekProfile) {
+async function loadCurrentWeek(profile: WeekProfile, now: Date) {
   try {
-    const now = new Date();
     const weekStart = weekStartFor(now, profile.time_zone, profile.week_starts_on);
     const weekEnd = weekEndFor(now, profile.time_zone, profile.week_starts_on);
     const supabase = await createServerSupabaseClient();
@@ -102,8 +121,9 @@ async function loadCurrentWeek(profile: WeekProfile) {
 
 export async function getDashboardData(profile: { id: string; email: string; display_name: string | null; time_zone: string; week_starts_on: number; global_weekly_limit_minutes: number | null }): Promise<DashboardData> {
   const now = new Date();
-  const weekStart = weekStartFor(now, profile.time_zone, profile.week_starts_on);
+  const weekStartDate = weekStartDateFor(now, profile.time_zone, profile.week_starts_on);
   const weekEnd = weekEndFor(now, profile.time_zone, profile.week_starts_on);
+  const nextWeekStartDate = weekStartDateFor(weekEnd, profile.time_zone, profile.week_starts_on);
   const allocationWindow = monthlyAllocationWindow(now, profile.time_zone);
   // One windowed query answers the week, the six-month chart and the pay
   // periods, so it spans whichever reaches furthest. The pay-period window is
@@ -113,17 +133,16 @@ export async function getDashboardData(profile: { id: string; email: string; dis
   const shiftQueryStart = payWindow.start < allocationWindow.start ? payWindow.start : allocationWindow.start;
   const shiftQueryEnd = [weekEnd, allocationWindow.end, payWindow.end].reduce((latest, bound) => bound > latest ? bound : latest);
   const supabase = await createServerSupabaseClient();
-  const [jobsResult, shiftsResult, history] = await Promise.all([
+  const [jobsResult, shiftsResult, history, breakPeriod] = await Promise.all([
     supabase.from("jobs").select(`id,name,color,weekly_limit_minutes,${JOB_PAY_COLUMNS}`).eq("user_id", profile.id).is("archived_at", null).order("created_at"),
     supabase.from("shifts").select(`id,notes,${SHIFT_COLUMNS}`).eq("user_id", profile.id).is("jobs.archived_at", null).lt("starts_at", shiftQueryEnd.toISOString()).gt("ends_at", shiftQueryStart.toISOString()).order("starts_at"),
     fetchHistory(supabase, profile.id, now, profile.time_zone),
+    loadWeekBreak(profile.id, weekStartDate),
   ]);
   if (jobsResult.error) throw jobsResult.error;
   if (shiftsResult.error) throw shiftsResult.error;
 
   const jobRows = jobsResult.data as JobRow[];
-  const jobs = jobRows.map((job) => ({ id: job.id, name: job.name, color: job.color, weeklyLimitMinutes: job.weekly_limit_minutes, usedMinutes: 0, scheduledMinutes: 0 }));
-  const jobLookup = new Map(jobs.map((job) => [job.id, job]));
   const week = createTotals();
   const upcomingShifts: DashboardData["upcomingShifts"] = [];
   let currentShift: DashboardData["currentShift"] = null;
@@ -132,24 +151,12 @@ export async function getDashboardData(profile: { id: string; email: string; dis
   shifts.forEach((shift) => {
     const startsAt = new Date(shift.starts_at);
     const endsAt = new Date(shift.ends_at);
-    const isScheduled = startsAt > now;
     const earnedEnd = endsAt < now ? endsAt : now;
-    const job = jobLookup.get(shift.job_id);
     const jobRef = { id: shift.job_id, name: shift.jobs.name, color: shift.jobs.color };
     const snapshot = { hourlyRateCents: shift.hourly_rate_cents, taxRateBasisPoints: shift.tax_rate_basis_points, deductions: deductionsOf(shift) };
-    for (const allocation of allocateShiftMinutes(startsAt, endsAt, profile.time_zone)) {
-      const localNoon = new Date(`${allocation.date}T12:00:00Z`);
-      const allocationWeekStart = weekStartFor(localNoon, profile.time_zone, profile.week_starts_on);
-      if (allocationWeekStart.getTime() === weekStart.getTime() && job) {
-        if (isScheduled) job.scheduledMinutes += allocation.minutes;
-        else job.usedMinutes += allocation.minutes;
-      }
-    }
     if (startsAt < now) {
       for (const allocation of allocateShiftMinutes(startsAt, earnedEnd, profile.time_zone)) {
-        const localNoon = new Date(`${allocation.date}T12:00:00Z`);
-        const allocationWeekStart = weekStartFor(localNoon, profile.time_zone, profile.week_starts_on);
-        if (allocationWeekStart.getTime() === weekStart.getTime()) addWorkedMinutes(week, allocation.minutes, jobRef, snapshot);
+        if (allocation.date >= weekStartDate && allocation.date < nextWeekStartDate) addWorkedMinutes(week, allocation.minutes, jobRef, snapshot);
       }
     }
     // The query runs past this week (the pay-period lookahead), so "next" can
@@ -159,8 +166,6 @@ export async function getDashboardData(profile: { id: string; email: string; dis
     else if (endsAt > now) currentShift = summary;
   });
 
-  const loggedMinutes = jobs.reduce((total, job) => total + job.usedMinutes, 0);
-  const scheduledMinutes = jobs.reduce((total, job) => total + job.scheduledMinutes, 0);
   const workedShifts = shifts.map((shift) => ({
     id: shift.id,
     jobId: shift.job_id,
@@ -172,6 +177,9 @@ export async function getDashboardData(profile: { id: string; email: string; dis
     taxRateBasisPoints: shift.tax_rate_basis_points,
     deductions: deductionsOf(shift),
   }));
+  const jobs = allocateWeekMinutes(jobRows.map((job) => ({ id: job.id, name: job.name, color: job.color, weeklyLimitMinutes: job.weekly_limit_minutes })), workedShifts, now, profile.time_zone, profile.week_starts_on);
+  const loggedMinutes = jobs.reduce((total, job) => total + job.usedMinutes, 0);
+  const scheduledMinutes = jobs.reduce((total, job) => total + job.scheduledMinutes, 0);
   const monthlyJobAllocation = buildMonthlyJobAllocation({
     shifts: workedShifts,
     now,
@@ -179,5 +187,5 @@ export async function getDashboardData(profile: { id: string; email: string; dis
     window: allocationWindow,
   });
   const payPeriods = summarizePayPeriods({ jobs: jobRows.map((job) => ({ id: job.id, name: job.name, color: job.color, schedule: payScheduleFromColumns(job) })), shifts: workedShifts, now, timeZone: profile.time_zone });
-  return { ...buildDashboardInsights(workedShifts, now, profile.time_zone, profile.week_starts_on), recentShifts: history.recentShifts, viewer: { email: profile.email, name: profile.display_name, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on }, globalLimitMinutes: profile.global_weekly_limit_minutes, loggedMinutes, scheduledMinutes, jobs, currentShift, upcomingShifts: upcomingShifts.slice(0, 4), totals: { week: finalizeTotals(week), months: history.months }, monthlyJobAllocation, payPeriods };
+  return { ...buildDashboardInsights(workedShifts, now, profile.time_zone, profile.week_starts_on), recentShifts: history.recentShifts, viewer: { email: profile.email, name: profile.display_name, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on }, globalLimitMinutes: breakPeriod?.weekly_limit_minutes ?? profile.global_weekly_limit_minutes, activeBreakLabel: breakPeriod ? breakPeriod.label ?? "Break period" : null, loggedMinutes, scheduledMinutes, jobs, currentShift, upcomingShifts: upcomingShifts.slice(0, 4), totals: { week: finalizeTotals(week), months: history.months }, monthlyJobAllocation, payPeriods };
 }

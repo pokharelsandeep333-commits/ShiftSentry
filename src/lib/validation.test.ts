@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { jobGoogleSettingsSchema, payScheduleFormSchema, resourceIdSchema, shiftSchema } from "./validation";
+import { jobGoogleSettingsSchema, payScheduleFormSchema, resourceIdSchema, shiftSchema, timerStartedAtSchema } from "./validation";
 
 test("rejects malformed and injection-shaped resource identifiers", () => {
   assert.equal(resourceIdSchema.safeParse("not-a-uuid").success, false);
@@ -55,4 +55,14 @@ test("pay schedule form: refuses what the database would", () => {
   assert.equal(issue({ frequency: "monthly", anchorDate: null, monthDay: "21", paydayOffsetDays: "32" }), "paydayOffsetDays");
   assert.equal(issue({ frequency: "monthly", anchorDate: null, monthDay: "21", paydayOffsetDays: "2.5" }), "paydayOffsetDays");
   assert.equal(issue({ frequency: "5w", anchorDate: "2026-10-15", monthDay: null, paydayOffsetDays: null }), "frequency");
+});
+
+test("a running timer's start is accepted only as the timestamp PostgREST returns", () => {
+  // Kept verbatim (microseconds and all) so the action can match it back with eq().
+  assert.equal(timerStartedAtSchema.safeParse("2026-11-17T22:37:12.123456+00:00").success, true);
+  assert.equal(timerStartedAtSchema.safeParse("2026-11-17T22:37:12Z").success, true);
+  assert.equal(timerStartedAtSchema.safeParse("2026-11-17").success, false);
+  assert.equal(timerStartedAtSchema.safeParse("2026-11-17T22:37:12+00:00,started_at.gt.2000").success, false);
+  assert.equal(timerStartedAtSchema.safeParse("2026-13-45T99:99:99Z").success, false);
+  assert.equal(timerStartedAtSchema.safeParse(null).success, false);
 });

@@ -6,6 +6,34 @@
    the whole form fits without scrolling. */
 @custom-variant short (@media (max-height: 50rem));
 
+/* Stand-ins for Inter and Outfit while the web fonts load: Arial scaled to
+   each face's average glyph width and given its ascent and descent, so text
+   set in the stand-in takes the same lines and the same height. Without them
+   the swap moved everything under the hero's text (the landing's only layout
+   shift, 0.05 on a phone). Values from Next's own fallback calculation
+   (`getFallbackMetricsFromFontFile`, the one `next/font` uses) run on the
+   latin woff2 files the fontsource packages ship; recompute them if a font
+   package update changes its metrics. Liberation Sans and Arimo have Arial's
+   metrics, so the same numbers hold on Linux and ChromeOS. Where none is
+   installed (Android) the face fails to load and the stack falls through, as
+   before. */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo");
+  size-adjust: 107.89%;
+  ascent-override: 89.79%;
+  descent-override: 22.36%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Outfit Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo");
+  size-adjust: 99.17%;
+  ascent-override: 100.84%;
+  descent-override: 26.22%;
+  line-gap-override: 0%;
+}
+
 :root {
   color-scheme: light;
   --background: #f7f8fa;
@@ -45,8 +73,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", sans-serif;
-  --font-display: "Outfit Variable", Outfit, "Inter Variable", sans-serif;
+  --font-sans: "Inter Variable", Inter, "Inter Fallback", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --font-display: "Outfit Variable", Outfit, "Outfit Fallback", "Inter Variable", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
@@ -868,4 +896,43 @@ select {
 .dark option {
   background-color: var(--card);
   color: var(--foreground);
+}
+
+/*
+ * Print. Any app page prints as its content alone: the sidebar, header, bottom
+ * bar and announcement are dropped, the grid that reserved the sidebar column
+ * collapses, and the light tokens apply whatever theme is on screen, so a
+ * timesheet prints black on white. Built for /pay-periods/timesheet, whose
+ * controls carry print:hidden and whose tables reflow to every column.
+ */
+@media print {
+  @page { margin: 14mm 12mm; }
+
+  :root, .dark {
+    color-scheme: light;
+    --background: #ffffff;
+    --foreground: #101828;
+    --card: #ffffff;
+    --muted: #f2f4f7;
+    --muted-foreground: #475467;
+    --border: #d0d5dd;
+    --success: #067647;
+    --danger: #b42318;
+    --surface-subtle: #ffffff;
+    --shadow-color: 255 255 255;
+  }
+
+  html { overflow-y: visible; }
+  body { background: #ffffff; padding: 0; }
+  .app-canvas, .app-frame, :root[data-sidebar="collapsed"] .app-frame { display: block; background: #ffffff; }
+  .app-sidebar, .app-bottom-bar, section[aria-label="Announcement"] { display: none !important; }
+  .premium-card { box-shadow: none !important; }
+
+  .timesheet { font-size: 10.5pt; }
+  .timesheet h1 { font-size: 18pt; }
+  .timesheet table { border-collapse: collapse; }
+  .timesheet tr, .timesheet-day { break-inside: avoid; }
+  .timesheet thead { display: table-header-group; }
+  .timesheet section { break-inside: auto; }
+  .timesheet-dot { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }

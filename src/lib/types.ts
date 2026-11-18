@@ -95,6 +95,7 @@ export type DashboardData = {
   weekComparison: { previous: PeriodTotals; throughLabel: string };
   viewer: { email: string; name: string | null; timeZone: string; weekStartsOn: number };
   globalLimitMinutes: number | null;
+  activeBreakLabel: string | null;
   loggedMinutes: number;
   scheduledMinutes: number;
   jobs: JobSummary[];

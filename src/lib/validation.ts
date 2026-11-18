@@ -7,6 +7,27 @@ export const resourceIdSchema = z.string().uuid("Invalid resource identifier.");
 
 export const weekStartsOnSchema = z.coerce.number().int().min(0).max(6);
 
+function breakDate(message: string) {
+  return z.string({ error: message }).refine((value) => !value.startsWith("0000-") && isCalendarDate(value), message);
+}
+
+export const breakPeriodSchema = z.object({
+  startDate: breakDate("Enter a valid start date."),
+  endDate: breakDate("Enter a valid end date."),
+  weeklyLimitMinutes: z.number({ error: "Enter a weekly break limit." }).int().min(1, "The cap must be at least one minute.").max(10_080),
+  label: z.string().trim().max(100, "Use 100 characters or fewer for the label."),
+}).refine(({ startDate, endDate }) => startDate <= endDate, {
+  message: "End date must be on or after the start date.",
+  path: ["endDate"],
+});
+
+export const breakPeriodConfirmationSchema = z.string().regex(/^[a-f0-9]{64}$/);
+export const breakPeriodImpactWeeksSchema = z.array(z.object({
+  week_start: z.string(),
+  scheduled_minutes: z.number().int(),
+  cap_minutes: z.number().int(),
+})).min(1);
+
 export const profileSettingsSchema = z.object({
   displayName: z.string().trim().max(100).optional().or(z.literal("")),
   timeZone: z.string().trim().min(1).max(100).refine((value) => {
@@ -42,6 +63,14 @@ export const shiftSchema = z.object({
   message: "A shift cannot exceed 24 hours.",
   path: ["endsAt"],
 });
+
+/**
+ * A running timer's `started_at` exactly as PostgREST returned it, carried
+ * through a form or link and matched back with `.eq("started_at", …)`. Kept as
+ * the original string because it has microseconds, which a JS Date would drop
+ * and the equality would then miss.
+ */
+export const timerStartedAtSchema = z.string().max(40).regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/).refine((value) => !Number.isNaN(Date.parse(value)));
 
 /**
  * An invite code as typed. Validated before it reaches the database rather than

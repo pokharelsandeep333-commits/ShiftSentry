@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState, type CSSProperties } from "react";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { History, NotebookPen } from "lucide-react";
+import { History, NotebookPen, Timer } from "lucide-react";
 import { createShift, updateShift, type ShiftActionState } from "@/app/actions/work";
 import Link from "next/link";
 import { Button, PendingLabel, buttonVariants } from "@/components/ui/button";
@@ -48,6 +48,8 @@ type ShiftFormProps = {
   lastTimes?: Record<string, LastTimes>;
   /** The profile's week-start day (0 = Sunday), so the day tiles show the weeks the caps count. */
   weekStartsOn: number;
+  /** Opened from a running timer (`timerEditorHref`): saving logs it (or, editing, updates the shift it adopted) and stops that timer. */
+  timerStartedAt?: string;
 };
 
 export type LastTimes = { start: string; end: string };
@@ -101,7 +103,7 @@ function previewMinutes(startsAt: ShiftDateTimeParts, endsAt: ShiftDateTimeParts
   return minutes > 0 ? minutes : null;
 }
 
-export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = false, lastTimes = {}, weekStartsOn }: ShiftFormProps) {
+export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = false, lastTimes = {}, weekStartsOn, timerStartedAt }: ShiftFormProps) {
   // A new, blank shift starts on today: the track needs a day to draw.
   const initialStart = initialShift ? partsFromValue(initialShift.startsAt) : { date: formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd"), time: "" };
   const initialEnd = partsFromValue(initialShift?.endsAt);
@@ -211,6 +213,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
 
   return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="shift-form shift-composer">
     {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id ?? ""} />}
+    {timerStartedAt && <input type="hidden" name="timerStartedAt" value={timerStartedAt} />}
     <fieldset className="composer-section">
       <legend className="composer-label">Job</legend>
       <div className="job-chips">
@@ -250,6 +253,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
 
     <div className="composer-checks shift-form-notices">
       {generalMessage && <p role="alert" className="shift-check shift-check-bad">{generalMessage}</p>}
+      {timerStartedAt && <p className="shift-check shift-check-quiet"><Timer aria-hidden="true" /><span>{mode === "edit" ? "These are your clocked times. Saving updates this shift and stops its timer." : "Saving logs your running shift and stops its timer."}</span></p>}
       <LimitCheckNotice check={check} jobId={jobId} timeZone={timeZone} />
       {calendarCheck && <CalendarClashNotice startsAt={span?.startsAt ?? null} endsAt={span?.endsAt ?? null} jobId={jobId} timeZone={timeZone} repeatWeeks={repeatWeeks} />}
     </div>
@@ -294,7 +298,7 @@ function ShiftSum({ preview, repeatWeeks, check, timeZone, weekStartsOn }: { pre
     {preview && repeatWeeks > 1 && <p className="sum-detail">Over {repeatWeeks} weeks: <b>{formatCents(preview.pay.netCents * repeatWeeks)}</b> net, {formatMinutes(preview.minutes * repeatWeeks)}, if every week is saved</p>}
     {check && week && <p className="sum-week" data-near={isNearLimit(check, week) || undefined}>
       <span>{weekName} with it</span>
-      <span><b>{formatMinutes(week.globalAfter)}</b>{check.globalLimit !== null && ` of ${formatMinutes(check.globalLimit)}`}</span>
+      <span><b>{formatMinutes(week.globalAfter)}</b>{week.globalLimit !== null && ` of ${formatMinutes(week.globalLimit)}`}</span>
       {check.jobLimit !== null && <span>{check.jobName} <b>{formatMinutes(week.jobAfter)}</b> of {formatMinutes(check.jobLimit)}</span>}
     </p>}
   </div>;

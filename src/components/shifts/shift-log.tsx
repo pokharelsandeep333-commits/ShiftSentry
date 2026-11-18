@@ -13,6 +13,9 @@ import { ShiftRowActions } from "@/components/shifts/shift-row-actions";
 import { ShiftLogHeader, SyncIssuesNotice } from "@/components/shifts/shift-log-header";
 import { seriesIdOf, type SyncIssue } from "@/lib/google-sync-plan";
 import { WeekDisclosure } from "@/components/shifts/week-disclosure";
+import { ShiftClock } from "@/components/shifts/shift-clock";
+import { getRunningTimer } from "@/lib/shift-timer-server";
+import { suggestedClockJob, type RunningTimer } from "@/lib/shift-timer";
 import { WeekNote } from "@/components/shifts/week-note";
 import { formatCents } from "@/lib/earnings";
 import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
@@ -139,12 +142,13 @@ export async function ShiftLog({ searchParams }: { searchParams: Promise<SearchP
   if (filters.show === "worked") { shiftsQuery = shiftsQuery.lte("starts_at", now.toISOString()); olderQuery = olderQuery.lte("starts_at", now.toISOString()); }
 
   const windowStartDate = formatInTimeZone(windowStart, profile.time_zone, "yyyy-MM-dd");
-  const [{ data: shifts, error: shiftsError }, { count: olderCount }, { data: noteRows, error: notesError }, { data: jobs }, issues] = await Promise.all([
+  const [{ data: shifts, error: shiftsError }, { count: olderCount }, { data: noteRows, error: notesError }, { data: jobs }, issues, timer] = await Promise.all([
     shiftsQuery.order("starts_at", { ascending: false }),
     olderQuery,
     supabase.from("week_notes").select("id,week_start,body").eq("user_id", profile.id).gte("week_start", windowStartDate),
     supabase.from("jobs").select("id,name,color").eq("user_id", profile.id).is("archived_at", null).order("name"),
     syncing ? getSyncIssues(profile.id) : Promise.resolve([] as SyncIssue[]),
+    getRunningTimer(profile.id),
   ]);
 
   if (shiftsError) return <><PageHeader title="Shifts" description="Everything you have worked or scheduled, week by week." /><LoadError what="shifts" /></>;
@@ -169,6 +173,7 @@ export async function ShiftLog({ searchParams }: { searchParams: Promise<SearchP
     saved={saved}
     syncing={syncing}
     issues={issues}
+    clock={{ timer, weekStartsOn: profile.week_starts_on, snapshotAt: now.toISOString(), initialJobId: suggestedClockJob(rows.map((row) => ({ id: row.id, jobId: row.job_id, startsAt: new Date(row.starts_at), endsAt: new Date(row.ends_at) })), now) }}
   />;
 }
 
@@ -185,9 +190,11 @@ type ShiftLogViewProps = {
   saved?: string;
   syncing?: boolean;
   issues: SyncIssue[];
+  /** The clock-in card's data; absent where the log is drawn without a session. */
+  clock?: { timer: RunningTimer | null; weekStartsOn: number; snapshotAt: string; initialJobId: string | null };
 };
 
-export function ShiftLogView({ groups, currentKey, timeZone, weeks, filters, notes, jobs, olderCount, hasAnyShifts, saved, syncing, issues }: ShiftLogViewProps) {
+export function ShiftLogView({ groups, currentKey, timeZone, weeks, filters, notes, jobs, olderCount, hasAnyShifts, saved, syncing, issues, clock }: ShiftLogViewProps) {
   const filtered = isFiltered(filters);
   const now = new Date();
   const firstRun = !jobs.length && !hasAnyShifts;
@@ -195,7 +202,7 @@ export function ShiftLogView({ groups, currentKey, timeZone, weeks, filters, not
   return <div className="shift-log">
     {syncing && <GoogleSyncTrigger />}
     {saved && <SavedToast message={saved} clearParams={["created", "skipped", "saved"]} />}
-    <ShiftLogHeader weeks={weeks} filters={filters} jobs={jobs} openableWeeks={groups.map((group) => ({ key: group.key, defaultOpen: group.key === currentKey }))} />
+    <ShiftLogHeader weeks={weeks} filters={filters} jobs={jobs} openableWeeks={groups.map((group) => ({ key: group.key, defaultOpen: group.key === currentKey }))} clock={clock && <ShiftClock key="clock" timer={clock.timer} jobs={jobs} initialJobId={clock.initialJobId} timeZone={timeZone} weekStartsOn={clock.weekStartsOn} snapshotAt={clock.snapshotAt} />} />
     <SyncIssuesNotice issues={issues} timeZone={timeZone} />
 
     {firstRun ? <Card className="grid justify-items-center gap-4 px-6 py-12 text-center">

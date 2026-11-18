@@ -1,0 +1,4 @@
+{
+  "prompt": "AVIF sibling of hero-3d-720.webp, encoded from that webp at the same size by scripts/render-welcome-3d.mjs (the --avif step; sharp avif, quality 65, effort 6, chroma 4:4:4). Same image, smaller file; the landing serves it through <picture> with the webp as the fallback.",
+  "createdAt": "2026-11-18T13:37:52.326Z"
+}
