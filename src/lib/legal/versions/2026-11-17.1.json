@@ -94,7 +94,7 @@
         "title": "Information we collect",
         "items": [
           "Account email and display name. Supabase handles authentication and stores password hashes for password accounts; we do not receive plaintext stored passwords. Google or GitHub sign-in may share basic profile information with the authentication provider.",
-          "Jobs, shifts, weekly notes, break-period dates, caps and optional labels, pay and tax rates, deductions, calculated earnings, calendar sync identifiers, and the schedule settings you provide.",
+          "Jobs, shifts, a running shift timer's job and start time, weekly notes, break-period dates, caps and optional labels, pay and tax rates, deductions, calculated earnings, calendar sync identifiers, and the schedule settings you provide.",
           "Terms versions, server-recorded acceptance times, and confirmation that you meet our age and guardian-permission requirements. We do not store birth dates, identity documents, or acceptance IP addresses.",
           "Game names, room membership and presence, clues, votes, and game state. Other room participants can see information needed for that game.",
           "Limited administrative/security records and standard request information processed by our hosting and security providers, such as IP addresses and request timestamps."
@@ -202,7 +202,7 @@
       {
         "title": "Local preferences",
         "paragraphs": [
-          "The theme key and shiftsentry-prefixed keys remember selected theme, sidebar state, calendar view, earnings range, open shift weeks, game settings, and dismissed help. They are stored locally without a programmed expiry and remain until replaced or cleared. They do not hold your work records and are not used to identify you across websites."
+          "The theme key and shiftsentry-prefixed keys remember selected theme, sidebar state, calendar view, earnings range, open shift weeks, the job last chosen on the shift clock, game settings, and dismissed help. They are stored locally without a programmed expiry and remain until replaced or cleared. They do not hold your work records and are not used to identify you across websites."
         ]
       },
       {

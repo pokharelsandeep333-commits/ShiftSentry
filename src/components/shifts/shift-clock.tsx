@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useActionState, useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { TimerReset } from "lucide-react";
@@ -10,10 +10,17 @@ import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast-provider";
 import { emptyTimerState, type TimerActionState } from "@/lib/form-state";
+import { createLocalPreference } from "@/lib/local-preference";
 import { LONG_TIMER_MS, MAX_SHIFT_MS, formatElapsed, limitCheckQuery, startedLabel, timerEditorHref, timerOutlook, type LimitCheckReply, type RunningTimer, type TimerOutlook } from "@/lib/shift-timer";
 import { cn, formatMinutes } from "@/lib/utils";
 
 type ClockJob = { id: string; name: string; color: string };
+
+/**
+ * The job last picked on the idle card, per device. Only an id: a job that was
+ * archived or deleted since simply fails `isJob` below and the card falls back.
+ */
+const clockJobPreference = createLocalPreference<string | null>("shiftsentry:clock-job", null, (value) => (typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value) ? value : null));
 
 type ShiftClockProps = {
   timer: RunningTimer | null;
@@ -24,11 +31,10 @@ type ShiftClockProps = {
   snapshotAt: string;
   /**
    * The job the idle card starts on, when it is one of `jobs`: the pages pass
-   * the job of a shift under way or about to start (`suggestedClockJob`). This
-   * is also the seam for a remembered choice: read it with
-   * `createLocalPreference` in the page's client wrapper (or here) and pass it
-   * in. A value that arrives after hydration still applies until the person
-   * taps a job themselves.
+   * the job of a shift under way or about to start (`suggestedClockJob`).
+   * Without one, the card starts on the job last picked on this device
+   * (`shiftsentry:clock-job`), which arrives after hydration and still applies
+   * until the person taps a job themselves.
    */
   initialJobId?: string | null;
   /** Told each time the person picks a job, so a preference can remember it. */
@@ -58,7 +64,14 @@ export function ShiftClock({ timer, jobs, timeZone, weekStartsOn, snapshotAt, in
 
   if (timer) return <RunningClock key={timer.startedAt} timer={timer} timeZone={timeZone} weekStartsOn={weekStartsOn} snapshotAt={snapshotAt} stopState={stopState} stopAction={stopAction} />;
   if (!jobs.length) return null;
-  return <IdleClock jobs={jobs} initialJobId={initialJobId} onJobChange={onJobChange} />;
+  return <RememberingIdleClock jobs={jobs} initialJobId={initialJobId} onJobChange={onJobChange} />;
+}
+
+/** The idle card, starting on the suggested job (a shift under way or about to start), else the one last picked here. */
+function RememberingIdleClock({ jobs, initialJobId, onJobChange }: { jobs: ClockJob[]; initialJobId: string | null; onJobChange?: (jobId: string) => void }) {
+  const remembered = useSyncExternalStore(clockJobPreference.subscribe, clockJobPreference.read, clockJobPreference.serverSnapshot);
+  const suggested = initialJobId && jobs.some((job) => job.id === initialJobId) ? initialJobId : null;
+  return <IdleClock jobs={jobs} initialJobId={suggested ?? remembered} onJobChange={(jobId) => { clockJobPreference.write(jobId); onJobChange?.(jobId); }} />;
 }
 
 function IdleClock({ jobs, initialJobId, onJobChange }: { jobs: ClockJob[]; initialJobId: string | null; onJobChange?: (jobId: string) => void }) {
