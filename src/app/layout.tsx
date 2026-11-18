@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
+import { preload } from "react-dom";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
@@ -79,8 +80,27 @@ try {
 } catch (e) {}
 `;
 
+/**
+ * The two latin web font files, fetched from the start instead of once the
+ * stylesheet has arrived and been parsed, which is when the browser first
+ * learns it needs them. Every page sets text in both faces, and English text
+ * needs only the latin files of the fontsource `@import`s in globals.css.
+ * Turbopack gives these references the same hashed URL as that CSS's
+ * `url()`, so the preload and the `@font-face` fetch one file (a preload for a
+ * different URL would download each font twice). Fonts are fetched in CORS
+ * mode, hence `crossOrigin`, or the preload would not be reused either.
+ * Lighthouse counted the late fonts into /login's mobile LCP (1.5 s against
+ * a 0.9 s FCP), and the swap they caused is what the fallback faces in
+ * globals.css absorb.
+ */
+const FONT_PRELOADS = [
+  new URL("../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2", import.meta.url),
+  new URL("../../node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2", import.meta.url),
+].map(String);
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  for (const href of FONT_PRELOADS) preload(href, { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
   return (
     <html suppressHydrationWarning lang="en" className="h-full antialiased">
       <head>

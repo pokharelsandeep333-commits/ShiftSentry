@@ -1,5 +1,5 @@
-import type { ComponentType, CSSProperties, ReactNode } from "react";
-import Image from "next/image";
+import { Suspense, type ComponentType, type CSSProperties, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowUpRight, BriefcaseBusiness, CalendarClock, Clock3, Layers, ShieldCheck, Smartphone, Wallet, type LucideProps } from "lucide-react";
 import { Brand } from "@/components/brand";
@@ -8,7 +8,6 @@ import { HeroArt } from "@/components/welcome/hero-art";
 import { HeroChips } from "@/components/welcome/hero-chips";
 import { RulesBento } from "@/components/welcome/rule-previews";
 import { SignInLink } from "@/components/welcome/sign-in-link";
-import { WeekGauge } from "@/components/welcome/week-gauge";
 import { faqItems, WelcomeFaq } from "@/components/welcome/welcome-faq";
 import { WelcomeJsonLd } from "@/components/welcome/welcome-json-ld";
 import { WelcomeNav } from "@/components/welcome/welcome-nav";
@@ -41,14 +40,29 @@ import { cn } from "@/lib/utils";
  * - `dashboard-*.webp`: the demo dashboard (what `demoDashboardFor` renders with no
  *   Supabase configured) captured in both themes, shown through the
  *   `.theme-light-only` / `.theme-dark-only` pair. Recapture when its look changes.
- * All are pre-compressed at display size, so `next/image` serves them
- * unoptimized and nothing depends on the image optimizer in the container.
+ * All are pre-compressed at display size and each has an `.avif` sibling, so
+ * they are served as plain `<picture>`s (AVIF first, webp fallback) and
+ * nothing depends on the image optimizer in the container.
+ *
+ * Everything below the hero, and the footer, sits in a `<Suspense>` boundary.
+ * Nothing in it suspends, so the server HTML is complete, but React hydrates a
+ * server-rendered boundary separately and at idle priority, after the content
+ * outside it. The nav and the hero's buttons therefore become live first (about
+ * 300 ms sooner at 4x CPU, measured 2026-11-18), and the sections below follow
+ * when the main thread is free. A tap inside one before then makes React
+ * hydrate that boundary at once and replay the event. `WeekGauge`, the only
+ * interactive widget down there, is also its own chunk (`next/dynamic`, still
+ * rendered on the server), so its code is not in the first scripts the page
+ * evaluates. What remains of the landing's long tasks is React evaluating the
+ * page's RSC payload, which these boundaries do not change.
  *
  * Motion is CSS only (the welcome block in globals.css) and plays whatever
  * the visitor's reduced-motion setting. The links to /login are
  * `SignInLink`s: the one clicked opens into the sign-in box (see
  * `src/app/login/page.tsx`).
  */
+const WeekGauge = dynamic(() => import("@/components/welcome/week-gauge").then((module) => module.WeekGauge));
+
 const CAPABILITIES = [
   { icon: Layers, title: "All your jobs, one week", body: "One weekly limit across every job, plus an optional cap for each job." },
   { icon: CalendarClock, title: "Planned shifts count now", body: "Schedule Friday on Monday and it counts toward this week straight away." },
@@ -100,73 +114,77 @@ export function WelcomeLanding() {
           </div>
         </section>
 
-        <div className="relative z-10 -mt-20 space-y-4 px-3 sm:space-y-5 sm:px-6">
-          <section aria-labelledby="capabilities-title">
-            <h2 id="capabilities-title" className="sr-only">What ShiftSentry does</h2>
-            <ul className={cn(panel, "grid gap-7 p-5 py-7 sm:grid-cols-2 sm:p-9 lg:grid-cols-4 lg:gap-0 lg:p-10")}>
-              {CAPABILITIES.map(({ icon: Icon, title, body }) => <li key={title} className="lg:border-l lg:px-7 lg:first:border-l-0 lg:first:pl-0 lg:last:pr-0">
-                <span className="grid size-10 place-items-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]"><Icon className="size-[1.125rem]" strokeWidth={1.8} /></span>
-                <h3 className="mt-4 font-display text-base font-semibold leading-snug">{title}</h3>
-                <p className="mt-1.5 text-sm leading-6 text-[var(--muted-foreground)]">{body}</p>
-              </li>)}
-            </ul>
-          </section>
+        <Suspense>
+          <div className="relative z-10 -mt-20 space-y-4 px-3 sm:space-y-5 sm:px-6">
+            <section aria-labelledby="capabilities-title">
+              <h2 id="capabilities-title" className="sr-only">What ShiftSentry does</h2>
+              <ul className={cn(panel, "grid gap-7 p-5 py-7 sm:grid-cols-2 sm:p-9 lg:grid-cols-4 lg:gap-0 lg:p-10")}>
+                {CAPABILITIES.map(({ icon: Icon, title, body }) => <li key={title} className="lg:border-l lg:px-7 lg:first:border-l-0 lg:first:pl-0 lg:last:pr-0">
+                  <span className="grid size-10 place-items-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]"><Icon className="size-[1.125rem]" strokeWidth={1.8} /></span>
+                  <h3 className="mt-4 font-display text-base font-semibold leading-snug">{title}</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-[var(--muted-foreground)]">{body}</p>
+                </li>)}
+              </ul>
+            </section>
 
-          <section id="rules" aria-labelledby="rules-title" className={cn(panel, "scroll-mt-24 p-3 pt-9 sm:p-5 sm:pt-12 lg:pt-14")}>
-            <h2 id="rules-title" className={cn(sectionTitle, "px-5 sm:px-7")}>The rules it keeps for you.</h2>
-            <div className="mt-7 sm:mt-10"><RulesBento week={<WeekGauge />} /></div>
-          </section>
+            <section id="rules" aria-labelledby="rules-title" className={cn(panel, "scroll-mt-24 p-3 pt-9 sm:p-5 sm:pt-12 lg:pt-14")}>
+              <h2 id="rules-title" className={cn(sectionTitle, "px-5 sm:px-7")}>The rules it keeps for you.</h2>
+              <div className="mt-7 sm:mt-10"><RulesBento week={<WeekGauge />} /></div>
+            </section>
 
-          <section aria-labelledby="dashboard-title" className={cn(panel, "grid items-center gap-10 px-5 py-9 sm:p-10 lg:grid-cols-12 lg:gap-10 lg:p-12")}>
-            <div className="lg:col-span-4">
-              <h2 id="dashboard-title" className={sectionTitle}>Your whole week on one screen.</h2>
-              <p className="mt-4 text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">Logged and planned hours against your cap, net pay by job, and the last six months at a glance.</p>
-              {calendarEnabled && <p className="mt-3 text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">Connect Google Calendar to spot clashes with class. Access is read-only, and nothing is written to Google.</p>}
-            </div>
-            <figure className="relative pb-10 lg:col-span-8 lg:pb-12">
-              <div className="rv rv-rise welcome-frame rounded-[1.25rem] p-1.5 sm:p-2">
-                <Screenshot name="dashboard-desktop" width={1440} height={900} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax." className="rounded-[0.9rem]" sizes="(min-width: 1024px) 45rem, 92vw" />
+            <section aria-labelledby="dashboard-title" className={cn(panel, "grid items-center gap-10 px-5 py-9 sm:p-10 lg:grid-cols-12 lg:gap-10 lg:p-12")}>
+              <div className="lg:col-span-4">
+                <h2 id="dashboard-title" className={sectionTitle}>Your whole week on one screen.</h2>
+                <p className="mt-4 text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">Logged and planned hours against your cap, net pay by job, and the last six months at a glance.</p>
+                {calendarEnabled && <p className="mt-3 text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">Connect Google Calendar to spot clashes with class. Access is read-only, and nothing is written to Google.</p>}
               </div>
-              <div className="rv rv-rise welcome-phone absolute -bottom-2 right-[-2%] w-[26%] min-w-28 rounded-[1.5rem]">
-                <Screenshot name="dashboard-mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" sizes="12rem" />
-              </div>
-              {/* Kept clear of the phone, which is taller than the frame on small screens. */}
-              <figcaption className="mt-4 max-w-[calc(100%-8.5rem)] text-[13px] text-[var(--muted-foreground)]">Dashboard shown with sample data.</figcaption>
-            </figure>
-          </section>
+              <figure className="relative pb-10 lg:col-span-8 lg:pb-12">
+                <div className="rv rv-rise welcome-frame rounded-[1.25rem] p-1.5 sm:p-2">
+                  <Screenshot name="dashboard-desktop" width={1440} height={900} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax." className="rounded-[0.9rem]" />
+                </div>
+                <div className="rv rv-rise welcome-phone absolute -bottom-2 right-[-2%] w-[26%] min-w-28 rounded-[1.5rem]">
+                  <Screenshot name="dashboard-mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" />
+                </div>
+                {/* Kept clear of the phone, which is taller than the frame on small screens. */}
+                <figcaption className="mt-4 max-w-[calc(100%-8.5rem)] text-[13px] text-[var(--muted-foreground)]">Dashboard shown with sample data.</figcaption>
+              </figure>
+            </section>
 
-          <WelcomeFaq items={faq} className={cn(panel, "scroll-mt-24 px-5 py-9 sm:p-10 lg:px-12 lg:py-12")} titleClassName={sectionTitle} />
-        </div>
+            <WelcomeFaq items={faq} className={cn(panel, "scroll-mt-24 px-5 py-9 sm:p-10 lg:px-12 lg:py-12")} titleClassName={sectionTitle} />
+          </div>
+        </Suspense>
       </main>
 
-      <footer className="px-3 pb-3 pt-4 sm:px-6 sm:pb-6 sm:pt-5">
-        <div className={cn(panel, "px-6 sm:px-10 lg:px-12")}>
-          <div className="grid gap-9 pb-8 pt-10 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
-            <div>
-              <Brand size="compact" markClassName="size-7 rounded-lg" className="gap-2 text-sm" />
-              <p className="mt-4 max-w-[18rem] text-sm leading-6 text-[var(--muted-foreground)]">A work hours tracker for students and anyone with more than one job.</p>
+      <Suspense>
+        <footer className="px-3 pb-3 pt-4 sm:px-6 sm:pb-6 sm:pt-5">
+          <div className={cn(panel, "px-6 sm:px-10 lg:px-12")}>
+            <div className="grid gap-9 pb-8 pt-10 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
+              <div>
+                <Brand size="compact" markClassName="size-7 rounded-lg" className="gap-2 text-sm" />
+                <p className="mt-4 max-w-[18rem] text-sm leading-6 text-[var(--muted-foreground)]">A work hours tracker for students and anyone with more than one job.</p>
+              </div>
+              <FooterColumn title="Product">
+                <li><a href="#week" className={footerLink}>How it works</a></li>
+                <li><a href="#faq" className={footerLink}>Questions</a></li>
+                {GUIDES.map((guide) => <li key={guide.slug}><Link href={`/guides/${guide.slug}`} className={footerLink}>{guide.navLabel}</Link></li>)}
+                <li><Link href="/about" className={footerLink}>About</Link></li>
+              </FooterColumn>
+              <FooterColumn title="Account">
+                <li><SignInLink href="/login" className={footerLink}>Sign in</SignInLink></li>
+                <li><SignInLink href="/login?mode=signup" className={footerLink}>Get started</SignInLink></li>
+              </FooterColumn>
+              <FooterColumn title="Legal">
+                <li><Link href="/privacy" className={footerLink}>Privacy Policy</Link></li>
+                <li><Link href="/terms" className={footerLink}>Terms of Service</Link></li>
+                <li><Link href="/cookies" className={footerLink}>Cookies and storage</Link></li>
+                <li><Link href="/open-source-licenses" className={footerLink}>Open-source licenses</Link></li>
+                <li><a href={`mailto:${LEGAL_CONTACT_EMAIL}`} className={footerLink}>Contact</a></li>
+              </FooterColumn>
             </div>
-            <FooterColumn title="Product">
-              <li><a href="#week" className={footerLink}>How it works</a></li>
-              <li><a href="#faq" className={footerLink}>Questions</a></li>
-              {GUIDES.map((guide) => <li key={guide.slug}><Link href={`/guides/${guide.slug}`} className={footerLink}>{guide.navLabel}</Link></li>)}
-              <li><Link href="/about" className={footerLink}>About</Link></li>
-            </FooterColumn>
-            <FooterColumn title="Account">
-              <li><SignInLink href="/login" className={footerLink}>Sign in</SignInLink></li>
-              <li><SignInLink href="/login?mode=signup" className={footerLink}>Get started</SignInLink></li>
-            </FooterColumn>
-            <FooterColumn title="Legal">
-              <li><Link href="/privacy" className={footerLink}>Privacy Policy</Link></li>
-              <li><Link href="/terms" className={footerLink}>Terms of Service</Link></li>
-              <li><Link href="/cookies" className={footerLink}>Cookies and storage</Link></li>
-              <li><Link href="/open-source-licenses" className={footerLink}>Open-source licenses</Link></li>
-              <li><a href={`mailto:${LEGAL_CONTACT_EMAIL}`} className={footerLink}>Contact</a></li>
-            </FooterColumn>
+            <p className="border-t py-5 text-[13px] text-[var(--muted-foreground)]">© 2026 ShiftSentry</p>
           </div>
-          <p className="border-t py-5 text-[13px] text-[var(--muted-foreground)]">© 2026 ShiftSentry</p>
-        </div>
-      </footer>
+        </footer>
+      </Suspense>
   </div>;
 }
 
@@ -200,10 +218,19 @@ function FooterColumn({ title, children }: { title: string; children: ReactNode 
   </div>;
 }
 
-/** One screenshot in both themes; CSS shows the one matching the `.dark` class. */
-function Screenshot({ name, width, height, alt, className, sizes }: { name: string; width: number; height: number; alt: string; className?: string; sizes: string }) {
+/**
+ * One screenshot in both themes; CSS shows the one matching the `.dark` class.
+ * Each is a `<picture>`, AVIF first and the webp as the fallback. The theme
+ * classes sit on the `<img>`, as they did before the `<picture>`s, so the
+ * layout is unchanged. Both images are lazy: a browser never fetches a lazy
+ * image that is `display: none`, so a visitor downloads only their theme's
+ * pair, whichever theme that is.
+ */
+function Screenshot({ name, width, height, alt, className }: { name: string; width: number; height: number; alt: string; className?: string }) {
   return <>
-    <Image src={`/welcome/${name}-light.webp`} width={width} height={height} alt={alt} sizes={sizes} unoptimized className={cn("theme-light-only h-auto w-full", className)} />
-    <Image src={`/welcome/${name}-dark.webp`} width={width} height={height} alt={alt} sizes={sizes} unoptimized className={cn("theme-dark-only h-auto w-full", className)} />
+    {(["light", "dark"] as const).map((theme) => <picture key={theme}>
+      <source type="image/avif" srcSet={`/welcome/${name}-${theme}.avif`} />
+      <img src={`/welcome/${name}-${theme}.webp`} width={width} height={height} alt={alt} loading="lazy" decoding="async" className={cn(theme === "light" ? "theme-light-only" : "theme-dark-only", "h-auto w-full", className)} />
+    </picture>)}
   </>;
 }
