@@ -2,6 +2,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase/server";
 import { acceptancePath } from "./legal";
+import { SESSION_HEADER, decodeSessionProfile } from "./session-context";
 import { hasCurrentLegalAcceptance } from "./legal-server";
 import { headers } from "next/headers";
 import { isAllowlisted, parseAdminAllowlist } from "./admin-allowlist";
@@ -40,9 +41,15 @@ export const getSignedInProfile = cache(async (): Promise<Profile | null> => {
   const user = claimsResult?.claims ? { id: claimsResult.claims.sub, email: claimsResult.claims.email } : null;
   if (!user?.email) return null;
 
-  const { data: initialProfile, error: profileError } = await supabase.from("profiles").select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at,deletion_pending_at").eq("id", user.id).maybeSingle();
-  if (profileError) throw new Error("We could not load your account. Please try again.");
-  let profile = initialProfile;
+  // The proxy already read this profile in get_session_context, for this
+  // verified user, on workspace paths (session-context.ts). Otherwise read it.
+  const requestHeaders = await headers();
+  let profile: Profile | null = decodeSessionProfile(requestHeaders.get(SESSION_HEADER), user.id);
+  if (!profile) {
+    const { data: initialProfile, error: profileError } = await supabase.from("profiles").select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at,deletion_pending_at").eq("id", user.id).maybeSingle();
+    if (profileError) throw new Error("We could not load your account. Please try again.");
+    profile = initialProfile as Profile | null;
+  }
 
   if (!profile) {
     // Re-check with Auth before recreating a profile: a deleted account's JWT
@@ -81,7 +88,11 @@ export async function requireUser() {
   const profile = await requireAccount();
   if (profile.deletion_pending_at) redirect("/account?deletion=pending");
   if (profile.disabled_at) redirect("/account-disabled");
-  if (!await hasCurrentLegalAcceptance()) redirect(acceptancePath((await headers()).get("x-shiftsentry-path")));
+  const requestHeaders = await headers();
+  // The proxy sets SESSION_HEADER only once this user's agreement has passed
+  // for this request (session-context.ts); otherwise ask the database.
+  const acceptedUpstream = decodeSessionProfile(requestHeaders.get(SESSION_HEADER), profile.id) !== null;
+  if (!acceptedUpstream && !await hasCurrentLegalAcceptance()) redirect(acceptancePath(requestHeaders.get("x-shiftsentry-path")));
   return profile;
 }
 

@@ -2,13 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { AcceptanceForm } from "@/components/account/acceptance-form";
 import { requireAccount } from "@/lib/auth";
 import { hasCurrentLegalAcceptance } from "@/lib/legal-server";
 import { legalDestination, LEGAL_VERSION } from "@/lib/legal";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { signOut } from "@/app/actions/auth";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export const metadata = { title: "Review Terms | ShiftSentry", description: "Review the agreement and eligibility requirements before using ShiftSentry.", robots: { index: false, follow: false }, alternates: { canonical: "/accept-terms" } };
 
@@ -27,7 +27,7 @@ export default async function AcceptTermsPage({ searchParams }: { searchParams: 
         <CardContent>{demo && <p role="status" className="mb-4 text-sm text-[var(--muted-foreground)]">Preview only. Agreement recording requires a configured account service.</p>}<AcceptanceForm next={next} demo={demo} /></CardContent>
       </Card>
       <p className="text-sm leading-6 text-[var(--muted-foreground)]">You can decline and still <Link className="font-semibold text-[var(--primary)] underline" href="/account">export or delete your account</Link>.</p>
-      <div className="flex flex-wrap gap-3"><Link href="/account" className={buttonVariants({ variant: "outline" })}>Account tools</Link>{!demo && <form action={signOut}><Button variant="ghost">Sign out</Button></form>}</div>
+      <div className="flex flex-wrap gap-3"><Link href="/account" className={buttonVariants({ variant: "outline" })}>Account tools</Link>{!demo && <SignOutButton variant="ghost" />}</div>
     </div>
   </main>;
 }

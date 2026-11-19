@@ -18,6 +18,8 @@ export function AccountMenu({ email = "", name }: { email?: string; name?: strin
   function handleSignOut() {
     startSignOut(async () => {
       await signOut();
+      // A full load, so no signed-in page stays in the client router cache.
+      window.location.replace("/");
     });
   }
 
