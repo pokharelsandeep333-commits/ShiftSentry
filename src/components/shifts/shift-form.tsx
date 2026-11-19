@@ -211,10 +211,10 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
     updateSchedule(scheduleOf(startsAt.date, next));
   }
 
-  return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="shift-form shift-composer">
+  return <form action={formAction} onSubmit={handleSubmit} onInput={markEdited} className="shift-form shift-composer" data-mode={mode}>
     {mode === "edit" && <input type="hidden" name="id" value={initialShift?.id ?? ""} />}
     {timerStartedAt && <input type="hidden" name="timerStartedAt" value={timerStartedAt} />}
-    <fieldset className="composer-section">
+    <fieldset className="composer-section composer-job">
       <legend className="composer-label">Job</legend>
       <div className="job-chips shift-scroller">
         {jobs.map((job) => <label key={job.id} className="job-chip" style={jobColor(job.color)}>
@@ -224,7 +224,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
       </div>
     </fieldset>
 
-    <section className="composer-section" aria-labelledby="shift-when">
+    <section className="composer-section composer-when" aria-labelledby="shift-when">
       <div className="composer-head">
         <h2 id="shift-when" className="composer-label">When</h2>
         {last && !lastApplied && <button type="button" className="shift-last-time" onClick={applyLastTimes}><History aria-hidden="true" /><span>Same as last time</span><span className="shift-last-time-value">{clockLabel(last.start)} – {clockLabel(last.end)}</span></button>}
@@ -235,7 +235,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
       </div>
     </section>
 
-    {mode === "create" && <fieldset className="composer-section">
+    {mode === "create" && <fieldset className="composer-section composer-repeat">
       <legend className="composer-label">Repeat weekly</legend>
       <div className="repeat-segment">
         {REPEAT_WEEKS.map((weeks) => <label key={weeks}>

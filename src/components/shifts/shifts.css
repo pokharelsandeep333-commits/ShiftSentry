@@ -198,6 +198,11 @@
 .shift-page-back:hover { background:var(--primary-soft); color:var(--primary); }
 .shift-page-back > svg { width:16px; height:16px; }
 .shift-page-card { container-type:inline-size; border:1px solid var(--border); border-radius:16px; background:var(--card); overflow:clip; }
+.shift-page-card:has(> [data-mode="create"]) {
+  /* Date popovers can extend below the shorter two-column card. */
+  overflow:visible;
+}
+.shift-composer[data-mode="create"] { gap:0; }
 
 .composer-section { min-width:0; margin:0; padding:22px 26px; border:0; }
 .composer-section + .composer-section { border-top:1px solid var(--hair); }
@@ -316,8 +321,45 @@
 .shift-page .save-shift { width:auto; min-width:156px; min-height:44px; border-radius:999px; box-shadow:none; background:var(--primary); }
 .composer-actions > a { min-height:44px; border-radius:999px; }
 
+.shift-composer[data-mode="create"] > .composer-footer {
+  border-radius:0 0 15px 15px;
+  background:var(--surface-subtle);
+}
+.shift-composer[data-mode="create"] .composer-label { font-size:18px; }
+/* Switch on the editor's available width, including when the sidebar is open. */
+@container (min-width:700px) {
+  .shift-composer[data-mode="create"] {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,2fr);
+    grid-template-areas:"job when" "repeat when" "note when";
+    grid-template-rows:auto auto 1fr;
+  }
+  .composer-job { grid-area:job; }
+  .composer-repeat { grid-area:repeat; }
+  [data-mode="create"] > .composer-note { grid-area:note; }
+  [data-mode="create"] > .composer-when {
+    grid-area:when;
+    border-top:0;
+    border-left:1px solid var(--hair);
+  }
+  [data-mode="create"] > .composer-section { padding:24px clamp(18px, 2.3cqi, 28px); }
+  [data-mode="create"] > .composer-checks,
+  [data-mode="create"] > .composer-footer { grid-column:1 / -1; }
+  [data-mode="create"] > .composer-checks { border-top:1px solid var(--hair); padding-block:14px; }
+  [data-mode="create"] .repeat-segment {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    border-radius:12px;
+  }
+  .shift-page [data-mode="create"] .repeat-segment label { justify-content:center; padding:0 4px; border-radius:8px; }
+}
+
 @container (min-width:720px) {
   .composer-exact .shift-schedule-fields { grid-template-columns:repeat(2, minmax(0,1fr)); }
+}
+/* Keep both dates legible until the schedule column fits four exact fields. */
+@container (min-width:700px) and (max-width:1019px) {
+  [data-mode="create"] .composer-exact .shift-schedule-fields { grid-template-columns:minmax(0,1fr); }
 }
 @container (max-width:520px) {
   .repeat-segment { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); border-radius:18px; }
@@ -334,6 +376,9 @@
 }
 @media (max-width:639px) {
   .composer-section { padding:18px 16px; }
+  .shift-page [data-mode="create"] .repeat-segment label,
+  [data-mode="create"] :is(.day-week-arrow, .day-week-back, .composer-note > summary, .shift-last-time) { min-height:44px; }
+  [data-mode="create"] .day-week-arrow { width:44px; }
   .composer-checks { padding:0 16px 16px; }
   .shift-page .shift-form input, .shift-page .shift-form textarea { font-size:16px; }
   .composer-footer { padding:12px 16px; gap:10px 16px; }
