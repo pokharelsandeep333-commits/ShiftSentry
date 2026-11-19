@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const filters = readAuditFilters((name) => form.get(name));
   const rows = await loadAuditRows({ where: await auditWhere(filters), take: MAX_ROWS });
 
-  await prisma.auditEvent.create({ data: { actorId: admin.id, action: "audit.exported", metadata: { rows: rows.length, days: filters.days, action: filters.action || null, actor: filters.actor || null, targetFiltered: Boolean(filters.target) } } });
+  await prisma.auditEvent.create({ data: { actorId: admin.id, action: "audit.exported", metadata: { rows: rows.length, days: filters.days, action: filters.action || null, actorFiltered: Boolean(filters.actor), targetFiltered: Boolean(filters.target) } } });
 
   const lines = [
     csvRow(["time_utc", "action", "description", "admin", "account", "account_id"]),

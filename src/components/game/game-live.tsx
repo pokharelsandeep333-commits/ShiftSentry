@@ -42,6 +42,9 @@ const LIVE_INTERVAL_MS = 10_000;
 /** Realtime is not connected, so this interval is what makes the screen move. */
 const FALLBACK_INTERVAL_MS = 2_500;
 
+/** Signals arriving this close together share one refresh. Short enough to feel instant. */
+const REFRESH_COALESCE_MS = 250;
+
 export function GameLive({ roomId }: { roomId: string }) {
   const router = useRouter();
   const [live, setLive] = useState(false);
@@ -56,6 +59,7 @@ export function GameLive({ roomId }: { roomId: string }) {
 
     let cancelled = false;
     let channel: RealtimeChannel | null = null;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     const supabase = createClient();
 
     void (async () => {
@@ -73,8 +77,14 @@ export function GameLive({ roomId }: { roomId: string }) {
             // A hidden tab does not draw, so re-rendering it on every signal is
             // server work nobody sees. Dropping the fingerprint is enough: the
             // visibility handler below takes one refresh the moment it is
-            // looked at again.
-            if (document.visibilityState === "visible") router.refresh();
+            // looked at again. A burst of signals (a deal writes several rows,
+            // and any player can send renames) becomes one refresh: the first
+            // waits REFRESH_COALESCE_MS and the rest ride along with it.
+            if (document.visibilityState !== "visible" || refreshTimer) return;
+            refreshTimer = setTimeout(() => {
+              refreshTimer = null;
+              if (!cancelled && document.visibilityState === "visible") router.refresh();
+            }, REFRESH_COALESCE_MS);
           })
           .subscribe((status) => {
             if (!cancelled) setLive(status === "SUBSCRIBED");
@@ -87,6 +97,7 @@ export function GameLive({ roomId }: { roomId: string }) {
 
     return () => {
       cancelled = true;
+      if (refreshTimer) clearTimeout(refreshTimer);
       setLive(false);
       if (channel) void supabase.removeChannel(channel);
     };

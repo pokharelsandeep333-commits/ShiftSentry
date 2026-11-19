@@ -115,6 +115,9 @@ echo ""
 failures=0
 for suite in "$TESTS"/*.sql; do
   name="$(basename "$suite" .sql)"
+  # The export budget (three a minute, 20261118200000) is real state; several
+  # suites export the shared fixtures, so each suite starts with it cleared.
+  echo "delete from public.account_export_claims;" | psql_run
   if output=$(psql_run < "$suite" 2>&1); then
     echo "PASS  $name"
     # Surface the suite's own narration, which names what was actually checked.

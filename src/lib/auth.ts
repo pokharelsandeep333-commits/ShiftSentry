@@ -4,6 +4,7 @@ import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/sup
 import { acceptancePath } from "./legal";
 import { hasCurrentLegalAcceptance } from "./legal-server";
 import { headers } from "next/headers";
+import { isAllowlisted, parseAdminAllowlist } from "./admin-allowlist";
 
 type Profile = {
   id: string;
@@ -18,8 +19,7 @@ type Profile = {
 };
 
 function allowlisted(email: string) {
-  const values = (process.env.ADMIN_EMAIL_ALLOWLIST ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
-  return values.includes(email.toLowerCase());
+  return isAllowlisted(email, parseAdminAllowlist(process.env.ADMIN_EMAIL_ALLOWLIST));
 }
 
 /**
@@ -56,9 +56,14 @@ export const getSignedInProfile = cache(async (): Promise<Profile | null> => {
     profile = result.data;
   }
 
-  if (allowlisted(user.email) && profile.role !== "ADMIN" && !profile.deletion_pending_at) {
+  // The allowlist grants the role and takes it back (admin-allowlist.ts): an
+  // ADMIN whose email has left the list is demoted here, so the app and the
+  // audit-log RLS, which both read the stored role, agree it is gone.
+  const listed = allowlisted(user.email);
+  const role = listed && !profile.deletion_pending_at ? "ADMIN" : profile.role === "ADMIN" && !listed ? "USER" : profile.role;
+  if (role !== profile.role) {
     const admin = createAdminSupabaseClient();
-    const { data, error } = await admin.from("profiles").update({ role: "ADMIN" }).eq("id", user.id).select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at,deletion_pending_at").single();
+    const { data, error } = await admin.from("profiles").update({ role }).eq("id", user.id).select("id,email,display_name,role,time_zone,week_starts_on,global_weekly_limit_minutes,disabled_at,deletion_pending_at").single();
     if (error) throw error;
     profile = data;
   }

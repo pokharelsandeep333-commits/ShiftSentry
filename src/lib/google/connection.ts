@@ -3,6 +3,9 @@ import { readGoogleCalendarConfig, type GoogleCalendarConfig } from "./config";
 import { GoogleAuthError, refreshAccessToken, revokeToken, type exchangeCode } from "./client";
 import { TokenDecryptError, decryptToken, encryptToken } from "./token-crypto";
 import { UNLINKED_SHIFT } from "./unlink";
+import { createGoogleReadBudget, readableCalendarIds } from "./read-budget";
+
+const admitGoogleRead = createGoogleReadBudget();
 
 /**
  * The one row per user, read and written through the RLS client as that user.
@@ -53,6 +56,8 @@ export async function withCalendarAccess<T>(userId: string, run: (accessToken: s
   const { data: row } = await supabase.from("google_calendar_connections").select(COLUMNS).eq("user_id", userId).maybeSingle();
   if (!row) return { status: "not_connected" };
   if (row.status === "needs_reconnect") return { status: "needs_reconnect" };
+  // Every trip to Google passes the shared read budget (read-budget.ts).
+  if (!admitGoogleRead(userId)) return { status: "unavailable" };
 
   try {
     let accessToken: string;
@@ -68,7 +73,7 @@ export async function withCalendarAccess<T>(userId: string, run: (accessToken: s
         ...(refreshed.refreshToken ? { refresh_token_ciphertext: encryptToken(refreshed.refreshToken, userId, config.encryptionKey) } : {}),
       }).eq("user_id", userId);
     }
-    return { status: "ok", value: await run(accessToken, row.selected_calendar_ids) };
+    return { status: "ok", value: await run(accessToken, readableCalendarIds(row.selected_calendar_ids)) };
   } catch (error) {
     if (error instanceof GoogleAuthError && error.reason === "invalid_grant") {
       await markNeedsReconnect(userId);
