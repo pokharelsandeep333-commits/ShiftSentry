@@ -24,6 +24,10 @@ const NOINDEX_PATHS = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // No `experimental.staleTimes`: tried 2026-11-19 (`dynamic: 30`) to make
+  // revisits instant, but on Next 16.4.6 every client navigation then fell
+  // back to a full page reload. Revisit after a Next upgrade, re-testing that
+  // a click between tabs stays in one document.
   async headers() {
     const headers = [
       { key: "Content-Security-Policy", value: fallbackContentSecurityPolicy },
@@ -45,7 +49,10 @@ const nextConfig: NextConfig = {
       // The landing art changes only with a deploy, but keeps its file name, so a day
       // fresh plus a week of background revalidation rather than `immutable`. Without
       // this the files went out at Cloudflare's 4 hour browser default.
-      { source: "/welcome/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
+      // `:path+`, not `:path*`: the star also matched the /welcome page itself,
+      // whose HTML carries a per-request CSP nonce and must never be stored
+      // for a day, least of all by a shared cache.
+      { source: "/welcome/:path+", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
     ];
   },
 };

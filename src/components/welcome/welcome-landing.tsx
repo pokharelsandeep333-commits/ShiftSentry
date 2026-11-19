@@ -106,7 +106,6 @@ export function WelcomeLanding() {
             </div>
 
             <div className="relative mx-auto w-full max-w-[34rem] lg:col-span-6 lg:max-w-none">
-              <div aria-hidden="true" className="hero-disc absolute left-1/2 top-1/2 aspect-square w-[86%] -translate-x-1/2 -translate-y-1/2 rounded-full" />
               <HeroArt src="/welcome/hero-3d.webp" alt="An iridescent lavender glass ribbon loops around a violet bead beside a clear glass sphere, with two small clocks in lilac and mint and an amber bead.">
                 <HeroChips />
               </HeroArt>

@@ -7,7 +7,7 @@ import { DeletionForm } from "@/components/account/deletion-form";
 import { requireAccount } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { signOut } from "@/app/actions/auth";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export const metadata = { title: "Account and privacy | ShiftSentry", description: "Export your information, view agreements, or delete your account.", robots: { index: false, follow: false }, alternates: { canonical: "/account" } };
 
@@ -18,7 +18,7 @@ export default async function AccountPage() {
   if (history?.error) throw new Error("Agreement history is temporarily unavailable.");
   const agreements = history?.data ?? [];
   return <main className="min-h-dvh bg-[var(--background)] px-4 py-8 sm:py-12"><div className="mx-auto max-w-2xl space-y-6">
-    <div className="flex flex-wrap items-center justify-between gap-3"><Link href="/" className="inline-flex min-h-11 items-center"><Brand /></Link>{!demo && <form action={signOut}><Button variant="outline">Sign out</Button></form>}</div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><Link href="/" className="inline-flex min-h-11 items-center"><Brand /></Link>{!demo && <SignOutButton variant="outline" />}</div>
     <header><h1 className="font-display text-3xl font-semibold tracking-tight">Account and privacy</h1><p className="mt-3 break-words text-sm leading-6 text-[var(--muted-foreground)]">{profile?.email ?? "Preview mode"}. These tools do not require acceptance of updated Terms.</p></header>
     {demo && <p role="status" className="rounded-xl border p-4 text-sm">Preview only. Downloads and deletion are disabled without a configured account service.</p>}
     {profile?.deletion_pending_at && <p role="alert" className="rounded-xl border p-4 text-sm">Deletion is pending and workspace writes are locked. If signing in or retrying is unavailable, contact <a className={legalLink} href={`mailto:${LEGAL_CONTACT_EMAIL}`}>{LEGAL_CONTACT_EMAIL}</a> to complete deletion.</p>}

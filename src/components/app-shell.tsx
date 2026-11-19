@@ -9,6 +9,7 @@ import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ChevronRight, Cir
 import { useTheme } from "@/components/theme-provider";
 import { createLocalPreference } from "@/lib/local-preference";
 import { cn, formatMinutes } from "@/lib/utils";
+import { formatElapsed } from "@/lib/shift-timer";
 import { buildWeekMeter, limitPosition, type WeekMeter, type WeekMeterSource } from "@/lib/week-meter";
 import { useLiveWeekJobs } from "@/components/use-live-week";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -411,6 +412,35 @@ function LiveWeekMeter({ source }: { source: WeekMeterSource }) {
   </Link>;
 }
 
+/**
+ * A running timer, on every page but the shift log (where the clock card and its
+ * pinned bar already show it): clock-in lives only on the Shifts page, so
+ * without this nothing elsewhere would say the clock is running. Ticks from
+ * the meter's `countedAt` so the server and first client render agree.
+ */
+function TimerChip({ weekMeter }: { weekMeter: Promise<WeekMeterSource | null> }) {
+  const source = use(weekMeter);
+  const timer = source?.timer ?? null;
+  const [now, setNow] = useState(() => (source ? Date.parse(source.countedAt) : 0));
+  useEffect(() => {
+    if (!timer) return;
+    const tick = () => setNow(Date.now());
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [timer]);
+  if (!source || !timer) return null;
+  const job = source.jobs.find((candidate) => candidate.id === timer.jobId);
+  const elapsed = now - Date.parse(timer.startedAt);
+  return <Link href="/shifts" aria-label={`On the clock${job ? ` for ${job.name}` : ""}, ${formatMinutes(Math.floor(Math.max(0, elapsed) / 60_000))}. Open shifts.`} className="press flex h-9 min-w-0 shrink-0 items-center gap-2 rounded-full border bg-[var(--card)] px-3 text-xs font-semibold outline-none transition-colors hover:bg-[var(--surface-subtle)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]" style={{ "--clock-job": job?.color ?? "var(--primary)" } as React.CSSProperties}>
+    <span aria-hidden="true" className="relative flex size-2 shrink-0">
+      <span className="absolute inset-0 animate-ping rounded-full bg-[var(--clock-job)] opacity-60" />
+      <span className="relative size-2 rounded-full bg-[var(--clock-job)]" />
+    </span>
+    <span aria-hidden="true" className="hidden max-w-40 truncate text-[var(--muted-foreground)] xl:inline">{job?.name ?? "On the clock"}</span>
+    <span aria-hidden="true" className="font-display tabular-nums">{formatElapsed(elapsed)}</span>
+  </Link>;
+}
+
 function WeekMeterPlaceholder() {
   return <span aria-hidden="true" className="flex h-9 items-center gap-3 px-3.5">
     <span className="text-xs font-medium text-[var(--muted-foreground)]">This week</span>
@@ -463,6 +493,7 @@ export function AppShell({ children, isAdmin = false, isDemo = false, userEmail,
         </div>
         {weekMeter && <div className="hidden min-w-0 md:block"><Suspense fallback={<WeekMeterPlaceholder />}><WeekMeterLink weekMeter={weekMeter} /></Suspense></div>}
         <div className="flex min-w-0 flex-none items-center justify-end gap-1 sm:gap-2 md:flex-1 md:basis-0">
+          {weekMeter && pathname !== "/shifts" && <Suspense fallback={null}><TimerChip weekMeter={weekMeter} /></Suspense>}
           <ThemeToggle />
           <Link href="/shifts/new" aria-label="Add shift" className={cn(buttonVariants(), "size-11 rounded-full p-0 shadow-none hover:shadow-none sm:w-auto sm:px-4 md:h-9")}><Plus className="size-4" /><span className="hidden sm:inline">Add shift</span></Link>
           {!isDemo && <AccountMenu email={userEmail} name={userName} />}

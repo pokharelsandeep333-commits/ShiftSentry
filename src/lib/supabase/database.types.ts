@@ -977,6 +977,7 @@ export type Database = {
         Returns: { confirmation: string | null; weeks: Json }[];
       };
       has_current_legal_acceptance: { Args: Record<PropertyKey, never>; Returns: boolean };
+      get_session_context: { Args: Record<PropertyKey, never>; Returns: Json };
       accept_legal_terms: { Args: { p_version: string; p_agreed: boolean; p_eligible: boolean }; Returns: undefined };
       export_account_data: { Args: Record<PropertyKey, never>; Returns: Json };
       prepare_account_deletion: { Args: { p_user_id: string }; Returns: undefined };

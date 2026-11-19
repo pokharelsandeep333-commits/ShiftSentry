@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useActionState, useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties, type RefObject } from "react";
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { TimerReset } from "lucide-react";
@@ -85,16 +85,21 @@ function IdleClock({ jobs, initialJobId, onJobChange }: { jobs: ClockJob[]; init
   const pick = (id: string) => { setPicked(id); onJobChange?.(id); };
 
   return <section aria-labelledby={headingId} className="premium-card mb-5 rounded-2xl border bg-[var(--card)] p-4 sm:p-5">
-    <form action={action} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-      <div className="min-w-0 sm:flex sm:items-center sm:gap-4">
-        <h2 id={headingId} className="font-display text-lg font-semibold sm:shrink-0">Clock in</h2>
+    {/* On a phone: the heading and Start share the first row and the job
+        chips scroll sideways in one row under them, so the card takes two
+        rows rather than one per job and the log stays near the top. From sm
+        it is one row: heading, chips, Start. The wrapper is `contents` below
+        sm so its children sit in the form's grid. */}
+    <form action={action} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 sm:flex sm:flex-row sm:justify-between sm:gap-5">
+      <div className="contents sm:flex sm:min-w-0 sm:items-center sm:gap-4">
+        <h2 id={headingId} className="col-start-1 row-start-1 font-display text-lg font-semibold sm:shrink-0">Clock in</h2>
         {jobs.length === 1
-          ? <p className="mt-1 flex min-w-0 items-center gap-2 text-sm text-[var(--muted-foreground)] sm:mt-0"><input type="hidden" name="jobId" value={chosen} /><Dot color={jobs[0].color} /><span className="truncate">{jobs[0].name}</span></p>
-          : <fieldset className="mt-2.5 min-w-0 sm:mt-0">
+          ? <p className="col-span-2 row-start-2 flex min-w-0 items-center gap-2 text-sm text-[var(--muted-foreground)]"><input type="hidden" name="jobId" value={chosen} /><Dot color={jobs[0].color} /><span className="truncate">{jobs[0].name}</span></p>
+          : <fieldset className="col-span-2 row-start-2 min-w-0">
               <legend className="sr-only">Job</legend>
-              <div className="flex flex-wrap gap-2">
+              <div className="shift-scroller -mx-4 -my-1 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1 sm:m-0 sm:flex-wrap sm:overflow-visible sm:p-0">
                 {jobs.map((job) => <label key={job.id} className={cn(
-                  "press relative flex min-h-11 min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors sm:min-h-9",
+                  "press relative flex min-h-11 shrink-0 snap-start cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors sm:min-h-9 sm:min-w-0 sm:max-w-full sm:shrink",
                   "has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[var(--primary-soft)]",
                   chosen === job.id ? "border-[color-mix(in_srgb,var(--primary)_45%,var(--border))] bg-[var(--primary-soft)] text-[var(--foreground)]" : "bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
                 )}>
@@ -105,7 +110,7 @@ function IdleClock({ jobs, initialJobId, onJobChange }: { jobs: ClockJob[]; init
               </div>
             </fieldset>}
       </div>
-      <SubmitButton label="Start shift" pendingLabel="Starting…" size="lg" className="w-full rounded-full sm:w-auto sm:shrink-0" />
+      <SubmitButton label="Start shift" pendingLabel="Starting…" size="lg" className="col-start-2 row-start-1 rounded-full sm:shrink-0" />
     </form>
     {state.message && <Problem message={state.message} href={state.editHref} linkLabel="Edit that shift" />}
   </section>;
@@ -119,14 +124,17 @@ function RunningClock({ timer, timeZone, weekStartsOn, snapshotAt, stopState: st
   const elapsed = now.getTime() - startedAt.getTime();
   const overDay = elapsed > MAX_SHIFT_MS;
   const editHref = timerEditorHref(timer, new Date(Math.floor(now.getTime() / 60_000) * 60_000), timeZone);
+  const cardRef = useRef<HTMLElement>(null);
+  const scrolledPast = useScrolledPast(cardRef);
 
-  return <section aria-labelledby={headingId} className="premium-card relative mb-5 overflow-hidden rounded-2xl border bg-[var(--card)] p-4 sm:p-5" style={{ "--clock-job": timer.jobColor } as CSSProperties}>
+  return <>
+  <section ref={cardRef} aria-labelledby={headingId} className="premium-card relative mb-5 overflow-hidden rounded-2xl border bg-[var(--card)] p-4 sm:p-5" style={{ "--clock-job": timer.jobColor } as CSSProperties}>
     {/* The job's colour, as a soft wash from the leading edge: the owner's
         treatment for the shift under way in the Up next rail. */}
     <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(100deg,color-mix(in_srgb,var(--clock-job)_13%,transparent),transparent_55%)]" />
     <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <h2 id={headingId} className="flex min-w-0 items-center gap-2 text-sm font-medium">
+        <h2 id={headingId} tabIndex={-1} className="flex min-w-0 items-center gap-2 text-sm font-medium outline-none">
           <span aria-hidden="true" className="relative flex size-2.5 shrink-0">
             <span className="absolute inset-0 animate-ping rounded-full bg-[var(--clock-job)] opacity-60" />
             <span className="relative size-2.5 rounded-full bg-[var(--clock-job)]" />
@@ -156,7 +164,44 @@ function RunningClock({ timer, timeZone, weekStartsOn, snapshotAt, stopState: st
       </div>
     </div>
     {state.message && <Problem message={state.message} href={state.editHref} linkLabel="Fix the times" />}
-  </section>;
+  </section>
+  {scrolledPast && <PinnedClock jobName={timer.jobName} jobColor={timer.jobColor} elapsed={elapsed} onShow={() => {
+    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    cardRef.current?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+  }} />}
+  </>;
+}
+
+/**
+ * While the running card is scrolled up out of view on a phone or tablet, a
+ * slim bar above the bottom tabs keeps the clock in sight; a tap brings the
+ * card back, where Stop and what stopping would meet are. It carries no Stop
+ * of its own, so a refusal is always read where it is explained. The bottom
+ * tabs, and so this bar, are gone from lg up.
+ */
+function PinnedClock({ jobName, jobColor, elapsed, onShow }: { jobName: string; jobColor: string; elapsed: number; onShow: () => void }) {
+  return <button type="button" onClick={onShow} className="press fixed inset-x-3 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-20 flex min-h-12 items-center gap-2.5 rounded-full border bg-[var(--card)]/95 px-4 text-left text-sm shadow-lg shadow-black/10 backdrop-blur-xl outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] sm:inset-x-auto sm:right-6 sm:min-w-72 lg:hidden" style={{ "--clock-job": jobColor } as CSSProperties}>
+    <span aria-hidden="true" className="relative flex size-2.5 shrink-0">
+      <span className="absolute inset-0 animate-ping rounded-full bg-[var(--clock-job)] opacity-60" />
+      <span className="relative size-2.5 rounded-full bg-[var(--clock-job)]" />
+    </span>
+    <span className="min-w-0 flex-1 truncate font-medium">On the clock · {jobName}</span>
+    <span className="font-display font-semibold tabular-nums">{formatElapsed(elapsed)}</span>
+    <span className="sr-only">. Show the timer</span>
+  </button>;
+}
+
+/** True once the element has scrolled up past the top of the viewport (not when it is below it). */
+function useScrolledPast(ref: RefObject<HTMLElement | null>) {
+  const [past, setPast] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) => setPast(!entry.isIntersecting && entry.boundingClientRect.top < 0));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return past;
 }
 
 /** One line under the clock: what stopping now would meet, and when a limit would be reached. */

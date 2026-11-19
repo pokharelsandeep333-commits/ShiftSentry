@@ -11,6 +11,8 @@ export async function GET() {
   if (error || !user) return NextResponse.json({ message: "Sign in to download your account data." }, { status: 401, headers });
   if (!allowExport(user.id)) return NextResponse.json({ message: "Too many downloads. Wait a minute and try again." }, { status: 429, headers: { ...headers, "Retry-After": "60" } });
   const { data, error: exportError } = await supabase.rpc("export_account_data");
+  // The database keeps the same budget (PT429), for calls that skip this route.
+  if (exportError?.code === "PT429") return NextResponse.json({ message: "Too many downloads. Wait a minute and try again." }, { status: 429, headers: { ...headers, "Retry-After": "60" } });
   if (exportError || !data) return NextResponse.json({ message: "The download could not be prepared. Please try again or contact support." }, { status: 503, headers });
   return new NextResponse(JSON.stringify(data, null, 2), { headers: { ...headers, "Content-Type": "application/json; charset=utf-8", "Content-Disposition": `attachment; filename="shiftsentry-account-${new Date().toISOString().slice(0, 10)}.json"` } });
 }

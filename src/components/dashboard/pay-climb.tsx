@@ -91,7 +91,7 @@ export function PayClimb({ steps, days, jobs, weekStartsAt, weekEndsAt, snapshot
     <div className={styles.climbHead}>
       <div className="min-w-0">
         <h2 id="pay-climb-title" className="text-sm font-medium text-[var(--muted-foreground)]">Your pay this week <span aria-hidden="true">·</span> {rangeLabel}</h2>
-        <p className={styles.climbEarned}>{formatCents(earned)}</p>
+        <p className={cn(styles.climbEarned, earned <= 0 && styles.climbEarnedNone)}>{formatCents(earned)}</p>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]" title="After tax and deductions">
           {steps.length === 0 ? "Nothing logged or planned yet this week."
             : planned > 0 ? <>earned so far, <span className={styles.climbMoney}>{formatCents(projected)}</span> by {endDay} if you work what&apos;s planned</>

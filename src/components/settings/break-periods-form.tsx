@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { deleteBreakPeriod, saveBreakPeriod } from "@/app/actions/work";
 import { Button, PendingLabel } from "@/components/ui/button";
 import { SettingsGroup } from "@/components/settings/settings-section";
+import { useSettingsFormDirty } from "@/components/settings/use-settings-form-dirty";
 import type { BreakPeriod, BreakPeriodActionState, BreakPeriodImpact } from "@/lib/break-periods";
 import { emptySavedFormState } from "@/lib/form-state";
 import { formatMinutes } from "@/lib/utils";
@@ -38,12 +39,19 @@ function PeriodEditor({ period, onClose, onSaved }: {
   const startField = useRef<HTMLInputElement>(null);
   useEffect(() => { startField.current?.focus(); }, []);
   const [showImpact, setShowImpact] = useState(false);
-  const [fields, setFields] = useState({
+  const initial = {
     startDate: period?.start_date ?? "",
     endDate: period?.end_date ?? "",
     weeklyLimitHours: period ? String(period.weekly_limit_minutes / 60) : "",
     label: period?.label ?? "",
-  });
+  };
+  const [fields, setFields] = useState(initial);
+  useSettingsFormDirty(
+    fields.startDate !== initial.startDate ||
+    fields.endDate !== initial.endDate ||
+    fields.weeklyLimitHours !== initial.weeklyLimitHours ||
+    fields.label !== initial.label,
+  );
   const [state, action, pending] = useActionState<BreakPeriodActionState, FormData>(async (_previous, formData) => {
     const result = await saveBreakPeriod(period?.id ?? null, formData);
     if (result.savedAt !== null) onSaved();

@@ -193,7 +193,7 @@ export function DateField({ id, value, onChange, today, ariaLabel, describedBy, 
       onClick={() => (open ? dismiss(false) : openCalendar())}
     >
       {compactLabel && <CalendarDays className="size-3.5 shrink-0 text-[var(--muted-foreground)]" aria-hidden="true" />}
-      <span className="truncate">{label || "Select a date"}</span>
+      <span className={cn("truncate", !label && "font-normal text-[var(--muted-foreground)]")}>{label || "Select a date"}</span>
       {compactLabel ? <ChevronDown className="size-3.5 shrink-0 text-[var(--primary)]" aria-hidden="true" /> : <CalendarDays className="size-4 shrink-0 text-[var(--muted-foreground)]" aria-hidden="true" />}
     </button>
     {open && <div

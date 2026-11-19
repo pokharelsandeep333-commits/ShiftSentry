@@ -1,0 +1,15 @@
+.disc::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 36% 34%, color-mix(in srgb, var(--primary) 44%, var(--card)), transparent 63%),
+    radial-gradient(ellipse at 65% 68%, color-mix(in srgb, var(--primary) 30%, var(--card)), transparent 64%);
+  content: "";
+  opacity: 1;
+  transition: opacity 450ms var(--ease-out) 150ms;
+}
+
+[data-image-loaded] > .disc::after {
+  opacity: 0;
+}

@@ -2,7 +2,7 @@ import { ViewTransition } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** The section nav beside the first two section cards, matching the settings page. */
+/** The section tabs above the first two cards, matching the settings page. */
 export default function Loading() {
   // The skeleton dissolves as the page arrives (`.skeleton-out`, globals.css).
   return <ViewTransition exit="skeleton-out" default="none"><div aria-busy="true" aria-live="polite">
@@ -12,11 +12,11 @@ export default function Loading() {
       <Skeleton className="mt-3 h-4 w-[30rem] max-w-full" />
     </div>
 
-    <div className="grid gap-6 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-8 xl:gap-10">
-      <div className="flex gap-2 overflow-hidden lg:flex-col lg:gap-1">
-        {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-11 w-36 shrink-0 rounded-xl lg:h-10 lg:w-full" />)}
+    <div className="grid min-w-0 gap-6">
+      <div className="flex min-w-0 gap-2 overflow-hidden">
+        {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-11 w-36 shrink-0 rounded-xl" />)}
       </div>
-      <div className="grid min-w-0 max-w-3xl gap-6">
+      <div className="grid min-w-0 gap-6">
         {[4, 2].map((fields, card) => <Card key={card}>
           <div className="flex items-start gap-3.5 p-5 sm:p-6">
             <Skeleton className="size-10 shrink-0 rounded-xl" />

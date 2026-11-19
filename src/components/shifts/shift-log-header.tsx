@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Plus, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { PageHeader } from "@/components/page-header";
-import { buttonVariants } from "@/components/ui/button";
 import { ExpandAllWeeks } from "@/components/shifts/week-disclosure";
 import { isFiltered, shiftLogHref, type ShiftFilters, type ShiftShow } from "@/lib/shift-log";
 import type { SyncIssue } from "@/lib/google-sync-plan";
@@ -17,13 +16,14 @@ const SHOWS: { value: ShiftShow; label: string }[] = [
 
 function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return <Link href={href} aria-current={active ? "true" : undefined} scroll={false} className={cn(
-    "press inline-flex min-h-9 max-w-full items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-semibold outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
+    "press inline-flex min-h-9 shrink-0 snap-start items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-semibold outline-none sm:max-w-full sm:shrink focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
     active ? "border-[color-mix(in_srgb,var(--primary)_35%,var(--border))] bg-[var(--primary-soft)] text-[var(--primary)]" : "bg-[var(--card)]/60 text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
   )}>{children}</Link>;
 }
 
 /**
- * The log's heading, its Add shift button, and the filters. Filters are links
+ * The log's heading and the filters. Add shift is the header's "+" (labelled
+ * from sm); the page no longer repeats it on a phone, where it cost a row. Filters are links
  * that rewrite the address (`?show=`, `?job=`), so a filtered view survives a
  * refresh, a delete (which carries them back) and the back button. The job
  * chips are the active jobs, in their colours.
@@ -33,24 +33,23 @@ export function ShiftLogHeader({ weeks, filters, jobs, openableWeeks, clock }: {
     <PageHeader
       title="Shifts"
       description="Everything you have worked or scheduled, week by week. Open a shift to change it."
-      // From sm the header carries a labelled Add shift on every page; below it
-      // the header shows only a "+", so the page offers the labelled one.
-      actions={jobs.length ? <Link href="/shifts/new" className={cn(buttonVariants(), "sm:hidden")}><Plus className="size-4" aria-hidden="true" />Add shift</Link> : undefined}
     />
     {clock}
-    {jobs.length > 0 && <nav aria-label="Filter shifts" className="mb-5 flex flex-wrap items-center gap-2">
-      <span className="shift-segment">
+    {/* One row that scrolls sideways on a phone (it wrapped to three rows
+        there, pushing the log down); from sm it wraps as before. */}
+    {jobs.length > 0 && <nav aria-label="Filter shifts" className="shift-scroller -mx-4 mb-4 flex snap-x scroll-px-4 items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:mb-5 sm:flex-wrap sm:overflow-visible sm:p-0">
+      <span className="shift-segment shrink-0 snap-start">
         {SHOWS.map((show) => <Link key={show.value} href={shiftLogHref(weeks, { ...filters, show: show.value })} aria-current={filters.show === show.value ? "true" : undefined} scroll={false}>{show.label}</Link>)}
       </span>
       {jobs.length > 1 && <>
-        <span aria-hidden="true" className="mx-1 h-5 w-px bg-[var(--border)]" />
+        <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-[var(--border)]" />
         <Chip href={shiftLogHref(weeks, { ...filters, job: "" })} active={!filters.job}>All jobs</Chip>
         {jobs.map((job) => <Chip key={job.id} href={shiftLogHref(weeks, { ...filters, job: job.id })} active={filters.job === job.id}>
           <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: job.color }} />
           <span className="truncate">{job.name}</span>
         </Chip>)}
       </>}
-      <span className="ml-auto flex items-center gap-1">
+      <span className="ml-auto flex shrink-0 items-center gap-1">
         {isFiltered(filters) && <Link href={shiftLogHref(weeks, { show: "all", job: "" })} scroll={false} className="inline-flex min-h-9 items-center rounded-full px-3 text-xs font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Clear filters</Link>}
         <ExpandAllWeeks weeks={openableWeeks} />
       </span>

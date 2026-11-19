@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -15,6 +15,7 @@ import type { LiveTimer } from "@/lib/shift-timer";
 import { PayClimb } from "@/components/dashboard/pay-climb";
 import { PaydaySummary } from "@/components/dashboard/payday-summary";
 import { RecentShifts } from "@/components/dashboard/recent-shifts";
+import { moneyText } from "@/components/dashboard/money-tone";
 import { PremiumSelect } from "@/components/ui/premium-select";
 import { Reveal } from "@/components/ui/reveal";
 import { formatCents } from "@/lib/earnings";
@@ -84,13 +85,11 @@ function useHoverPointer() {
 }
 
 /**
- * `clock` is the clock-in card (`ShiftClock`), rendered by the page because it
- * needs a session; the demo passes none. It sits straight under the greeting,
- * above the cap card: on a phone, starting and stopping a shift is the action
- * people open the app for. `timer` is the same running timer, which the cap
- * card counts as it ticks, as the header meter does.
+ * `timer` is the viewer's running timer, which the cap card counts as it
+ * ticks, as the header meter does. Starting and stopping it happens on /shifts
+ * (`ShiftClock`); the overview only reads it.
  */
-export function DashboardView({ data, clock, timer = null }: { data: DashboardData; clock?: ReactNode; timer?: LiveTimer | null }) {
+export function DashboardView({ data, timer = null }: { data: DashboardData; timer?: LiveTimer | null }) {
   // Before the first-run early return, so the hook order never changes.
   const live = useLiveWeekJobs(data.jobs, timer, data.snapshotAt, data.viewer.timeZone, data.viewer.weekStartsOn);
   // Nothing has been set up yet, so there is nothing to total. The full
@@ -101,7 +100,6 @@ export function DashboardView({ data, clock, timer = null }: { data: DashboardDa
 
   return <div className={styles.root}>
     <DashboardHeading data={data} />
-    {clock}
     <WeekCard jobs={live.jobs} workedMinutes={data.totals.week.minutes + live.workedDelta} limitMinutes={data.globalLimitMinutes} activeBreakLabel={data.activeBreakLabel} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
 
     {/* The week, then what is next: the same order stacked and side by side. */}
@@ -249,7 +247,7 @@ function EarningsCard({ totals, comparison }: { totals: DashboardTotals; compari
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-[var(--muted-foreground)]">Net earned</p>
-          <p className="mt-1 whitespace-nowrap font-display text-[2.5rem] font-semibold leading-none tracking-[-0.035em] tabular-nums text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))] sm:text-[3.1rem]">{formatCents(summary.earnings.netCents)}</p>
+          <p className={cn("mt-1 whitespace-nowrap font-display text-[2.5rem] font-semibold leading-none tracking-[-0.035em] tabular-nums sm:text-[3.1rem]", moneyText(summary.earnings.netCents))}>{formatCents(summary.earnings.netCents)}</p>
         </div>
         <div className="text-right">
           <p className="text-sm font-medium text-[var(--muted-foreground)]">Hours worked</p>
@@ -340,7 +338,7 @@ function PayStub({ period, today }: { period: PayPeriodSummary; today: string })
       <span className="truncate" title={period.jobName}>{period.jobName}</span>
       <ArrowUpRight aria-hidden="true" className="ml-auto size-4 shrink-0 text-[var(--muted-foreground)] transition-[color,translate] duration-200 group-hover:-translate-y-px group-hover:translate-x-px group-hover:text-[var(--foreground)]" />
     </p>
-    <p className="mt-3 font-display text-[1.75rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]">{formatCents(current.worked.netCents)}</p>
+    <p className={cn("mt-3 font-display text-[1.75rem] font-semibold leading-none tracking-[-0.03em] tabular-nums", moneyText(current.worked.netCents))}>{formatCents(current.worked.netCents)}</p>
     <p className="mt-2 text-xs tabular-nums text-[var(--muted-foreground)]">
       {formatMinutes(current.worked.minutes)} worked
       {current.scheduled.netCents > 0 && <> · <span title="Planned shifts left in this period, after tax and deductions">+{formatCents(current.scheduled.netCents)} planned</span></>}
@@ -459,6 +457,34 @@ function MonthBreakdown({ label, rows, total, isEarnings, className }: MonthBrea
   </div>;
 }
 
+/**
+ * The window always spans six months, so someone who started two months ago
+ * saw four empty slots and their bars squeezed against the right edge. Months
+ * before the first one with any work are dropped; an empty month after it is
+ * a real gap and stays. "Any work" counts hours as well as pay, so the months
+ * shown do not change when the metric switch does. No work at all leaves
+ * nothing, and the card shows its empty state.
+ */
+function monthsFromFirstWork(months: MonthlyJobAllocation["months"]) {
+  const first = months.findIndex((month) => Object.values(month.loggedMinutes).some((value) => value > 0) || Object.values(month.netCents).some((value) => value > 0));
+  return first === -1 ? [] : months.slice(first);
+}
+
+/**
+ * `niceAxisTicks` steps by 1, 2 or 5, and asked for four intervals alone it
+ * can end the axis half again above the tallest bar ($1,010 drew to $1,500).
+ * Asking for four, five or six and keeping the lowest top caps that at a
+ * third, still on round steps and never more than seven ticks.
+ */
+function fittedAxisTicks(max: number, unit: number) {
+  let best = niceAxisTicks(max, unit, 4);
+  for (const target of [5, 6]) {
+    const candidate = niceAxisTicks(max, unit, target);
+    if (candidate[candidate.length - 1] < best[best.length - 1]) best = candidate;
+  }
+  return best;
+}
+
 type HistoryMetric = "earnings" | "hours";
 const historyMetric = createLocalPreference<HistoryMetric>("shiftsentry:history-metric", "earnings", (value) => (value === "earnings" || value === "hours" ? value : null));
 
@@ -482,20 +508,21 @@ function HistoryChart({ allocation }: { allocation: MonthlyJobAllocation }) {
   const isEarnings = metric === "earnings";
   const coarsePointer = !useHoverPointer();
   const [pinnedMonthKey, setPinnedMonthKey] = useState<string | null>(null);
-  const chartData = allocation.months.map((month) => ({ label: month.label, monthKey: month.key, ...(isEarnings ? month.netCents : month.loggedMinutes) }));
+  const months = monthsFromFirstWork(allocation.months);
+  const chartData = months.map((month) => ({ label: month.label, monthKey: month.key, ...(isEarnings ? month.netCents : month.loggedMinutes) }));
   const seriesKeys = allocation.series.map((series) => series.key);
   const title = "Last six months";
   const latestMonthKey = allocation.months[allocation.months.length - 1]?.key ?? null;
-  // The tallest stack, so the axis can end on a round value above it.
-  const stackMax = Math.max(0, ...allocation.months.map((month) => Object.values(isEarnings ? month.netCents : month.loggedMinutes).reduce((total, value) => total + value, 0)));
-  const ticks = niceAxisTicks(stackMax, isEarnings ? 100 : 60);
+  // The tallest stack, so the axis can end on a round value just above it.
+  const stackMax = Math.max(0, ...months.map((month) => Object.values(isEarnings ? month.netCents : month.loggedMinutes).reduce((total, value) => total + value, 0)));
+  const ticks = fittedAxisTicks(stackMax, isEarnings ? 100 : 60);
   // Until a bar is tapped the readout shows the current month, so the panel is
   // never an empty box waiting to be earned.
   const readout = breakdownFor(allocation, pinnedMonthKey ?? latestMonthKey, isEarnings);
 
   function pinMonthAt(index: unknown) {
     const monthIndex = Number(index);
-    const monthKey = Number.isInteger(monthIndex) ? allocation.months[monthIndex]?.key ?? null : null;
+    const monthKey = Number.isInteger(monthIndex) ? months[monthIndex]?.key ?? null : null;
     setPinnedMonthKey((current) => current === monthKey ? null : monthKey);
   }
 
@@ -509,7 +536,7 @@ function HistoryChart({ allocation }: { allocation: MonthlyJobAllocation }) {
         <MetricSwitch value={metric} onChange={historyMetric.write} />
       </div>
     </CardHeader>
-    <CardContent className="flex min-h-0 flex-1 flex-col">{allocation.series.length ? <>
+    <CardContent className="flex min-h-0 flex-1 flex-col">{allocation.series.length && months.length ? <>
       {/* Each entry wraps as a unit rather than mid-name, so a legend that needs
           two lines still reads as a list of jobs. */}
       <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2" aria-label={`${title} legend`}>{allocation.series.map((series) => <span key={series.key} className="flex min-w-0 max-w-full items-center gap-2 text-xs font-medium text-[var(--muted-foreground)]"><i className="size-2.5 shrink-0 rounded-full" style={{ background: series.color }} /><span className="truncate" title={series.name}>{series.name}</span></span>)}</div>
@@ -521,7 +548,7 @@ function HistoryChart({ allocation }: { allocation: MonthlyJobAllocation }) {
           <BarChart data={chartData} margin={{ left: 0, right: 8, top: 16 }} onClick={coarsePointer ? (state: { activeTooltipIndex?: unknown }) => pinMonthAt(state?.activeTooltipIndex) : undefined}>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
-            {/* Round ticks from `niceAxisTicks` (whole hours, whole dollars), with
+            {/* Round ticks from `fittedAxisTicks` (whole hours, whole dollars), with
                 the domain ending on the last one. Wide enough for a four-figure
                 tick like "$1,500" in the narrow right-hand column. */}
             <YAxis width={64} ticks={ticks} domain={[0, ticks[ticks.length - 1]]} interval={0} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} tickFormatter={(value) => isEarnings ? `$${Math.round(Number(value) / 100).toLocaleString("en-US")}` : `${Math.round(Number(value) / 60)}h`} />

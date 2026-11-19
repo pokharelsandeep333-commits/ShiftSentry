@@ -2,6 +2,7 @@ import { mergeCalendarResults, normalizeGoogleEvent, type CalendarEvent, type Go
 import type { GoogleCalendarConfig } from "./config";
 import { readIdTokenEmail } from "./oauth";
 import { SyncBudget, SyncBudgetExceeded, SYNC_LIMITS } from "./sync-budget";
+import { GOOGLE_READ_LIMITS, readableCalendarIds, settleWithConcurrency } from "./read-budget";
 
 /**
  * Every call to Google, server-side only. Each has a 3 s budget; the pages that
@@ -75,7 +76,7 @@ export async function listCalendars(accessToken: string): Promise<GoogleCalendar
 }
 
 export async function listEvents(accessToken: string, calendarIds: string[], range: { timeMin: string; timeMax: string }, timeZone: string, maxResults = 50): Promise<CalendarEvent[]> {
-  const pages = await Promise.allSettled(calendarIds.map(async (calendarId) => {
+  const pages = await settleWithConcurrency(readableCalendarIds(calendarIds), GOOGLE_READ_LIMITS.concurrency, async (calendarId) => {
     const body = await calendarGet<{ items?: GoogleEventResource[] }>(accessToken, `/calendars/${encodeURIComponent(calendarId)}/events`, {
       timeMin: range.timeMin,
       timeMax: range.timeMax,
@@ -85,7 +86,7 @@ export async function listEvents(accessToken: string, calendarIds: string[], ran
       fields: "items(id,recurringEventId,status,summary,transparency,start,end,attendees(self,responseStatus))",
     });
     return (body.items ?? []).map((item) => normalizeGoogleEvent(item, calendarId, timeZone)).filter((event): event is CalendarEvent => event !== null);
-  }));
+  });
   return mergeCalendarResults(pages, (reason) => reason instanceof GoogleAuthError);
 }
 

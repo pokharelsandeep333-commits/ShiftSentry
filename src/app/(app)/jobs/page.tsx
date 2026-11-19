@@ -55,12 +55,6 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
 
     {jobs.length ? <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {jobs.map((job) => <li key={job.id}><JobCard job={job} googleOn={googleOn} /></li>)}
-      <li>
-        <Link href="/jobs/new" className="press flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-[1.35rem] border border-dashed p-5 text-sm font-semibold text-[var(--muted-foreground)] outline-none hover:border-[color-mix(in_srgb,var(--primary)_40%,var(--border))] hover:bg-[var(--primary-soft)] hover:text-[var(--primary)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
-          <span className="grid size-10 place-items-center rounded-xl border border-dashed"><Plus className="size-5" aria-hidden="true" /></span>
-          Add another job
-        </Link>
-      </li>
     </ul> : <Card className="grid justify-items-center gap-4 px-6 py-12 text-center">
       <span className="grid size-12 place-items-center rounded-2xl bg-[var(--primary-soft)] text-[var(--primary)]"><BriefcaseBusiness className="size-6" aria-hidden="true" /></span>
       <div>

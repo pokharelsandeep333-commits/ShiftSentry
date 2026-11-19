@@ -2,17 +2,16 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { preload } from "react-dom";
+import styles from "./hero-art.module.css";
 
 /**
- * The hero render and the chips that label it. Their entrances (`.hero-art`
- * and `.hero-chip` in globals.css) are held paused until the image has
- * loaded, so the chips never pop in around an empty disc on a slow
- * connection. The flag is a DOM attribute rather than React state: it is set
- * once and nothing renders from it.
+ * The hero render and the chips that label it. The disc shows a lavender
+ * gradient immediately. The render and chip entrances wait for the image,
+ * which also triggers the placeholder fade.
  *
  * A cached image can finish loading before hydration attaches `onLoad`, so the
- * effect also checks `complete`; the timer releases the motion anyway if the
- * image never arrives, so the chips are not hidden for good.
+ * effect also checks `complete` and `naturalWidth`. The timer releases the
+ * entrances if the image is slow or fails, while the placeholder stays visible.
  *
  * Eager, not `priority`: the page's largest paint is the hero's text, and
  * `priority` fetched this render at high priority, ahead of what that text
@@ -39,23 +38,35 @@ const SIZES = "(min-width: 1024px) 50vw, 90vw";
 export function HeroArt({ src, alt, children }: { src: string; alt: string; children: ReactNode }) {
   const avifSrcSet = srcSetFor(src, "avif");
   preload(src.replace(/\.webp$/, ".avif"), { as: "image", type: "image/avif", imageSrcSet: avifSrcSet, imageSizes: SIZES });
+  const frame = useRef<HTMLDivElement>(null);
   const art = useRef<HTMLDivElement>(null);
   const image = useRef<HTMLImageElement>(null);
 
+  function imageLoaded() {
+    frame.current?.setAttribute("data-image-loaded", "");
+    art.current?.setAttribute("data-loaded", "");
+  }
+
   useEffect(() => {
-    if (image.current?.complete) markLoaded(art.current);
-    const timer = setTimeout(() => markLoaded(art.current), RELEASE_AFTER_MS);
+    if (image.current?.complete && image.current.naturalWidth > 0) {
+      imageLoaded();
+      return;
+    }
+    const timer = setTimeout(() => art.current?.setAttribute("data-loaded", ""), RELEASE_AFTER_MS);
     return () => clearTimeout(timer);
   }, []);
 
-  return <div ref={art} className="hero-art relative lg:-mr-[4%] lg:-ml-[2%]">
-    <div className="hero-art-float">
-      <picture>
-        <source type="image/avif" srcSet={avifSrcSet} sizes={SIZES} />
-        <img ref={image} src={src} srcSet={srcSetFor(src, "webp")} sizes={SIZES} width={1400} height={1400} alt={alt} loading="eager" decoding="async" className="h-auto w-full" onLoad={() => markLoaded(art.current)} />
-      </picture>
+  return <div ref={frame} className="relative">
+    <div aria-hidden="true" className={`hero-disc absolute left-1/2 top-1/2 aspect-square w-[86%] -translate-x-1/2 -translate-y-1/2 rounded-full ${styles.disc}`} />
+    <div ref={art} className="hero-art relative lg:-mr-[4%] lg:-ml-[2%]">
+      <div className="hero-art-float">
+        <picture>
+          <source type="image/avif" srcSet={avifSrcSet} sizes={SIZES} />
+          <img ref={image} src={src} srcSet={srcSetFor(src, "webp")} sizes={SIZES} width={1400} height={1400} alt={alt} loading="eager" decoding="async" className="h-auto w-full" onLoad={imageLoaded} />
+        </picture>
+      </div>
+      {children}
     </div>
-    {children}
   </div>;
 }
 
@@ -63,8 +74,4 @@ export function HeroArt({ src, alt, children }: { src: string; alt: string; chil
 function srcSetFor(src: string, format: "webp" | "avif") {
   const base = src.replace(/\.webp$/, "");
   return [...VARIANT_WIDTHS.map((width) => `${base}-${width}.${format} ${width}w`), `${base}.${format} 1400w`].join(", ");
-}
-
-function markLoaded(node: HTMLDivElement | null) {
-  node?.setAttribute("data-loaded", "");
 }

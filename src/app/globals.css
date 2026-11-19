@@ -67,6 +67,9 @@
   --dur-press: 90ms;
   --dur-quick: 180ms;
   --dur-page: 260ms;
+  /* Page changes only (2026-11-19): shorter than --dur-page and with no
+     start delay, so a new page is settled ~150ms sooner. */
+  --dur-route: 170ms;
   --dur-morph: 340ms;
 }
 
@@ -697,15 +700,15 @@ html:active-view-transition-type(to-login)::view-transition-group(sign-in-box) {
  * bar) stays put in the layout. The nav links tag the move `nav-forward` or
  * `nav-back` by their order in the menu, so the pages slide the way the menu
  * reads; any other route change (a redirect after saving, an in-page link,
- * browser Back) fades through. Old pages leave fast and new ones arrive a
- * beat later, so the two never read as one smeared frame.
+ * browser Back) fades through. Old pages leave fast and new ones arrive
+ * right behind them, in --dur-route.
  */
 ::view-transition-old(.nav-forward-out) { animation: page-out-start var(--dur-quick) var(--ease-in) both; }
-::view-transition-new(.nav-forward-in) { animation: page-in-end var(--dur-page) var(--ease-out) 50ms both; }
+::view-transition-new(.nav-forward-in) { animation: page-in-end var(--dur-route) var(--ease-out) both; }
 ::view-transition-old(.nav-back-out) { animation: page-out-end var(--dur-quick) var(--ease-in) both; }
-::view-transition-new(.nav-back-in) { animation: page-in-start var(--dur-page) var(--ease-out) 50ms both; }
+::view-transition-new(.nav-back-in) { animation: page-in-start var(--dur-route) var(--ease-out) both; }
 ::view-transition-old(.page-out) { animation: vt-fade-out 140ms var(--ease-in) both; }
-::view-transition-new(.page-in) { animation: page-rise var(--dur-page) var(--ease-out) 40ms both; }
+::view-transition-new(.page-in) { animation: page-rise var(--dur-route) var(--ease-out) both; }
 /* A loading skeleton dissolving as the page it stood in for arrives. */
 ::view-transition-old(.skeleton-out) { animation: vt-fade-out var(--dur-quick) ease-out both; }
 

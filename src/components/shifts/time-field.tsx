@@ -68,10 +68,10 @@ export function TimeField({ id, value, onChange, fallback, ariaLabel, describedB
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
         value={display}
-        placeholder="5:30 PM"
+        placeholder="Set time"
         autoComplete="off"
         inputMode="text"
-        className="field-control pr-11 text-sm"
+        className="field-control pr-11 text-sm placeholder:font-normal placeholder:text-[var(--muted-foreground)]"
         onChange={(event) => setDraft(event.target.value)}
         onFocus={(event) => event.currentTarget.select()}
         onKeyDown={(event) => {
