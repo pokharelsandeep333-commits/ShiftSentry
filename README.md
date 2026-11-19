@@ -164,20 +164,21 @@ flowchart LR
     quality & sql & audit & docker & codeql -->|main only| release[🚀 Build, migrate and release]
     release --> trivy[(Trivy scan<br/>before push)]
     trivy --> image[(sha-commit image<br/>SBOM + provenance)]
-    release --> mig[(supabase db push)]
-    release --> stable[(promote to :stable)]
+    image --> verify[(pushed layers = scanned layers?)]
+    verify --> mig[(supabase db push)]
+    mig --> stable[(promote digest to :stable)]
 ```
 
 | Job | What it runs | Required on `main` |
 |---|---|---|
 | 🔐 **Secret scanning** | gitleaks across the whole git history | ✅ |
 | ✅ **Application quality** | Prisma generate and validate, every unit suite, the legal snapshot check, `tsc`, ESLint, a production build | ✅ |
-| 🗄️ **Database rule tests** | All migrations onto a fresh Postgres, then the 28 SQL suites | ✅ |
+| 🗄️ **Database rule tests** | All migrations onto a fresh Postgres, then every SQL suite in `supabase/tests` | ✅ |
 | 📦 **Production dependency audit** | `npm audit` on runtime dependencies. Any high or critical advisory fails, with no allowlist. A malformed report fails too | ✅ |
 | 🐳 **Docker build verification** | The production Dockerfile with placeholder values, plus the pinned Supabase CLI the release uses | ✅ |
 | 🛡️ **CodeQL** | JavaScript and TypeScript analysis into GitHub code scanning | ✅ |
 | 📋 **Dependency review** | New dependencies in a pull request, failing on high severity | PRs only |
-| 🚀 **Build, migrate and release** | Build the image locally, scan it with Trivy (fixable critical/high, SARIF into code scanning). A fixable critical or high finding blocks the push, so nothing ships and no migration runs. Then push `sha-<commit>`, dry-run then apply migrations, promote the same image to `stable` | Runs after merge |
+| 🚀 **Build, migrate and release** | Build the image locally, scan it with Trivy (fixable critical/high, SARIF into code scanning). A fixable critical or high finding blocks the push, so nothing ships and no migration runs. Then push `sha-<commit>`, check its layers match the image Trivy scanned (a mismatch stops the release before any migration), dry-run then apply migrations, and promote that exact digest to `stable` | Runs after merge |
 
 **How the pipeline is locked down**
 
@@ -185,6 +186,7 @@ flowchart LR
 - 🔑 Every workflow starts at `contents: read`. Only the CodeQL jobs and the jobs that upload Trivy results get `security-events: write`.
 - 🧹 The runtime image has no npm, npx, corepack or yarn: production only runs `node server.js`, and the base image's npm was where its vulnerability findings came from.
 - 🔍 Trivy runs from its image pinned by digest, reading a `docker save` tarball with no Docker socket mounted. The Trivy GitHub Actions are not used.
+- 🧾 What reaches production is what was scanned: the pushed image's layer digests must equal the scanned image's, `stable` is promoted by digest rather than by re-reading a tag, and the `node:24-alpine` base is pinned by digest (Dependabot moves it).
 - 🧱 Migrations run **before** `stable` moves, so a new schema never waits on an old image for long.
 - 🩺 `/api/health` returns `{ status, commit }`, with the commit baked into the image. A release counts as live only when that commit matches the merge.
 - 🗓️ Scheduled jobs: CodeQL weekly, the dependency audit weekly, a weekly Trivy scan of the `stable` image production runs, and a daily purge of security audit rows older than 30 days. Dependabot proposes npm, Docker and Actions updates weekly.
@@ -264,10 +266,11 @@ npm run build
 `main` is protected by the six required checks above, with force-push and deletion turned off. The `production` environment has no approval gate, so **merging a green pull request deploys it**:
 
 1. The release job builds the image, scans it with Trivy, then pushes `sha-<commit>` with an SBOM and provenance.
-2. `supabase db push --dry-run`, then `supabase db push`.
-3. The same image is promoted to `stable`.
-4. Watchtower on the server pulls it within about five minutes.
-5. An operator polls [`/api/health`](https://sentry.sandeeppokharel.com.np/api/health) until `commit` matches the merge. GitHub-hosted runners get HTTP 403 from the public edge, so a green release job proves promotion, not what is serving.
+2. It checks the pushed image's layers against the scanned image's; if they differ, the release stops here and nothing is migrated or promoted.
+3. `supabase db push --dry-run`, then `supabase db push`.
+4. That exact image digest is promoted to `stable`.
+5. Watchtower on the server pulls it within about five minutes.
+6. An operator polls [`/api/health`](https://sentry.sandeeppokharel.com.np/api/health) until `commit` matches the merge. GitHub-hosted runners get HTTP 403 from the public edge, so a green release job proves promotion, not what is serving.
 
 Migrations are never edited after they are applied. A schema change is always a new timestamped file.
 
