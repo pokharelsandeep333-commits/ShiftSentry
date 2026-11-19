@@ -40,7 +40,7 @@ export function WeekCard({ jobs, workedMinutes, limitMinutes, activeBreakLabel, 
   return <section aria-labelledby="week-card-title" className={cn("premium-card min-w-0", styles.cap)}>
     <div className="min-w-0">
       <div className={styles.capHeader}>
-        <h2 id="week-card-title" className="font-display text-base font-semibold">Global weekly cap</h2>
+        <h2 id="week-card-title" className={styles.capTitle}>Global weekly cap</h2>
         <StatusPill meter={meter} />
         <p className={cn(styles.capDescription, "text-sm text-[var(--muted-foreground)]")} title={rangeLabel}>Logged plus scheduled hours.</p>
       </div>
