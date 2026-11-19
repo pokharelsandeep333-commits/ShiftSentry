@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * target the section nav scrolls to and focuses (hence `tabIndex={-1}`),
  * holding a card with a heading row. The
  * heading is an h2 under the page's h1, which CardTitle (an h3) would skip.
- * `scroll-mt-6` matches the nav's `top-6`, so a section lands level with it.
+ * `scroll-mt-6` leaves space above the section after an anchor jump.
  */
 export function SettingsSection({ id, icon: Icon, title, description, status, danger = false, children }: {
   id: string;

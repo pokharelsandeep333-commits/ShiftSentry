@@ -395,3 +395,17 @@
   .shift-duration-shortcut summary { min-height:44px; display:flex; align-items:center; }
 }
 @media (max-width:349px) { .shift-schedule-row { grid-template-columns:minmax(0,1fr); } }
+
+/* Sideways-scrolling chip rows on a phone (clock-in jobs, log filters): the
+   cut-off chip at the edge says there is more, so the bar itself is hidden. */
+.shift-scroller { scrollbar-width: none; overscroll-behavior-x: contain; }
+.shift-scroller::-webkit-scrollbar { display: none; }
+
+/* Add/edit shift on a phone: the job chips scroll sideways in one row instead
+   of stacking one per row (the same treatment as the clock-in card). The
+   padding keeps the chips' focus outline inside the scroll box. */
+@media (max-width: 639px) {
+  .job-chips { flex-wrap:nowrap; overflow-x:auto; scroll-snap-type:x proximity; margin:-4px; padding:4px; }
+  .shift-page .shift-form .job-chip { flex-shrink:0; max-width:none; scroll-snap-align:start; }
+  .job-chip > span { white-space:nowrap; overflow-wrap:normal; }
+}

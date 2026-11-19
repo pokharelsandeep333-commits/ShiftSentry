@@ -177,7 +177,9 @@ export function DayTrack({ date, selection, timeZone, weekStartsOn, excludeId, j
       <div className="track-hours" aria-hidden="true">{HOUR_LABELS.map((hour) => <span key={hour} data-minor={hour % 6 !== 0 || undefined} style={{ left: `${(hour / 24) * 100}%` }}>{hourLabel(hour)}</span>)}</div>
       <div ref={lane} className="track-lane" role="group" aria-label={date ? `Times on ${dayLabel}` : "Pick a day first"} onPointerDown={(event) => begin(event, "draw")} onPointerMove={follow} onPointerUp={end} onPointerCancel={end}>
         {blocks.map((block) => <TrackBlock key={block.id} block={block} />)}
-        {date === now.date && <span className="track-now" style={{ left: `${trackPercent(now.minute)}%` }} aria-hidden="true" />}
+        {/* The server and the browser read the clock a moment apart, so the
+            minute can differ by one; the line is decorative. */}
+        {date === now.date && <span className="track-now" style={{ left: `${trackPercent(now.minute)}%` }} aria-hidden="true" suppressHydrationWarning />}
         {selection && date && <span className="track-shift" data-clash={clash || undefined} data-continues={endsNextDay || undefined} style={{ left: `${trackPercent(selection.start)}%`, width: `${trackPercent(selection.end) - trackPercent(selection.start)}%` }} onPointerDown={(event) => begin(event, "move")}>
           <span className="track-shift-label" aria-hidden="true">{jobName}</span>
           <span className="track-handle" data-edge="start" role="slider" tabIndex={0} aria-label="Start time" aria-valuemin={Math.max(0, selection.end - DAY_MINUTES)} aria-valuemax={selection.end - SNAP_MINUTES} aria-valuenow={selection.start} aria-valuetext={valueText(selection.start)} onPointerDown={(event) => begin(event, "start")} onKeyDown={(event) => nudge(event, "start")} />

@@ -33,7 +33,7 @@ export function JobCard({ job, googleOn }: { job: CardJob; googleOn: boolean }) 
       <div className="flex items-start gap-3.5">
         <JobAvatar name={job.name} color={job.color} />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-lg font-semibold">{job.name}</p>
+          <p className="line-clamp-3 break-words font-display text-lg font-semibold leading-7">{job.name}</p>
           <p className="text-sm text-[var(--muted-foreground)]"><span className="font-semibold text-[var(--foreground)]">{formatCents(job.hourly_rate_cents)}/hr</span> · about {formatCents(takeHomePerHourCents(job))} take-home</p>
         </div>
         <ChevronRight className="mt-1 size-5 shrink-0 text-[var(--muted-foreground)] transition-[translate] group-hover:translate-x-0.5 group-hover:text-[var(--primary)]" aria-hidden="true" />

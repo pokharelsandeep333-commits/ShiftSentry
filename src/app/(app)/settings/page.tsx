@@ -54,9 +54,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     {savedMessage && <SavedToast message={savedMessage} />}
     {googleProblem && <SavedToast message={googleProblem} clearParams={["google"]} />}
     <PageHeader title="Settings" description="Your profile, how your week is counted, connected calendars, and your account." />
-    <div className="grid gap-6 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-8 xl:gap-10">
+    <div className="grid min-w-0 gap-6">
       <SettingsNav sections={sections} />
-      <div className="grid min-w-0 max-w-3xl gap-6">
+      <div className="grid min-w-0 gap-6">
         <SettingsSection id="week" icon={CalendarClock} title="Profile and week" description="Your name, and the time zone, week and weekly limit every total is measured against.">
           <SettingsForm
             email={profile.email}
@@ -65,6 +65,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             timeZones={timeZoneOptions(profile.time_zone)}
             weekStartsOn={profile.week_starts_on}
             globalWeeklyLimitMinutes={profile.global_weekly_limit_minutes}
+            profileSaved={saved === "1"}
           />
           {periods ? <BreakPeriodsForm periods={periods} /> : <p role="alert" className="mt-5 border-t pt-5 text-sm text-[var(--danger)]">Couldn&apos;t load break periods. Refresh to try again.</p>}
         </SettingsSection>
