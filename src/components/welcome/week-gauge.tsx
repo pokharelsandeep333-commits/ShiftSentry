@@ -1,5 +1,6 @@
 "use client";
 
+import { SignInLink } from "./sign-in-link";
 import { useState, type CSSProperties } from "react";
 import { Ban, CircleCheck, RotateCcw, TriangleAlert } from "lucide-react";
 import { formatCents } from "@/lib/earnings";
@@ -50,9 +51,9 @@ export function WeekGauge() {
         <p id="example-week-title" className="text-sm font-medium text-[var(--muted-foreground)]">Example week, Mon to Sun</p>
         <p role="status" className={cn(
           "mt-2 flex items-start gap-2 text-[15px] font-medium leading-6 sm:text-base",
-          result === null && "text-[color-mix(in_srgb,var(--warning)_60%,var(--foreground))]",
-          result?.status === "refused" && "text-[color-mix(in_srgb,var(--danger)_78%,var(--foreground))]",
-          result?.status === "saved" && "text-[color-mix(in_srgb,var(--success)_62%,var(--foreground))]",
+          result === null && "text-[var(--warning-ink)]",
+          result?.status === "refused" && "text-[var(--danger-ink)]",
+          result?.status === "saved" && "text-[var(--success-ink)]",
         )}>
           {result === null && <><TriangleAlert className="mt-1 size-4 shrink-0" />Planned hours put you at {totals.percent}% of your {formatMinutes(week.limitMinutes)} week.</>}
           {attempt !== null && result?.status === "refused" && <><Ban className="mt-1 size-4 shrink-0" /><span>{result.reason === "job" && attemptJob?.limitMinutes != null
@@ -66,11 +67,11 @@ export function WeekGauge() {
       <div className="shrink-0 text-right">
         <p className="font-display leading-none tabular-nums">
           <span className="sr-only">{formatMinutes(shownTotal)} of {formatMinutes(week.limitMinutes)}</span>
-          <span aria-hidden="true" className={cn("wk-total text-5xl font-semibold transition-colors duration-300 sm:text-6xl", result?.status === "saved" && "text-[var(--success)]")} style={{ "--wk-total": Math.round(shownTotal / 60) } as CSSProperties} />
+          <span aria-hidden="true" className={cn("wk-total text-5xl font-semibold transition-colors duration-300 sm:text-6xl", result?.status === "saved" && "text-[var(--success-ink)]")} style={{ "--wk-total": Math.round(shownTotal / 60) } as CSSProperties} />
           <span aria-hidden="true" className="ml-2 text-lg text-[var(--muted-foreground)]">of {formatMinutes(week.limitMinutes)}</span>
         </p>
         {/* Visible only; the status line above already says this to screen readers. */}
-        <p aria-hidden="true" className={cn("mt-2 h-5 text-sm font-medium tabular-nums text-[color-mix(in_srgb,var(--danger)_78%,var(--foreground))]", result?.status !== "refused" && "invisible")}>
+        <p aria-hidden="true" className={cn("mt-2 h-5 text-sm font-medium tabular-nums text-[var(--danger-ink)]", result?.status !== "refused" && "invisible")}>
           {result?.status === "refused" && (result.reason === "job" && attempt !== null
             ? `${attemptJob?.name} would be ${formatMinutes(jobMinutes(week, attempt.jobId) + attempt.minutes)}`
             : `would be ${formatMinutes(result.totalMinutes)}`)}
@@ -83,7 +84,7 @@ export function WeekGauge() {
           globals.css otherwise beats every layered Tailwind border colour. */}
       <Marker at={week.limitMinutes} label={`${formatMinutes(week.limitMinutes)} limit`} className="border-l-2 border-[var(--foreground)]" labelClassName="-top-5 -translate-x-[85%] font-semibold text-[var(--foreground)] sm:-translate-x-1/2" />
       {/* Labels sit clear of their lines: the limit's above the top end, the warning's to its left. */}
-      <Marker at={(week.limitMinutes * week.alertPercent) / 100} label={`${week.alertPercent}% warning`} className="border-l-2 border-dashed border-[var(--warning)]" labelClassName="bottom-0 right-1.5 translate-x-0 text-[color-mix(in_srgb,var(--warning)_60%,var(--foreground))]" />
+      <Marker at={(week.limitMinutes * week.alertPercent) / 100} label={`${week.alertPercent}% warning`} className="border-l-2 border-dashed border-[var(--warning)]" labelClassName="bottom-0 right-1.5 translate-x-0 text-[var(--warning-ink)]" />
       <div className="flex h-20 overflow-hidden rounded-[1.25rem] bg-[var(--surface-subtle)] sm:h-24">
         {shifts.map((shift, index) => <Segment key={`${shift.day}-${shift.jobId}-${shift.minutes}`} shift={shift} index={index} refused={shift.attempt === true && result?.status === "refused"} />)}
       </div>
@@ -116,6 +117,7 @@ export function WeekGauge() {
         <dd className="mt-1.5 font-display text-xl font-semibold tabular-nums">{formatCents(earned.netCents)}<span className="ml-1.5 font-sans text-sm font-normal text-[var(--muted-foreground)]">{formatCents(earned.grossCents)} before tax</span></dd>
       </div>
     </dl>
+    {result && <SignInLink href="/login?mode=signup" className="mt-4 inline-flex min-h-11 items-center rounded-full bg-[var(--primary)] px-5 text-sm font-semibold text-[var(--primary-foreground)]">Create account</SignInLink>}
     <figcaption className="mt-6 text-[13px] leading-6 text-[var(--muted-foreground)]">Dashed shifts are planned. They count toward your hours now, and toward your pay once you work them.</figcaption>
   </figure>;
 }

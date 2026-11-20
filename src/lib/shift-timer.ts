@@ -204,14 +204,13 @@ export function limitCheckQuery(timer: Pick<RunningTimer, "jobId" | "startedAt">
 /** The parts of the limit-check response the timer reads. */
 export type LimitCheckReply = {
   status: "ok";
-  globalLimit: number | null;
   jobLimit: number | null;
   occurrences: {
     fits: boolean;
     over: "global" | "job" | null;
     badSpan: boolean;
     overlap: { jobName: string; startsAt: string; endsAt: string } | null;
-    weeks: { weekStart: string; globalAfter: number; jobAfter: number }[];
+    weeks: { weekStart: string; globalAfter: number; jobAfter: number; globalLimit: number | null }[];
   }[];
 };
 
@@ -240,7 +239,7 @@ export function timerOutlook(reply: LimitCheckReply, checkedAt: Date, timeZone: 
   const week = occurrence.weeks[occurrence.weeks.length - 1];
   if (!week) return { kind: "fits", limit: null, remainingMinutes: null, capAt: null };
   const rooms = [
-    reply.globalLimit === null ? null : { limit: "global" as const, room: reply.globalLimit - week.globalAfter },
+    week.globalLimit === null ? null : { limit: "global" as const, room: week.globalLimit - week.globalAfter },
     reply.jobLimit === null ? null : { limit: "job" as const, room: reply.jobLimit - week.jobAfter },
   ].filter((entry) => entry !== null);
   if (!rooms.length) return { kind: "fits", limit: null, remainingMinutes: null, capAt: null };

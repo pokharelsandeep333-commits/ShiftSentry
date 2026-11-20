@@ -47,7 +47,7 @@ export const longDayLabel = (date: string) => format(date, "EEEE, MMMM d");
  * comes from the URL: year 0000 steps into year -1, whose ISO form no longer
  * sorts like a date, and the day loop below would never end.
  */
-function validDate(value: string | undefined) {
+export function validDate(value: string | undefined) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const year = Number(value.slice(0, 4));
   if (year < 1900 || year > 2200) return null;

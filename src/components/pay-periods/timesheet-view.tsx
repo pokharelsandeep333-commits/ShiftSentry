@@ -11,7 +11,7 @@ import { entryStatusLabel, timesheetHref, type Timesheet, type TimesheetAmount, 
 import type { TimesheetData } from "@/lib/timesheet-data";
 import { cn, formatMinutes } from "@/lib/utils";
 
-const MONEY = "text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]";
+const MONEY = "text-[var(--success-ink)]";
 const CELL = "px-3 py-2.5 first:pl-5 last:pr-5 sm:first:pl-6 sm:last:pr-6 print:px-2 print:py-1 print:first:pl-0 print:last:pr-0";
 const HEAD = cn(CELL, "text-left text-xs font-semibold text-[var(--muted-foreground)]");
 const NUM = "whitespace-nowrap text-right tabular-nums";
@@ -53,7 +53,7 @@ function WeekRow({ week }: { week: TimesheetWeek }) {
         {week.limitMinutes !== null && <span aria-hidden="true" className="relative hidden h-1.5 flex-1 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)] sm:block print:hidden">
           <span className={cn("absolute inset-y-0 left-0 rounded-full", week.over ? "bg-[var(--danger)]" : "bg-[var(--success)]")} style={{ width: `${fill}%` }} />
         </span>}
-        <span className={cn("shrink-0 text-xs font-semibold", week.over ? "text-[var(--danger)]" : week.limitMinutes === null ? "text-[var(--muted-foreground)]" : MONEY)}>{status}</span>
+        <span className={cn("shrink-0 text-xs font-semibold", week.over ? "text-[var(--danger-ink)]" : week.limitMinutes === null ? "text-[var(--muted-foreground)]" : MONEY)}>{status}</span>
       </span>
     </td>
   </tr>;
@@ -62,12 +62,12 @@ function WeekRow({ week }: { week: TimesheetWeek }) {
 function Verdict({ sheet, scope, jobName }: { sheet: Timesheet; scope: TimesheetScope; jobName: string }) {
   const { verdict } = sheet;
   const Icon = verdict.kind === "over" ? CircleAlert : verdict.kind === "no_cap" ? Gauge : CircleCheck;
-  const tone = verdict.kind === "over" ? "text-[var(--danger)]" : verdict.kind === "no_cap" ? "text-[var(--muted-foreground)]" : MONEY;
+  const tone = verdict.kind === "over" ? "text-[var(--danger-ink)]" : verdict.kind === "no_cap" ? "text-[var(--muted-foreground)]" : MONEY;
   return <Section title="Weekly cap">
     <div className="flex items-start gap-3 px-5 py-4 sm:px-6 print:px-0 print:py-2">
       <Icon aria-hidden="true" className={cn("mt-0.5 size-6 shrink-0", tone)} />
       <div>
-        <p className={cn("font-display text-xl font-semibold", verdict.kind === "over" && "text-[var(--danger)]")}>{verdict.headline}</p>
+        <p className={cn("font-display text-xl font-semibold", verdict.kind === "over" && "text-[var(--danger-ink)]")}>{verdict.headline}</p>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">{verdict.detail}</p>
         {scope === "job" && verdict.kind === "no_cap" && <p className="mt-1 text-sm text-[var(--muted-foreground)] print:hidden">{jobName} has no weekly limit of its own. Your overall cap is checked on the All jobs timesheet.</p>}
       </div>

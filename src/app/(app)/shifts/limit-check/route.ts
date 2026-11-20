@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fromZonedTime } from "date-fns-tz";
 import { getSignedInProfile } from "@/lib/auth";
+import { readCapShifts } from "@/lib/cap-shifts";
 import { checkOccurrences, type Occurrence } from "@/lib/limit-check";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
@@ -54,22 +55,22 @@ export async function GET(request: Request) {
   const windowEnd = weekEndFor(weekStartFor(last.endsAt, timeZone, profile.week_starts_on), timeZone, profile.week_starts_on);
 
   const supabase = await createServerSupabaseClient();
-  const [jobs, shifts, breaks] = await Promise.all([
-    supabase.from("jobs").select("id,name,weekly_limit_minutes").eq("user_id", profile.id),
-    supabase.from("shifts").select("id,job_id,starts_at,ends_at").eq("user_id", profile.id).lt("starts_at", windowEnd.toISOString()).gt("ends_at", windowStart.toISOString()).order("starts_at").limit(1000),
+  const [jobResult, shifts, breaks] = await Promise.all([
+    supabase.from("jobs").select("id,name,weekly_limit_minutes").eq("user_id", profile.id).eq("id", job.data).maybeSingle(),
+    readCapShifts(supabase, profile.id, windowStart.toISOString(), windowEnd.toISOString()).catch(() => null),
     supabase.from("break_periods").select("id,start_date,end_date,weekly_limit_minutes,label").eq("user_id", profile.id)
       .gte("end_date", weekStartDateFor(windowStart, timeZone, profile.week_starts_on))
       .lt("start_date", weekStartDateFor(windowEnd, timeZone, profile.week_starts_on)),
   ]);
-  if (jobs.error || shifts.error || breaks.error) return json({ status: "unavailable" }, 500);
-  const chosen = jobs.data.find((candidate) => candidate.id === job.data);
+  if (jobResult.error || !shifts || breaks.error) return json({ status: "unavailable" }, 500);
+  const chosen = jobResult.data;
   if (!chosen) return json({ status: "unavailable" }, 404);
-  const jobNames = new Map(jobs.data.map((candidate) => [candidate.id, candidate.name]));
+  const jobNames = new Map(shifts.map((shift) => [shift.jobId, shift.job.name]));
 
   const results = checkOccurrences({
     occurrences,
     jobId: chosen.id,
-    existing: shifts.data.map((shift) => ({ id: shift.id, jobId: shift.job_id, startsAt: new Date(shift.starts_at), endsAt: new Date(shift.ends_at) })),
+    existing: shifts,
     excludeId: excludeId?.success ? excludeId.data : null,
     timeZone,
     weekStartsOn: profile.week_starts_on,

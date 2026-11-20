@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ChevronRight, CircleHelp, ClipboardClock, Drama, FileText, Lock, Mail, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Scale, Settings, ShieldCheck, Sun, X } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, ChartNoAxesCombined, ChevronRight, CircleHelp, ClipboardClock, Drama, FileText, Lock, Mail, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plus, Scale, Settings, ShieldCheck, Sun, Wallet, X } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { createLocalPreference } from "@/lib/local-preference";
 import { cn, formatMinutes } from "@/lib/utils";
@@ -31,8 +31,8 @@ const navigation = [
 ];
 
 /**
- * The menus -- the drawer on a phone, the sidebar on a desktop -- carry one
- * more entry than the bottom bar.
+ * The menus -- the drawer on a phone, the sidebar on a desktop -- provide a
+ * place for Pay periods and Imposter outside the bottom bar.
  *
  * Imposter is a diversion, not part of tracking your hours, so it does not
  * belong in the five permanent tabs a phone shows over every page. Putting it
@@ -40,15 +40,17 @@ const navigation = [
  * `lg:hidden` and the sidebar takes over there -- so "menu" means both of them,
  * and the bottom bar is the one place it stays out of.
  */
+const payNavigation = { href: "/pay-periods", label: "Pay periods", icon: Wallet };
 const menuNavigation = [
   ...navigation,
+  payNavigation,
   { href: "/game", label: "Imposter", icon: Drama },
 ];
 
 const ADMIN_ITEM = { href: "/admin", label: "Admin", icon: ShieldCheck };
 
 /** The desktop rail, top to bottom: the work, then the extras, then Settings at the foot. */
-const railMainNavigation = navigation.filter((item) => item.href !== "/settings");
+const railMainNavigation = [...navigation.filter((item) => item.href !== "/settings"), payNavigation];
 const railExtraNavigation = menuNavigation.filter((item) => item.href === "/game");
 const railSettings = navigation.filter((item) => item.href === "/settings");
 
@@ -60,7 +62,6 @@ type NavigationItem = typeof navigation[number];
  */
 const SHOW_LABELS: Record<string, string> = { upcoming: "Upcoming", worked: "Worked" };
 function pageLabel(section: NavigationItem, pathname: string, show: string | null) {
-  if (pathname === "/pay-periods") return "Pay periods";
   if (pathname === "/pay-periods/timesheet") return "Timesheet";
   if (pathname.endsWith("/new")) return "New";
   if (pathname.endsWith("/edit")) return "Edit";
@@ -79,8 +80,7 @@ function pageLabel(section: NavigationItem, pathname: string, show: string | nul
  * path exactly, so opening a form left nothing highlighted.
  */
 function isNavigationActive(pathname: string, href: string) {
-  // Pay-period history (and its timesheets) is opened from the dashboard, so it belongs to Overview.
-  if (href === "/") return pathname === "/" || pathname === "/pay-periods" || pathname.startsWith("/pay-periods/");
+  if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

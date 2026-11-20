@@ -1,7 +1,7 @@
 import { Suspense, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowUpRight, BriefcaseBusiness, CalendarClock, Clock3, Layers, ShieldCheck, Smartphone, Wallet, type LucideProps } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, Clock3, ShieldCheck, type LucideProps } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { LEGAL_CONTACT_EMAIL } from "@/components/legal-page";
 import { HeroArt } from "@/components/welcome/hero-art";
@@ -63,13 +63,6 @@ import { cn } from "@/lib/utils";
  */
 const WeekGauge = dynamic(() => import("@/components/welcome/week-gauge").then((module) => module.WeekGauge));
 
-const CAPABILITIES = [
-  { icon: Layers, title: "All your jobs, one week", body: "Set a default weekly limit across all jobs, a different limit for break weeks, and optional caps for individual jobs." },
-  { icon: CalendarClock, title: "Planned shifts count now", body: "Schedule Friday on Monday and it counts toward this week straight away." },
-  { icon: Wallet, title: "Take-home estimates", body: "Estimate net earnings from the hourly rate, tax and deductions you enter for each job." },
-  { icon: Smartphone, title: "On your phone", body: "Installs to your home screen. Sign in with Google, GitHub, or email." },
-];
-
 /* Section headings stay mid-sized and calm; only the hero is large. */
 const sectionTitle = "font-display text-[1.85rem] font-semibold leading-[1.12] [text-wrap:balance] sm:text-[2.25rem] lg:text-[2.5rem]";
 
@@ -115,20 +108,12 @@ export function WelcomeLanding() {
 
         <Suspense>
           <div className="relative z-10 -mt-20 space-y-4 px-3 sm:space-y-5 sm:px-6">
-            <section aria-labelledby="capabilities-title">
-              <h2 id="capabilities-title" className="sr-only">What ShiftSentry does</h2>
-              <ul className={cn(panel, "grid gap-7 p-5 py-7 sm:grid-cols-2 sm:p-9 lg:grid-cols-4 lg:gap-0 lg:p-10")}>
-                {CAPABILITIES.map(({ icon: Icon, title, body }) => <li key={title} className="lg:border-l lg:px-7 lg:first:border-l-0 lg:first:pl-0 lg:last:pr-0">
-                  <span className="grid size-10 place-items-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]"><Icon className="size-[1.125rem]" strokeWidth={1.8} /></span>
-                  <h3 className="mt-4 font-display text-base font-semibold leading-snug">{title}</h3>
-                  <p className="mt-1.5 text-sm leading-6 text-[var(--muted-foreground)]">{body}</p>
-                </li>)}
-              </ul>
-            </section>
-
-            <section id="rules" aria-labelledby="rules-title" className={cn(panel, "scroll-mt-24 p-3 pt-9 sm:p-5 sm:pt-12 lg:pt-14")}>
-              <h2 id="rules-title" className={cn(sectionTitle, "px-5 sm:px-7")}>The rules it keeps for you.</h2>
-              <div className="mt-7 sm:mt-10"><RulesBento week={<WeekGauge />} /></div>
+            <section id="week" aria-labelledby="week-heading" className={cn(panel, "scroll-mt-24 grid items-start gap-6 p-5 sm:p-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-12 lg:p-12")}>
+              <div>
+                <h2 id="week-heading" className={sectionTitle}>Can you take Saturday&apos;s shift?</h2>
+                <p className="mt-4 max-w-sm text-[15px] leading-7 text-[var(--muted-foreground)]">Two jobs share a 20-hour cap in this example. Try a Saturday shift to see what fits.</p>
+              </div>
+              <WeekGauge />
             </section>
 
             <section aria-labelledby="dashboard-title" className={cn(panel, "grid items-center gap-10 px-5 py-9 sm:p-10 lg:grid-cols-12 lg:gap-10 lg:p-12")}>
@@ -147,6 +132,11 @@ export function WelcomeLanding() {
                 {/* Kept clear of the phone, which is taller than the frame on small screens. */}
                 <figcaption className="mt-4 max-w-[calc(100%-8.5rem)] text-[13px] text-[var(--muted-foreground)]">Dashboard shown with sample data.</figcaption>
               </figure>
+            </section>
+
+            <section id="rules" aria-labelledby="rules-title" className={cn(panel, "scroll-mt-24 p-3 pt-9 sm:p-5 sm:pt-12 lg:pt-14")}>
+              <h2 id="rules-title" className={cn(sectionTitle, "px-5 sm:px-7")}>The rules it keeps for you.</h2>
+              <div className="mt-7 sm:mt-10"><RulesBento /></div>
             </section>
 
             <WelcomeFaq items={faq} className={cn(panel, "scroll-mt-24 px-5 py-9 sm:p-10 lg:px-12 lg:py-12")} titleClassName={sectionTitle} />

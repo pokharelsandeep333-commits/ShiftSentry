@@ -39,3 +39,18 @@ export function calculateEarnings(minutes: number, snapshot: PaySnapshot): Earni
 export function totalDeductionRate(deductions: DeductionSnapshot[]) {
   return deductions.reduce((total, deduction) => total + deduction.rateBasisPoints, 0);
 }
+
+/** Sum only fitting occurrences, using the same per-shift rounding as createShift. */
+export function repeatPayEstimate(occurrences: readonly { fits: boolean; startsAt: string; endsAt: string }[], snapshot: PaySnapshot) {
+  let count = 0;
+  let minutes = 0;
+  let netCents = 0;
+  for (const occurrence of occurrences) {
+    if (!occurrence.fits) continue;
+    const duration = Math.floor((Date.parse(occurrence.endsAt) - Date.parse(occurrence.startsAt)) / 60_000);
+    count += 1;
+    minutes += duration;
+    netCents += calculateEarnings(duration, snapshot).netCents;
+  }
+  return { count, minutes, netCents };
+}

@@ -1,4 +1,4 @@
 {
-  "prompt": "AVIF sibling of dashboard-mobile-light.webp, encoded from that webp at the same size by scripts/render-welcome-3d.mjs (the --avif step; sharp avif, quality 70, effort 6, chroma 4:4:4). Same image, smaller file; the landing serves it through <picture> with the webp as the fallback.",
-  "createdAt": "2026-11-18T13:37:56.049Z"
+  "prompt": "Encoded from dashboard-mobile-light.webp at 390x844 with sharp AVIF, quality 70, effort 6 and 4:4:4 chroma subsampling.",
+  "createdAt": "2026-11-20T04:30:12.979Z"
 }

@@ -103,7 +103,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">Jump to a date<ChevronRight className="size-4 text-[var(--muted-foreground)] transition-transform group-open:rotate-90" /></summary>
             <div className="px-3 pb-3"><MiniMonth key={range.anchor.slice(0, 7)} anchor={range.anchor} today={range.today} view={range.view} weekStartsOn={profile.week_starts_on} selectedDays={selectedDays} /></div>
           </details>
-          <AgendaList days={range.view === "month" ? range.days.filter((day) => day.slice(0, 7) === range.month) : range.days} today={range.today} items={items} timeZone={profile.time_zone} />
+          <AgendaList anchor={range.anchor} days={range.view === "month" ? range.days.filter((day) => day.slice(0, 7) === range.month) : range.days} today={range.today} items={items} timeZone={profile.time_zone} />
         </div>
       </div>
       <aside aria-label="Calendar tools" className="hidden min-h-0 xl:col-start-1 xl:row-start-1 xl:flex xl:flex-col">

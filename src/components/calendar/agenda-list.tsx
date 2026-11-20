@@ -4,12 +4,16 @@ import { itemsOnDay, type CalendarItem } from "@/lib/calendar-layout";
 import { cn } from "@/lib/utils";
 
 /** The phone layout: the same items as a day-by-day list; empty days are skipped. */
-export function AgendaList({ days, today, items, timeZone }: { days: string[]; today: string; items: CalendarItem[]; timeZone: string }) {
+export function AgendaList({ days, today, anchor, items, timeZone }: { days: string[]; anchor: string; today: string; items: CalendarItem[]; timeZone: string }) {
   const time = (iso: string) => formatInTimeZone(iso, timeZone, "h:mm a");
   const withItems = days.map((day) => ({ day, dayItems: itemsOnDay(items, day, timeZone) })).filter(({ dayItems }) => dayItems.length > 0);
-  if (withItems.length === 0) return <p className="rounded-2xl border border-dashed p-5 text-sm text-[var(--muted-foreground)]">Nothing scheduled in this range.</p>;
-
+  const emptyDay = !withItems.some(({ day }) => day === anchor);
   return <div className="space-y-5">
+    {emptyDay && <section className="rounded-2xl border bg-[var(--card)] p-4">
+      <h2 className="font-display text-base font-semibold">{formatInTimeZone(`${anchor}T12:00:00Z`, "UTC", "EEEE, MMM d")}</h2>
+      <p className="mt-1 text-sm text-[var(--muted-foreground)]">{withItems.length ? "Nothing scheduled on this day." : "Nothing scheduled in this range."}</p>
+      <Link href={`/shifts/new?date=${anchor}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Plan a shift on this date</Link>
+    </section>}
     {withItems.map(({ day, dayItems }) => <section key={day}>
       <h2 className={cn("text-sm font-semibold", day === today && "text-[var(--primary)]")}>{day === today ? "Today · " : ""}{formatInTimeZone(`${day}T12:00:00.000Z`, "UTC", "EEEE, MMM d")}</h2>
       <ul className="mt-2 space-y-2">

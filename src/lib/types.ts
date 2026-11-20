@@ -1,3 +1,4 @@
+import type { CapJob } from "@/lib/week-meter";
 import type { PayPeriodSummary } from "@/lib/pay-period";
 import type { PayClimbStep, RecentCompletedShift, WorkDay } from "@/lib/dashboard-insights";
 
@@ -85,6 +86,8 @@ export type ShiftSummary = {
 
 
 export type DashboardData = {
+  weekCap: { jobs: CapJob[]; workedMinutes: number };
+  hasAnyShift: boolean;
   snapshotAt: string;
   weekDays: WorkDay[];
   weekStartsAt: string;

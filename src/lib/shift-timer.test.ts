@@ -17,11 +17,11 @@ function reply(startedAt: string, now: string, existing: ExistingShift[], global
   const span = timerShift(at(startedAt), at(now));
   const [result] = checkOccurrences({ occurrences: [{ startsAt: span.startsAt, endsAt: span.endsAt }], jobId: desk, existing, timeZone: tz, weekStartsOn, globalLimit, jobLimit });
   return {
-    status: "ok", globalLimit, jobLimit,
+    status: "ok", jobLimit,
     occurrences: [{
       fits: result.fits, over: result.over, badSpan: result.badSpan,
       overlap: result.overlap ? { jobName: "Café", startsAt: result.overlap.startsAt.toISOString(), endsAt: result.overlap.endsAt.toISOString() } : null,
-      weeks: result.weeks.map((week) => ({ weekStart: week.weekStart.toISOString(), globalAfter: week.globalAfter, jobAfter: week.jobAfter })),
+      weeks: result.weeks.map((week) => ({ weekStart: week.weekStart.toISOString(), globalLimit: week.globalLimit, globalAfter: week.globalAfter, jobAfter: week.jobAfter })),
     }],
   };
 }

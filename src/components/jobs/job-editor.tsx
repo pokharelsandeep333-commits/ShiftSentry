@@ -8,7 +8,7 @@ import { JobAvatar, formatPercent, takeHomePerHourCents, withheldBasisPoints } f
 import { SavedToast } from "@/components/saved-toast";
 import { SettingsSection } from "@/components/settings/settings-section";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { formatCents } from "@/lib/earnings";
@@ -70,7 +70,7 @@ export function JobEditor({ job, googleOn, googleCalendars, today, savedMessage 
     {savedMessage && <SavedToast message={savedMessage} />}
     {header}
     <Card className="grid max-w-3xl gap-4 p-5 sm:p-6">
-      <p className="text-sm leading-6 text-[var(--muted-foreground)]">This job was archived on {new Date(job.archived_at).toLocaleDateString()}. It is hidden from your dashboard and left out of hours and earnings. Restore it to edit it or log shifts against it again.</p>
+      <p className="text-sm leading-6 text-[var(--muted-foreground)]">This job was archived on {new Date(job.archived_at).toLocaleDateString()}. Its saved shifts still count toward your global weekly cap. Its earnings are excluded from the dashboard. Restore it to edit it or log shifts against it again.</p>
       <div className="flex flex-wrap items-center gap-3">
         <form action={unarchiveJob}><input type="hidden" name="id" value={job.id} /><Button>Restore job</Button></form>
         {shifts ? <p className="text-xs text-[var(--muted-foreground)]">It has {shifts} shift{shifts === 1 ? "" : "s"} logged, so it can&apos;t be deleted.</p>
@@ -82,6 +82,8 @@ export function JobEditor({ job, googleOn, googleCalendars, today, savedMessage 
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
     {header}
+
+    {shifts === 0 && <Link href={`/shifts/new?jobId=${encodeURIComponent(job.id)}`} className={buttonVariants({ className: "mb-5" })}>Plan your first shift</Link>}
 
     <dl className="mb-6 grid max-w-3xl grid-cols-3 divide-x rounded-2xl">
       <Stat label="Hourly rate" value={formatCents(job.hourly_rate_cents)} />
@@ -114,7 +116,7 @@ export function JobEditor({ job, googleOn, googleCalendars, today, savedMessage 
           : <p className="text-sm leading-6 text-[var(--muted-foreground)]">Connect Google Calendar in <Link href="/settings#google-calendar" className={linkClass}>Settings</Link> first. Then you can have this job&apos;s events added as shifts automatically.</p>}
       </SettingsSection>}
 
-      <SettingsSection id="archive" icon={Archive} title="Archive this job" description="Archived jobs are hidden from your dashboard and left out of hours and earnings. Logged shifts are kept, and you can restore the job from the Jobs page." danger>
+      <SettingsSection id="archive" icon={Archive} title="Archive this job" description="Saved shifts still count toward your global weekly cap. Archiving hides this job from earnings reports and new shifts. You can restore it from Jobs." danger>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs leading-5 text-[var(--muted-foreground)]">To delete a job, archive it first. It can be deleted once it has no shifts.</p>
           <form action={archiveJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Archive" confirmLabel="Archive job?" variant="outline" /></form>

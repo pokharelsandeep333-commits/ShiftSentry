@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints } from "./earnings";
+import { calculateEarnings, repeatPayEstimate, parseMoneyToCents, parsePercentToBasisPoints } from "./earnings";
 import { allocateShiftMinutes } from "./time";
 
 test("calculates gross, tax, named deductions, and net in cents", () => {
@@ -29,4 +29,15 @@ test("keeps a shift snapshot independent when job rates later change", () => {
 test("splits a cross-midnight shift into the correct local days", () => {
   const allocations = allocateShiftMinutes(new Date("2026-08-21T04:00:00Z"), new Date("2026-08-21T07:00:00Z"), "America/Chicago");
   assert.deepEqual(allocations, [{ date: "2026-08-20", minutes: 60 }, { date: "2026-08-21", minutes: 120 }]);
+});
+
+test("repeat estimate sums fitting shifts at their own elapsed lengths across the fall clock change", () => {
+  const rows = [
+    { fits: true, startsAt: "2026-10-25T00:00:00-05:00", endsAt: "2026-10-25T03:00:00-05:00" },
+    { fits: true, startsAt: "2026-11-01T00:00:00-05:00", endsAt: "2026-11-01T03:00:00-06:00" },
+    { fits: false, startsAt: "2026-11-08T00:00:00-06:00", endsAt: "2026-11-08T03:00:00-06:00" },
+  ];
+  const pay = { hourlyRateCents: 1000, taxRateBasisPoints: 1000, deductions: [] };
+  assert.deepEqual(repeatPayEstimate(rows, pay), { count: 2, minutes: 420, netCents: 6300 });
+  assert.deepEqual(repeatPayEstimate([rows[2]], pay), { count: 0, minutes: 0, netCents: 0 });
 });

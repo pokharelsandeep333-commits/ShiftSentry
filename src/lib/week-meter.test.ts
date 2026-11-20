@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { allocateWeekMinutes, buildJobLimitRows, buildWeekMeter, limitPosition } from "./week-meter";
+import { allocateWeekMinutes, buildJobLimitRows, buildWeekMeter, limitPosition, summarizeCapWeek } from "./week-meter";
+import { checkOccurrences } from "./limit-check";
 import { demoDashboard } from "./dashboard-demo";
 
 const CAMPUS = { id: "job-a", name: "Campus desk", color: "#9486ff" };
@@ -71,4 +72,24 @@ test("a job past its limit draws against its total", () => {
   assert.equal(row.tone, "danger");
   assert.equal(Math.round(row.loggedWidth + row.scheduledWidth), 100);
   assert.equal(row.percent, 125);
+});
+
+test("overview, header and editor count archived work against the same break-week cap", () => {
+  const rows = [
+    { id: "active", jobId: CAMPUS.id, job: { ...CAMPUS, archived: false }, startsAt: new Date("2026-11-16T06:00Z"), endsAt: new Date("2026-11-16T18:00Z") },
+    { id: "archived", jobId: CAFE.id, job: { ...CAFE, archived: true }, startsAt: new Date("2026-11-17T09:00Z"), endsAt: new Date("2026-11-17T13:00Z") },
+  ];
+  const week = summarizeCapWeek(rows, new Date("2026-11-19T12:00Z"), "UTC", 1);
+  const cap = 1200;
+  assert.equal(week.workedMinutes, 960);
+  assert.equal(cap - buildWeekMeter(week.jobs, cap).plannedMinutes, 240);
+  assert.equal(week.jobs.find((job) => job.archived)?.usedMinutes, 240);
+  const fit = (hours: number) => checkOccurrences({
+    occurrences: [{ startsAt: new Date("2026-11-20T09:00Z"), endsAt: new Date(Date.UTC(2026, 10, 20, 9 + hours)) }],
+    existing: rows, jobId: CAMPUS.id, excludeId: null, timeZone: "UTC", weekStartsOn: 1, globalLimit: 600, jobLimit: null,
+    breakPeriods: [{ id: "break", label: "Fall break", start_date: "2026-11-16", end_date: "2026-11-20", weekly_limit_minutes: cap }],
+  })[0];
+  assert.equal(fit(4).fits, true);
+  assert.equal(fit(5).fits, false);
+  assert.equal(fit(5).weeks[0].globalAfter - cap, 60);
 });

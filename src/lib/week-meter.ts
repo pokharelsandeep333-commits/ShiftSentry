@@ -3,7 +3,7 @@ import type { LiveTimer } from "@/lib/shift-timer";
 
 /**
  * The header's "this week" meter: the same planned total the dashboard's cap
- * card shows (logged plus scheduled, archived jobs excluded), drawn as one bar
+ * card shows (logged plus scheduled, including archived work), drawn as one bar
  * with a segment per job. Pure so it can be tested; `getWeekMeter` in
  * `dashboard.ts` feeds it.
  */
@@ -55,6 +55,22 @@ export function allocateWeekMinutes<J extends { id: string }>(jobs: J[], shifts:
     else job.usedMinutes += minutes;
   });
   return totals;
+}
+
+export type CapJob = WeekMeterJob & { archived: boolean };
+export type CapShift = WeekMeterShift & { job: Pick<CapJob, "id" | "name" | "color" | "archived"> };
+
+/** Cap usage follows every booked shift. Worked time stops at the snapshot instant. */
+export function summarizeCapWeek(shifts: CapShift[], now: Date, timeZone: string, weekStartsOn: number, timerJob?: CapShift["job"]) {
+  const jobs = new Map(shifts.map((shift) => [shift.jobId, shift.job]));
+  if (timerJob) jobs.set(timerJob.id, timerJob);
+  const start = weekStartFor(now, timeZone, weekStartsOn).getTime();
+  const end = Math.min(now.getTime(), weekEndFor(now, timeZone, weekStartsOn).getTime());
+  const workedMinutes = shifts.reduce((total, shift) => {
+    const elapsed = Math.min(end, shift.endsAt.getTime()) - Math.max(start, shift.startsAt.getTime());
+    return total + Math.max(0, Math.round(elapsed / 60_000));
+  }, 0);
+  return { jobs: allocateWeekMinutes([...jobs.values()], shifts, now, timeZone, weekStartsOn), workedMinutes };
 }
 
 export function buildWeekMeter(jobs: WeekMeterJob[], limitMinutes: number | null): WeekMeter {

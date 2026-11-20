@@ -57,7 +57,7 @@ export async function CalendarGlance({ userId, timeZone }: { userId: string; tim
             <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: access.value.colors.get(event.calendarId) ?? "var(--primary)" }} />
             <span className="w-28 shrink-0 text-sm tabular-nums text-[var(--muted-foreground)]">{event.allDay ? "All day" : `${time(event.startsAt)}–${time(event.endsAt)}`}</span>
             <span className="min-w-0 flex-1 truncate text-sm font-medium">{event.title}</span>
-            {overlapsJob && <span className="shrink-0 rounded-lg bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] px-2 py-0.5 text-xs font-semibold text-[color-mix(in_srgb,var(--warning)_62%,var(--foreground))]">Overlaps {overlapsJob}</span>}
+            {overlapsJob && <span className="shrink-0 rounded-lg bg-[color-mix(in_srgb,var(--warning)_14%,transparent)] px-2 py-0.5 text-xs font-semibold text-[var(--warning-ink)]">Overlaps {overlapsJob}</span>}
           </li>)}
         </ul>
       </section>)}

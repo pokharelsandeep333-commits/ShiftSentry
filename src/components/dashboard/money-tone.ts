@@ -4,5 +4,5 @@
  * a positive amount gets the success colour.
  */
 export function moneyText(cents: number) {
-  return cents > 0 ? "text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]" : "text-[var(--muted-foreground)]";
+  return cents > 0 ? "text-[var(--success-ink)]" : "text-[var(--muted-foreground)]";
 }
