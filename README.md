@@ -44,13 +44,13 @@
 
 <br /><br />
 
-<img src="docs/screenshots/dashboard-desktop.png" alt="ShiftSentry dashboard with sample data: 16 of 20 weekly hours at the 80% warning, this week's pay climbing a step with each shift to $136.40 earned, a dashed line up to $169.40 after the planned Friday shift, and the next shift" width="92%" />
+<img src="public/welcome/dashboard-desktop-light.webp" alt="ShiftSentry dashboard with sample data: 16 of 20 weekly hours at the 80% warning, this week's pay climbing a step with each shift to $136.40 earned, a dashed line up to $169.40 after the planned Friday shift, and the next shift" width="92%" />
 
 <sub><b>Overview.</b> The weekly cap at its 80% warning, and this week's pay: solid for what is earned, dashed for what the planned shifts will add.</sub>
 
 <br /><br />
 
-<img src="docs/screenshots/dashboard-mobile.png" alt="The same ShiftSentry dashboard on a phone, with the weekly cap, this week's pay and the bottom navigation bar" width="30%" />
+<img src="public/welcome/dashboard-mobile-light.webp" alt="The same ShiftSentry dashboard on a phone, with the weekly cap, this week's pay and the bottom navigation bar" width="30%" />
 &nbsp;&nbsp;&nbsp;
 <img src="docs/screenshots/login.png" alt="ShiftSentry sign-in box with email, Google, and GitHub options, centred on the landing page's lavender background" width="60%" />
 
@@ -65,11 +65,11 @@
 
 | | Feature | What it does |
 |---|---|---|
-| 💼 | **Multiple jobs** | Each job has its own color, pay rate, tax and deductions, weekly cap and payday schedule. Archiving a job hides it while its shifts stay in the history |
-| ⚠️ | **Weekly limits** | A default cap across all jobs, optional break-period caps, and per-job caps. The shift form checks each shift and its weekly repeats before you save |
-| 💰 | **Earnings** | Gross, tax, deductions and net for this week, this month, the last 3 or 6 months, year to date, all time or a custom span. Pay periods show what lands on each payday |
+| 💼 | **Multiple jobs** | Each job has its own color, pay rate, tax and deductions, weekly cap and payday schedule. Archiving preserves its shifts. After you create your first job, **Plan your first shift** opens the editor with that job selected |
+| ⚠️ | **Weekly limits** | A default cap across all jobs, optional break-period caps, and per-job caps. Archived-job shifts still count toward the global cap. For a weekly repeat, the editor shows how many shifts fit, their estimated net and why any dates would be skipped |
+| 💰 | **Earnings** | Gross, tax, deductions and net for this week, this month, the last 3 or 6 months, year to date, all time or a custom span. Open **Pay periods** from the sidebar or phone drawer to see estimated net and the scheduled payday, when set |
 | 🧾 | **Honest history** | A shift remembers the rate it was worked at, so a later raise never reprices past work |
-| 🗓️ | **Calendar** | Week and month views. Overnight shifts appear on both days and clashes are marked |
+| 🗓️ | **Calendar** | Week and month views show overnight shifts on both days and mark clashes. On a phone, select an empty date to start a shift on that day |
 | 🔗 | **Google Calendar** *(optional)* | Read-only. Shows your events beside your shifts, warns when a new shift clashes, and can turn matching events into shifts for jobs that opt in. Nothing is ever written to Google |
 | 📝 | **Shift log** | Paged by week, filterable by job and by worked or upcoming, with a note per week |
 | 🔒 | **Account rights** | Versioned Terms with a 16+ confirmation, a JSON export of everything stored, and confirmed permanent deletion from `/account` |
