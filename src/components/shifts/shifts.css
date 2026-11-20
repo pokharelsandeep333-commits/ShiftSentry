@@ -6,8 +6,8 @@
    cap card carries the lavender wash), its title on the left and hours and
    net on the right, and the shifts filed under date tiles. No bars: the
    header's week meter is the one chart of the week (owner's call, 2026-11-17). */
-.shift-log { --shift-tint: color-mix(in srgb, var(--primary) 8%, var(--card)); --shift-edge: color-mix(in srgb, var(--primary) 12%, var(--border)); --shift-copy: var(--muted-foreground); --shift-green: color-mix(in srgb, var(--success) 72%, var(--foreground)); --shift-white: var(--card); --hair: color-mix(in srgb, var(--border) 70%, transparent); color: var(--foreground); max-width: 1320px; margin-inline: auto; }
-.dark .shift-log { --shift-green: var(--success); }
+.shift-log { --shift-tint: color-mix(in srgb, var(--primary) 8%, var(--card)); --shift-edge: color-mix(in srgb, var(--primary) 12%, var(--border)); --shift-copy: var(--muted-foreground); --shift-green: var(--success-ink); --shift-white: var(--card); --hair: color-mix(in srgb, var(--border) 70%, transparent); color: var(--foreground); max-width: 1320px; margin-inline: auto; }
+details.shift-check { display: block; }
 .shift-log ::selection { background: color-mix(in srgb, var(--primary) 22%, transparent); }
 
 /* Filters: the show switch is one segmented control; job chips sit after it. */
@@ -87,7 +87,7 @@
 .shift-menu { z-index:80; min-width:194px; padding:6px; background:var(--card); border:1px solid var(--border); border-radius:14px; color:var(--foreground); box-shadow:0 12px 30px -12px #3c2e7460; }
 .shift-menu [role=menuitem] { display:flex; align-items:center; gap:10px; min-height:38px; padding:8px 10px; border-radius:8px; outline:0; font-size:13px; cursor:pointer; }
 .shift-menu [data-highlighted] { background:var(--primary-soft); color:var(--primary); }
-.shift-menu .delete-item { color:var(--danger); }
+.shift-menu .delete-item { color:var(--danger-ink); }
 .shift-menu-rule { height:1px; background:var(--border); margin:4px; }
 .shift-button { background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 86%,white),var(--primary)); color:var(--primary-foreground); border-radius:12px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 20px; font-size:14px; font-weight:550; box-shadow:0 5px 13px -8px #6d5ce7aa; transition:filter .16s,transform .16s; cursor:pointer; }
 .shift-button:hover { filter:brightness(1.04); }
@@ -163,7 +163,7 @@
 .shift-form textarea, .note-editor textarea { display:block; width:100%; padding:12px 14px; min-height:78px; border:1px solid var(--shift-edge); border-radius:12px; background:var(--shift-white); resize:vertical; font-size:14px; color:var(--foreground); }
 .shift-form textarea::placeholder { color:var(--shift-copy); }
 .save-shift { width:100%; margin-top:0; min-height:42px; }
-.shift-error { color:var(--danger); font-size:13px; }
+.shift-error { color:var(--danger-ink); font-size:13px; }
 .shift-menu [role=menuitem]:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
 @media (max-width:767px) {
   .shift-editor-frame { padding:8px; }
@@ -276,7 +276,7 @@
 .track-shift[data-continues] { border-top-right-radius:3px; border-bottom-right-radius:3px; }
 .track-shift[data-clash] { background:color-mix(in srgb, var(--danger) 14%, var(--card)); box-shadow:inset 0 0 0 1.5px var(--danger); }
 .track-shift-label { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-size:12px; font-weight:600; color:color-mix(in srgb, var(--job) 40%, var(--foreground)); pointer-events:none; }
-.track-shift[data-clash] .track-shift-label { color:var(--danger); }
+.track-shift[data-clash] .track-shift-label { color:var(--danger-ink); }
 .track-handle { position:absolute; top:50%; width:10px; height:30px; margin-top:-15px; border-radius:6px; background:var(--card); box-shadow:0 0 0 1.5px var(--job), 0 2px 6px -2px rgb(16 24 40 / .25); cursor:ew-resize; touch-action:none; outline:none; }
 .track-handle[data-edge=start] { left:-5px; }
 .track-handle[data-edge=end] { right:-5px; }
@@ -288,7 +288,7 @@
 .track-readout { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; min-height:20px; font-size:13px; line-height:1.5; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
 .track-readout b { font-size:14px; font-weight:600; color:var(--foreground); }
 .track-next-day { font-weight:600; color:var(--primary); }
-.track-clash { font-weight:600; color:var(--danger); }
+.track-clash { font-weight:600; color:var(--danger-ink); }
 
 /* The typed fields: the precise way in, quieter than the track. */
 .composer-exact { margin-top:18px; padding-top:18px; border-top:1px solid var(--hair); }
@@ -316,7 +316,7 @@
 .sum-detail b { font-weight:600; color:var(--shift-green); }
 .sum-week { display:flex; flex-wrap:wrap; gap:2px 12px; font-size:12.5px; line-height:1.45; color:var(--shift-copy); font-variant-numeric:tabular-nums; }
 .sum-week b { font-weight:600; color:var(--foreground); }
-.sum-week[data-near] { color:color-mix(in srgb, var(--warning) 60%, var(--foreground)); }
+.sum-week[data-near] { color:var(--warning-ink); }
 .composer-actions { display:flex; gap:10px; margin-left:auto; }
 .shift-page .save-shift { width:auto; min-width:156px; min-height:44px; border-radius:999px; box-shadow:none; background:var(--primary); }
 .composer-actions > a { min-height:44px; border-radius:999px; }
@@ -427,8 +427,8 @@
 .shift-check ul { list-style:none; margin:0; padding:0; }
 .shift-check-ok { background:color-mix(in srgb,var(--success) 9%,transparent); }
 .shift-check-ok > svg { color:var(--shift-green); }
-.shift-check-warn { background:color-mix(in srgb,var(--warning) 12%,transparent); color:color-mix(in srgb,var(--warning) 55%,var(--foreground)); }
-.shift-check-bad { background:color-mix(in srgb,var(--danger) 10%,transparent); color:color-mix(in srgb,var(--danger) 70%,var(--foreground)); }
+.shift-check-warn { background:color-mix(in srgb,var(--warning) 12%,transparent); color:var(--warning-ink); }
+.shift-check-bad { background:color-mix(in srgb,var(--danger) 10%,transparent); color:var(--danger-ink); }
 .shift-check-quiet { padding-block:2px; color:var(--muted-foreground); }
 .shift-check-quiet > svg { color:var(--success); }
 .shift-google-editor { padding:22px; }

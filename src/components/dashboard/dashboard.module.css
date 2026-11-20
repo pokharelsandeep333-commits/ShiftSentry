@@ -33,8 +33,7 @@
 /* Pay climb: the week's pay as one line over time, earned solid and planned
    dashed, in money green. Coordinates are percentages of the plot, shared by
    the stretched SVG and the HTML dots and labels laid over it. */
-.climb { --money: color-mix(in srgb, var(--success) 78%, var(--foreground)); display: flex; width: 100%; min-width: 0; flex-direction: column; padding: 20px; }
-:global(.dark) .climb { --money: var(--success); }
+.climb { --money: var(--success-ink); display: flex; width: 100%; min-width: 0; flex-direction: column; padding: 20px; }
 .climbHead { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; }
 .climbEarned { margin-top: 6px; font-family: var(--font-display); font-size: 3rem; font-weight: 600; line-height: 1; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; color: var(--money); }
 /* Nothing earned yet is not good news: a $0.00 stays neutral, never green. */

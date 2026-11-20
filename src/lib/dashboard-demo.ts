@@ -9,6 +9,11 @@ import { allocateWeekMinutes } from "@/lib/week-meter";
 const CAMPUS = { id: "job-campus", name: "Campus desk", color: "#9486ff" };
 const CAFE = { id: "job-cafe", name: "River café", color: "#32d583" };
 
+const sampleJobs = [
+  { ...CAMPUS, weeklyLimitMinutes: 720, usedMinutes: 480, scheduledMinutes: 180, archived: false },
+  { ...CAFE, weeklyLimitMinutes: null, usedMinutes: 300, scheduledMinutes: 0, archived: false },
+];
+
 /**
  * The current week is the landing page's example week (`EXAMPLE_WEEK` in
  * `src/lib/welcome-week.ts`), so the dashboard screenshots on the landing tell
@@ -26,10 +31,9 @@ export const demoDashboard: DashboardData = {
   activeBreakLabel: null,
   loggedMinutes: 780,
   scheduledMinutes: 180,
-  jobs: [
-    { ...CAMPUS, weeklyLimitMinutes: 720, usedMinutes: 480, scheduledMinutes: 180 },
-    { ...CAFE, weeklyLimitMinutes: null, usedMinutes: 300, scheduledMinutes: 0 },
-  ],
+  jobs: sampleJobs,
+  weekCap: { jobs: sampleJobs, workedMinutes: 780 },
+  hasAnyShift: true,
   currentShift: null,
   // Dated by `demoDashboardFor`; a fixed date here went stale within a week.
   upcomingShifts: [],
@@ -114,6 +118,7 @@ export function demoDashboardFor(now: Date): DashboardData {
     ...buildDashboardInsights(sampleShifts, now, timeZone, 0),
     recentShifts: recentCompletedShifts(sampleShifts, now, timeZone),
     jobs,
+    weekCap: { jobs: jobs.map((job) => ({ ...job, archived: false })), workedMinutes: worked.reduce((sum, shift) => sum + (shift.endsAt.getTime() - shift.startsAt.getTime()) / 60_000, 0) },
     loggedMinutes: jobs.reduce((total, job) => total + job.usedMinutes, 0),
     scheduledMinutes: jobs.reduce((total, job) => total + job.scheduledMinutes, 0),
     upcomingShifts: [shift],

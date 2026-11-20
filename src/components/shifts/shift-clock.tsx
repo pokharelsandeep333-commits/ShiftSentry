@@ -206,7 +206,7 @@ function useScrolledPast(ref: RefObject<HTMLElement | null>) {
 
 /** One line under the clock: what stopping now would meet, and when a limit would be reached. */
 function ClockOutlook({ outlook, now, elapsed, archived, timeZone }: { outlook: TimerOutlook | null; now: Date; elapsed: number; archived: boolean; timeZone: string }) {
-  const tone = (kind: "quiet" | "warn" | "bad") => cn("text-sm leading-6", kind === "quiet" && "text-[var(--muted-foreground)]", kind === "warn" && "text-[color-mix(in_srgb,var(--warning)_60%,var(--foreground))]", kind === "bad" && "text-[color-mix(in_srgb,var(--danger)_75%,var(--foreground))]");
+  const tone = (kind: "quiet" | "warn" | "bad") => cn("text-sm leading-6", kind === "quiet" && "text-[var(--muted-foreground)]", kind === "warn" && "text-[var(--warning-ink)]", kind === "bad" && "text-[var(--danger-ink)]");
 
   if (archived) return <p className={tone("bad")}>This job was archived while the shift was running. Restore it under Jobs to log it, or discard the timer.</p>;
   if (elapsed > MAX_SHIFT_MS) return <p className={tone("bad")}>Over 24 hours, longer than one shift can be. Set the time you actually stopped.</p>;
@@ -233,7 +233,7 @@ function ClockOutlook({ outlook, now, elapsed, archived, timeZone }: { outlook: 
 }
 
 function Problem({ message, href, linkLabel }: { message: string; href: string | null; linkLabel: string }) {
-  return <p role="alert" className="relative mt-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm leading-6 text-[color-mix(in_srgb,var(--danger)_75%,var(--foreground))]">
+  return <p role="alert" className="relative mt-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm leading-6 text-[var(--danger-ink)]">
     {message}{href && <> <Link href={href} className="font-semibold underline underline-offset-4">{linkLabel}</Link></>}
   </p>;
 }

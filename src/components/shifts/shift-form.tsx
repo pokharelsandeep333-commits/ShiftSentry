@@ -10,7 +10,7 @@ import { CalendarClashNotice } from "@/components/shifts/calendar-clash-notice";
 import { DayTrack } from "@/components/shifts/day-track";
 import { LimitCheckNotice, isNearLimit, useLimitCheck, type LimitCheck } from "@/components/shifts/limit-check-notice";
 import { ShiftScheduleFields, type ShiftDateTimeParts, type ShiftSchedule } from "@/components/shifts/date-time-picker";
-import { calculateEarnings, formatCents, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
+import { calculateEarnings, repeatPayEstimate, formatCents, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
 import { combineShiftDateAndTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { addLocalDays, minuteOf, scheduleOf, selectionOf, weekStartDate, type Selection } from "@/lib/day-track";
 import { formatMinutes } from "@/lib/utils";
@@ -44,6 +44,8 @@ type ShiftFormProps = {
   };
   /** True when the viewer has a Google Calendar connected: check the span for clashes. */
   calendarCheck?: boolean;
+  initialDate?: string;
+  initialJobId?: string;
   /** The local start and end ("HH:mm") of each job's most recent shift, for "Same as last time". */
   lastTimes?: Record<string, LastTimes>;
   /** The profile's week-start day (0 = Sunday), so the day tiles show the weeks the caps count. */
@@ -103,17 +105,17 @@ function previewMinutes(startsAt: ShiftDateTimeParts, endsAt: ShiftDateTimeParts
   return minutes > 0 ? minutes : null;
 }
 
-export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = false, lastTimes = {}, weekStartsOn, timerStartedAt }: ShiftFormProps) {
+export function ShiftForm({ mode, jobs, timeZone, initialShift, initialDate, initialJobId, calendarCheck = false, lastTimes = {}, weekStartsOn, timerStartedAt }: ShiftFormProps) {
   // A new, blank shift starts on today: the track needs a day to draw.
-  const initialStart = initialShift ? partsFromValue(initialShift.startsAt) : { date: formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd"), time: "" };
-  const initialEnd = partsFromValue(initialShift?.endsAt);
+  const initialStart = initialShift ? partsFromValue(initialShift.startsAt) : { date: initialDate ?? formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd"), time: "" };
+  const initialEnd = initialDate && !initialShift ? { date: initialDate, time: "" } : partsFromValue(initialShift?.endsAt);
   // Read once at render: the compiler cannot verify a memo whose dependency is
   // reached through an optional chain.
   const storedSnapshot = initialShift?.paySnapshot;
   const storedJobId = initialShift?.jobId;
   const [startsAt, setStartsAt] = useState(initialStart);
   const [endsAt, setEndsAt] = useState(initialEnd);
-  const [jobId, setJobId] = useState(initialShift?.jobId ?? jobs[0]?.id ?? "");
+  const [jobId, setJobId] = useState(initialShift?.jobId ?? initialJobId ?? jobs[0]?.id ?? "");
   const [repeatWeeks, setRepeatWeeks] = useState(1);
   const [submissionProblem, setSubmissionProblem] = useState<FormProblem | null>(null);
   const [dismissedState, setDismissedState] = useState<ShiftActionState | null>(null);
@@ -155,7 +157,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
       ? storedSnapshot
       : { hourlyRateCents: job.hourlyRateCents, taxRateBasisPoints: job.taxRateBasisPoints, deductions: job.deductions };
     const pay = calculateEarnings(minutes, snapshot);
-    return { minutes, pay };
+    return { minutes, pay, snapshot };
   }, [endsAt, jobId, jobs, startsAt, storedJobId, storedSnapshot, timeZone]);
 
   function markEdited() {
@@ -197,7 +199,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
   // a correction, not a pattern, so it falls back to two hours.
   const lastLength = last ? lengthOf(last) : null;
   const defaultLength = lastLength && lastLength >= 60 ? lastLength : selection ? selection.end - selection.start : 120;
-  const check = useLimitCheck({ start: localSpan?.start ?? null, end: localSpan?.end ?? null, jobId, repeatWeeks, excludeId: initialShift?.id });
+  const { check, status: checkStatus } = useLimitCheck({ start: localSpan?.start ?? null, end: localSpan?.end ?? null, jobId, repeatWeeks, excludeId: initialShift?.id });
 
   // A tile keeps the times and moves the whole shift, overnight end included.
   function pickDate(date: string) {
@@ -259,8 +261,8 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, calendarCheck = 
     </div>
 
     <div className="composer-footer">
-      <ShiftSum preview={preview} repeatWeeks={repeatWeeks} check={check} timeZone={timeZone} weekStartsOn={weekStartsOn} />
-      <div className="composer-actions"><Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link><Button type="submit" className="shift-button save-shift" disabled={pending}><PendingLabel pending={pending} label={mode === "create" ? "Save shift" : "Save changes"} pendingLabel="Saving…" /></Button></div>
+      <ShiftSum checkStatus={checkStatus} preview={preview} repeatWeeks={repeatWeeks} check={check} timeZone={timeZone} weekStartsOn={weekStartsOn} />
+      <div className="composer-actions"><Link href="/shifts" className={buttonVariants({ variant: "outline" })}>Cancel</Link><Button type="submit" className="shift-button save-shift" disabled={pending}><PendingLabel pending={pending} label={mode === "edit" ? "Save changes" : repeatWeeks > 1 ? "Save shifts" : "Save shift"} pendingLabel="Saving…" /></Button></div>
     </div>
   </form>;
 }
@@ -285,17 +287,24 @@ function lengthOf(times: LastTimes) {
  * week line comes from the same limit check as the notices above; a shift
  * that would be refused leaves it to them.
  */
-function ShiftSum({ preview, repeatWeeks, check, timeZone, weekStartsOn }: { preview: { minutes: number; pay: ReturnType<typeof calculateEarnings> } | null; repeatWeeks: number; check: LimitCheck | null; timeZone: string; weekStartsOn: number }) {
+function ShiftSum({ preview, repeatWeeks, check, checkStatus, timeZone, weekStartsOn }: { checkStatus: ReturnType<typeof useLimitCheck>["status"]; preview: { minutes: number; pay: ReturnType<typeof calculateEarnings>; snapshot: PaySnapshot } | null; repeatWeeks: number; check: LimitCheck | null; timeZone: string; weekStartsOn: number }) {
+  if (repeatWeeks > 1) {
+    const estimate = check && preview ? repeatPayEstimate(check.occurrences, preview.snapshot) : null;
+    const hint = checkStatus === "incomplete" ? "Choose the start and end times." : checkStatus === "unavailable" ? "Preview unavailable. Saving will check each shift." : "Checking weekly limits and overlaps…";
+    return <div className="composer-sum" role="status">
+      <p className="sum-net" data-empty={!estimate?.count || undefined}><strong>{estimate ? formatCents(estimate.netCents) : "–"}</strong><span>estimated net</span></p>
+      <p className="sum-detail">{estimate ? <><b>{estimate.count} of {repeatWeeks} shifts fit</b> · {formatMinutes(estimate.minutes)}</> : hint}</p>
+    </div>;
+  }
   const first = check?.occurrences[0];
   const week = first?.fits ? first.weeks[0] : undefined;
   const thisWeek = weekStartDate(formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd"), weekStartsOn);
   const weekName = week ? formatInTimeZone(week.weekStart, timeZone, "yyyy-MM-dd") === thisWeek ? "This week" : `Week of ${formatInTimeZone(week.weekStart, timeZone, "MMM d")}` : "";
   return <div className="composer-sum" aria-live="polite">
-    <p className="sum-net" data-empty={!preview || undefined}><strong>{preview ? formatCents(preview.pay.netCents) : "–"}</strong><span>net{preview && repeatWeeks > 1 ? " each" : ""}</span></p>
+    <p className="sum-net" data-empty={!preview || undefined}><strong>{preview ? formatCents(preview.pay.netCents) : "–"}</strong><span>net</span></p>
     <p className="sum-detail">{preview
       ? <>{formatMinutes(preview.minutes)} · {formatCents(preview.pay.grossCents)} gross − {formatCents(preview.pay.taxCents + preview.pay.deductionCents)} tax and deductions</>
       : "Pick the times to see what it pays"}</p>
-    {preview && repeatWeeks > 1 && <p className="sum-detail">Over {repeatWeeks} weeks: <b>{formatCents(preview.pay.netCents * repeatWeeks)}</b> net, {formatMinutes(preview.minutes * repeatWeeks)}, if every week is saved</p>}
     {check && week && <p className="sum-week" data-near={isNearLimit(check, week) || undefined}>
       <span>{weekName} with it</span>
       <span><b>{formatMinutes(week.globalAfter)}</b>{week.globalLimit !== null && ` of ${formatMinutes(week.globalLimit)}`}</span>

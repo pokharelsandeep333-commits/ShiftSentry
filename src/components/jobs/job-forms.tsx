@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  */
 function FormError({ message }: { message: string }) {
   if (!message) return null;
-  return <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger)]">{message}</p>;
+  return <p role="alert" className="rounded-xl border border-[color-mix(in_srgb,var(--danger)_35%,var(--border))] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm font-medium text-[var(--danger-ink)]">{message}</p>;
 }
 
 /** Helper text under a field. A `small`, not a span: `.field-label > span` is unlayered CSS and would recolour it. */

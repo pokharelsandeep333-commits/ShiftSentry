@@ -6,7 +6,8 @@ import type { DashboardData, MonthTotals } from "@/lib/types";
 import type { DeductionSnapshot } from "@/lib/earnings";
 import { addWorkedMinutes, bucketWorkedShiftsByMonth, createTotals, finalizeTotals } from "@/lib/period-totals";
 import { buildMonthlyJobAllocation, monthlyAllocationWindow } from "@/lib/job-allocation";
-import { allocateWeekMinutes, type WeekMeterSource } from "@/lib/week-meter";
+import { allocateWeekMinutes, summarizeCapWeek, type WeekMeterSource } from "@/lib/week-meter";
+import { readCapShifts } from "@/lib/cap-shifts";
 import { getRunningTimer } from "@/lib/shift-timer-server";
 import { JOB_PAY_COLUMNS, payPeriodQueryWindow, payScheduleFromColumns, summarizePayPeriods, type JobPayColumns } from "@/lib/pay-period";
 import { buildDashboardInsights, recentCompletedShifts, type DashboardShift, type RecentCompletedShift } from "@/lib/dashboard-insights";
@@ -37,7 +38,7 @@ function deductionsOf(row: { deductions_snapshot: DeductionSnapshot[] }) {
  * a shift straddling the six-month boundary belongs to both ranges, so bolting a
  * "before the window" query onto the windowed one would either double it or drop
  * it. The pay snapshot and shift id also supply the latest completed shifts,
- * and archived jobs stay excluded exactly as they are everywhere else.
+ * and archived jobs stay excluded from earnings and activity.
  */
 async function fetchHistory(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, now: Date, timeZone: string): Promise<{ months: MonthTotals[]; recentShifts: RecentCompletedShift[] }> {
   const shifts: DashboardShift[] = [];
@@ -78,13 +79,12 @@ async function fetchHistory(supabase: Awaited<ReturnType<typeof createServerSupa
  * header simply draws no meter: the chrome must never take a page down with it.
  */
 export async function getWeekMeter(profile: WeekProfile): Promise<WeekMeterSource | null> {
-  const countedAt = new Date();
+  const countedAt = renderTime();
   try {
     const date = weekStartDateFor(countedAt, profile.time_zone, profile.week_starts_on);
-    const [jobs, period, timer] = await Promise.all([loadCurrentWeek(profile, countedAt), loadWeekBreak(profile.id, date), getRunningTimer(profile.id).catch(() => null)]);
-    if (!jobs) return null;
+    const [cap, period, timer] = await Promise.all([loadCapWeek(profile.id, profile.time_zone, profile.week_starts_on), loadWeekBreak(profile.id, date), getRunningTimer(profile.id).catch(() => null)]);
     const limitMinutes = period?.weekly_limit_minutes ?? profile.global_weekly_limit_minutes;
-    return { jobs, limitMinutes, countedAt: countedAt.toISOString(), timer, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on };
+    return { jobs: cap.jobs, limitMinutes, countedAt: countedAt.toISOString(), timer, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on };
   } catch {
     return null;
   }
@@ -101,26 +101,20 @@ const loadWeekBreak = cache(async (userId: string, date: string) => {
   return breakPeriodForWeek(data, date);
 });
 
-/** Active jobs with this week's worked and scheduled minutes, archived jobs excluded as everywhere. */
-async function loadCurrentWeek(profile: WeekProfile, now: Date) {
-  try {
-    const weekStart = weekStartFor(now, profile.time_zone, profile.week_starts_on);
-    const weekEnd = weekEndFor(now, profile.time_zone, profile.week_starts_on);
-    const supabase = await createServerSupabaseClient();
-    const [jobsResult, shiftsResult] = await Promise.all([
-      supabase.from("jobs").select("id,name,color,weekly_limit_minutes").eq("user_id", profile.id).is("archived_at", null).order("created_at"),
-      supabase.from("shifts").select("job_id,starts_at,ends_at,jobs!inner(archived_at)").eq("user_id", profile.id).is("jobs.archived_at", null).lt("starts_at", weekEnd.toISOString()).gt("ends_at", weekStart.toISOString()),
-    ]);
-    if (jobsResult.error || shiftsResult.error) return null;
-    const shifts = (shiftsResult.data as unknown as { job_id: string; starts_at: string; ends_at: string }[]).map((row) => ({ jobId: row.job_id, startsAt: new Date(row.starts_at), endsAt: new Date(row.ends_at) }));
-    return allocateWeekMinutes(jobsResult.data as { id: string; name: string; color: string; weekly_limit_minutes: number | null }[], shifts, now, profile.time_zone, profile.week_starts_on);
-  } catch {
-    return null;
-  }
-}
+// The shell and overview use one snapshot, including when a request crosses midnight.
+const renderTime = cache(() => new Date());
+const loadCapWeek = cache(async (userId: string, timeZone: string, weekStartsOn: number) => {
+  const now = renderTime();
+  const start = weekStartFor(now, timeZone, weekStartsOn).toISOString();
+  const end = weekEndFor(now, timeZone, weekStartsOn).toISOString();
+  const supabase = await createServerSupabaseClient();
+  const [shifts, timer] = await Promise.all([readCapShifts(supabase, userId, start, end), getRunningTimer(userId)]);
+  const timerJob = timer ? { id: timer.jobId, name: timer.jobName, color: timer.jobColor, archived: timer.jobArchived } : undefined;
+  return summarizeCapWeek(shifts, now, timeZone, weekStartsOn, timerJob);
+});
 
 export async function getDashboardData(profile: { id: string; email: string; display_name: string | null; time_zone: string; week_starts_on: number; global_weekly_limit_minutes: number | null }): Promise<DashboardData> {
-  const now = new Date();
+  const now = renderTime();
   const weekStartDate = weekStartDateFor(now, profile.time_zone, profile.week_starts_on);
   const weekEnd = weekEndFor(now, profile.time_zone, profile.week_starts_on);
   const nextWeekStartDate = weekStartDateFor(weekEnd, profile.time_zone, profile.week_starts_on);
@@ -133,12 +127,15 @@ export async function getDashboardData(profile: { id: string; email: string; dis
   const shiftQueryStart = payWindow.start < allocationWindow.start ? payWindow.start : allocationWindow.start;
   const shiftQueryEnd = [weekEnd, allocationWindow.end, payWindow.end].reduce((latest, bound) => bound > latest ? bound : latest);
   const supabase = await createServerSupabaseClient();
-  const [jobsResult, shiftsResult, history, breakPeriod] = await Promise.all([
+  const [jobsResult, shiftsResult, history, breakPeriod, weekCap, firstShift] = await Promise.all([
     supabase.from("jobs").select(`id,name,color,weekly_limit_minutes,${JOB_PAY_COLUMNS}`).eq("user_id", profile.id).is("archived_at", null).order("created_at"),
     supabase.from("shifts").select(`id,notes,${SHIFT_COLUMNS}`).eq("user_id", profile.id).is("jobs.archived_at", null).lt("starts_at", shiftQueryEnd.toISOString()).gt("ends_at", shiftQueryStart.toISOString()).order("starts_at"),
     fetchHistory(supabase, profile.id, now, profile.time_zone),
     loadWeekBreak(profile.id, weekStartDate),
+    loadCapWeek(profile.id, profile.time_zone, profile.week_starts_on),
+    supabase.from("shifts").select("id").eq("user_id", profile.id).limit(1),
   ]);
+  if (firstShift.error) throw firstShift.error;
   if (jobsResult.error) throw jobsResult.error;
   if (shiftsResult.error) throw shiftsResult.error;
 
@@ -187,5 +184,5 @@ export async function getDashboardData(profile: { id: string; email: string; dis
     window: allocationWindow,
   });
   const payPeriods = summarizePayPeriods({ jobs: jobRows.map((job) => ({ id: job.id, name: job.name, color: job.color, schedule: payScheduleFromColumns(job) })), shifts: workedShifts, now, timeZone: profile.time_zone });
-  return { ...buildDashboardInsights(workedShifts, now, profile.time_zone, profile.week_starts_on), recentShifts: history.recentShifts, viewer: { email: profile.email, name: profile.display_name, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on }, globalLimitMinutes: breakPeriod?.weekly_limit_minutes ?? profile.global_weekly_limit_minutes, activeBreakLabel: breakPeriod ? breakPeriod.label ?? "Break period" : null, loggedMinutes, scheduledMinutes, jobs, currentShift, upcomingShifts: upcomingShifts.slice(0, 4), totals: { week: finalizeTotals(week), months: history.months }, monthlyJobAllocation, payPeriods };
+  return { ...buildDashboardInsights(workedShifts, now, profile.time_zone, profile.week_starts_on), recentShifts: history.recentShifts, weekCap, hasAnyShift: firstShift.data.length > 0, viewer: { email: profile.email, name: profile.display_name, timeZone: profile.time_zone, weekStartsOn: profile.week_starts_on }, globalLimitMinutes: breakPeriod?.weekly_limit_minutes ?? profile.global_weekly_limit_minutes, activeBreakLabel: breakPeriod ? breakPeriod.label ?? "Break period" : null, loggedMinutes, scheduledMinutes, jobs, currentShift, upcomingShifts: upcomingShifts.slice(0, 4), totals: { week: finalizeTotals(week), months: history.months }, monthlyJobAllocation, payPeriods };
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CircleCheck, OctagonAlert, TriangleAlert } from "lucide-react";
+import { OctagonAlert } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { formatMinutes } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ type OccurrenceResult = {
 export type LimitCheck = { jobName: string; jobLimit: number | null; occurrences: OccurrenceResult[] };
 // As in the clash notice: each result carries the request it answers, so a
 // result for the previous times is never drawn against new ones.
-type CheckState = { key: string } & ({ status: "idle" } | ({ status: "ok" } & LimitCheck));
+type CheckState = { key: string } & ({ status: "unavailable" } | ({ status: "ok" } & LimitCheck));
 
 function reason(occurrence: OccurrenceResult, check: LimitCheck, timeZone: string) {
   if (occurrence.overlap) {
@@ -32,16 +32,14 @@ function reason(occurrence: OccurrenceResult, check: LimitCheck, timeZone: strin
   return "is not a valid span";
 }
 
-
 /**
  * Asks `/shifts/limit-check` what Save would meet, after the pickers settle,
- * the way the calendar clash check does. Returns the answer only while it is
- * for the current times; null while waiting or when the check cannot run
- * (advisory: say nothing rather than guess). The database decides on Save.
+ * returning only the result for the current inputs. The footer distinguishes
+ * incomplete inputs, pending checks and failures. Save rechecks the series.
  */
-export function useLimitCheck({ start, end, jobId, repeatWeeks, excludeId }: { start: string | null; end: string | null; jobId: string; repeatWeeks: number; excludeId?: string }): LimitCheck | null {
-  const [state, setState] = useState<CheckState>({ key: "", status: "idle" });
-  const key = `${start}|${end}|${jobId}|${repeatWeeks}`;
+export function useLimitCheck({ start, end, jobId, repeatWeeks, excludeId }: { start: string | null; end: string | null; jobId: string; repeatWeeks: number; excludeId?: string }) {
+  const [state, setState] = useState<CheckState>({ key: "", status: "unavailable" });
+  const key = `${start}|${end}|${jobId}|${repeatWeeks}|${excludeId ?? ""}`;
 
   useEffect(() => {
     if (!start || !end || !jobId) return;
@@ -53,16 +51,17 @@ export function useLimitCheck({ start, end, jobId, repeatWeeks, excludeId }: { s
         const response = await fetch(`/shifts/limit-check?${query}`, { signal: controller.signal, cache: "no-store" });
         const body = (await response.json()) as { status: string } & Partial<LimitCheck>;
         if (body.status === "ok" && body.occurrences) setState({ key, status: "ok", jobName: body.jobName ?? "", jobLimit: body.jobLimit ?? null, occurrences: body.occurrences });
-        else setState({ key, status: "idle" });
+        else setState({ key, status: "unavailable" });
       } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) setState({ key, status: "idle" });
+        if (!(error instanceof DOMException && error.name === "AbortError")) setState({ key, status: "unavailable" });
       }
     }, 400);
     return () => { controller.abort(); window.clearTimeout(timer); };
   }, [start, end, jobId, repeatWeeks, excludeId, key]);
 
-  if (!start || !end || state.key !== key || state.status !== "ok") return null;
-  return state;
+  if (!start || !end || !jobId) return { status: "incomplete", check: null } as const;
+  if (state.key !== key) return { status: "checking", check: null } as const;
+  return { status: state.status, check: state.status === "ok" ? state : null } as const;
 }
 
 /** Whether a fitting shift brings a week to 80% of a limit or past it. */
@@ -84,15 +83,13 @@ export function LimitCheckNotice({ check, jobId, timeZone }: { check: LimitCheck
   // Weekly repeats: how many make it, and which weeks would be skipped and why.
   if (rest.length) {
     const refused = state.occurrences.filter((occurrence) => !occurrence.fits);
-    if (!refused.length) return <p role="status" className="shift-check shift-check-ok"><CircleCheck aria-hidden="true" />All {state.occurrences.length} weeks fit your limits.</p>;
-    const tone = refused.length === state.occurrences.length ? "shift-check-bad" : "shift-check-warn";
-    return <div role="status" className={`shift-check ${tone}`}>
-      <TriangleAlert aria-hidden="true" />
-      <div className="min-w-0">
-        <p className="font-semibold">{refused.length === state.occurrences.length ? "None of these weeks would be saved." : `${state.occurrences.length - refused.length} of ${state.occurrences.length} weeks fit. The rest would be skipped:`}</p>
-        <ul className="mt-1 grid gap-0.5">{refused.map((occurrence) => <li key={occurrence.startsAt}><b className="font-semibold">{formatInTimeZone(occurrence.startsAt, timeZone, "MMM d")}</b> {reason(occurrence, state, timeZone)}</li>)}</ul>
-      </div>
-    </div>;
+    if (!refused.length) return null;
+    return <details className={`shift-check ${refused.length === state.occurrences.length ? "shift-check-bad" : "shift-check-warn"}`}>
+      <summary className="min-h-11 cursor-pointer content-center font-semibold">
+        {refused.length} {refused.length === 1 ? "shift" : "shifts"} would be skipped
+      </summary>
+      <ul className="mt-1 grid gap-1">{refused.map((occurrence) => <li key={occurrence.startsAt}><b>{formatInTimeZone(occurrence.startsAt, timeZone, "MMM d")}</b> {reason(occurrence, state, timeZone)}</li>)}</ul>
+    </details>;
   }
 
   if (!first.fits) return <div role="status" className="shift-check shift-check-bad">

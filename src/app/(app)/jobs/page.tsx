@@ -70,7 +70,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         Archived jobs ({archivedJobs.length})
       </summary>
       <Card className="mt-3 p-5">
-        <p className="mb-2 max-w-2xl text-sm leading-6 text-[var(--muted-foreground)]">Archived jobs are hidden from your dashboard and left out of hours and earnings. Restore one to log shifts against it again. A job can only be deleted once it has no shifts, so its earnings history is never lost.</p>
+        <p className="mb-2 max-w-2xl text-sm leading-6 text-[var(--muted-foreground)]">Archived shifts still count toward your global weekly cap. Archived jobs are excluded from dashboard earnings. Restore one to log shifts against it again. A job can only be deleted once it has no shifts, so its earnings history is never lost.</p>
         <ul className="divide-y">{archivedJobs.map((job) => <li key={job.id} className="flex flex-wrap items-center gap-3 py-3">
           <JobAvatar name={job.name} color={job.color} muted />
           <div className="min-w-0 flex-1"><p className="truncate font-medium">{job.name}</p><p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{formatCents(job.hourly_rate_cents)}/hr · archived {new Date(job.archived_at!).toLocaleDateString()}{shiftCount(job) ? ` · ${shiftCount(job)} shift${shiftCount(job) === 1 ? "" : "s"} logged` : ""}</p></div>

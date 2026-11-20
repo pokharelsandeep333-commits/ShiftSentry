@@ -8,7 +8,7 @@ import { timesheetHref } from "@/lib/timesheet";
 import { buttonVariants } from "@/components/ui/button";
 import { cn, formatMinutes } from "@/lib/utils";
 
-const MONEY = "text-[color-mix(in_srgb,var(--success)_78%,var(--foreground))]";
+const MONEY = "text-[var(--success-ink)]";
 
 function historyHref(jobId: string, count?: number) {
   const params = new URLSearchParams({ job: jobId });
@@ -28,16 +28,15 @@ function byYear(periods: PayPeriodHistoryEntry[]) {
   return groups;
 }
 
-function PeriodRow({ period, today, jobId }: { period: PayPeriodHistoryEntry; today: string; jobId: string }) {
+function PeriodRow({ period, jobId }: { period: PayPeriodHistoryEntry; jobId: string }) {
   const empty = period.worked.minutes === 0 && period.scheduled.minutes === 0;
-  const paid = period.payday !== null && period.payday < today;
   return <li className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-0.5 px-5 py-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_5rem_7rem] sm:px-6", period.isCurrent && "bg-[color-mix(in_srgb,var(--primary)_5%,var(--card))]", empty && !period.isCurrent && "text-[var(--muted-foreground)]")}>
     <p className="flex min-w-0 items-center gap-2.5 text-sm font-semibold tabular-nums">
       <Link href={timesheetHref("/pay-periods/timesheet", { job: jobId, start: period.start, scope: "all" })} title="Open this period's timesheet" className="truncate underline-offset-4 outline-none hover:text-[var(--primary)] hover:underline focus-visible:underline">{formatPayPeriod(period)}</Link>
       {period.isCurrent && <span className="shrink-0 rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,var(--card))] px-2 py-0.5 text-[11px] font-semibold text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]">Current</span>}
     </p>
-    <p className={cn("text-right font-display text-base font-semibold tabular-nums sm:order-last", !empty && MONEY)}>{formatCents(period.worked.netCents)}</p>
-    <p className="text-xs text-[var(--muted-foreground)] sm:text-sm" title="Estimated from the job's payday setting">{period.payday ? `${paid ? "Paid" : "Pays"} ${formatPayDay(period.payday, true)}` : "No payday set"}</p>
+    <p className={cn("text-right font-display text-base font-semibold tabular-nums sm:order-last", !empty && MONEY)}>{formatCents(period.worked.netCents)}<span className="block font-sans text-xs font-normal text-[var(--muted-foreground)]">Estimated net</span></p>
+    <p className="text-xs text-[var(--muted-foreground)] sm:text-sm" title="Estimated from the job's payday setting">{period.payday ? `Scheduled payday · ${formatPayDay(period.payday, true)}` : "No payday set"}</p>
     <p className="text-right text-xs tabular-nums text-[var(--muted-foreground)] sm:text-sm">
       {formatMinutes(period.worked.minutes)}
       {period.scheduled.netCents > 0 && <span className="block text-xs" title="Planned shifts left in this period">+{formatCents(period.scheduled.netCents)} planned</span>}
@@ -75,7 +74,7 @@ export function PayHistoryView({ history, count, today }: { history: PayHistory;
     <section aria-label={`${job.name} pay periods`} className="premium-card overflow-hidden rounded-2xl border bg-[var(--card)]">
       {byYear(periods).map((group, index, groups) => <div key={group.year}>
         {(groups.length > 1 || group.year !== today.slice(0, 4)) && <h2 className={cn("bg-[var(--surface-subtle)] px-5 py-2 text-xs font-semibold tabular-nums text-[var(--muted-foreground)] sm:px-6", index > 0 && "border-t")}>{group.year}</h2>}
-        <ul className="divide-y">{group.periods.map((period) => <PeriodRow key={period.start} period={period} today={today} jobId={job.id} />)}</ul>
+        <ul className="divide-y">{group.periods.map((period) => <PeriodRow key={period.start} period={period} jobId={job.id} />)}</ul>
       </div>)}
       {hasOlder && <div className="border-t p-3 text-center">
         <Link href={historyHref(job.id, count + PAY_HISTORY_STEP)} scroll={false} className="press inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-[var(--primary)] outline-none transition-colors hover:bg-[var(--primary-soft)] focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)] sm:min-h-9">Load older</Link>

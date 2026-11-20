@@ -45,6 +45,9 @@
   --primary: #6d5ce7;
   --primary-foreground: #ffffff;
   --success: #12b76a;
+  --success-ink: #067647;
+  --warning-ink: #874600;
+  --danger-ink: #b42318;
   --warning: #f79009;
   --danger: #f04438;
   --surface-raised: color-mix(in srgb, var(--card) 92%, white);
@@ -92,6 +95,9 @@
   --primary: #9486ff;
   --primary-foreground: #11121a;
   --success: #32d583;
+  --success-ink: #63e6a5;
+  --warning-ink: #ffc36f;
+  --danger-ink: #ffa19a;
   --warning: #fdb022;
   --danger: #f97066;
   --surface-raised: color-mix(in srgb, var(--card) 88%, white);
@@ -920,6 +926,9 @@ select {
     --muted-foreground: #475467;
     --border: #d0d5dd;
     --success: #067647;
+    --success-ink: #067647;
+    --warning-ink: #874600;
+    --danger-ink: #b42318;
     --danger: #b42318;
     --surface-subtle: #ffffff;
     --shadow-color: 255 255 255;

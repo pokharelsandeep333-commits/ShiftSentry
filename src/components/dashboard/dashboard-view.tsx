@@ -91,16 +91,40 @@ function useHoverPointer() {
  */
 export function DashboardView({ data, timer = null }: { data: DashboardData; timer?: LiveTimer | null }) {
   // Before the first-run early return, so the hook order never changes.
-  const live = useLiveWeekJobs(data.jobs, timer, data.snapshotAt, data.viewer.timeZone, data.viewer.weekStartsOn);
+  const live = useLiveWeekJobs(data.weekCap.jobs, timer, data.snapshotAt, data.viewer.timeZone, data.viewer.weekStartsOn);
   // Nothing has been set up yet, so there is nothing to total. The full
   // dashboard here is a wall of zeros -- an empty hero, four $0.00 metrics, two
   // blank charts and three separate empty states -- which says what is missing
   // without saying what to do about it.
-  if (!data.isDemo && data.jobs.length === 0) return <div className={styles.root}><DashboardHeading data={data} /><FirstRun /></div>;
+  if (!data.isDemo && data.jobs.length === 0 && !live.jobs.some((job) => job.usedMinutes + job.scheduledMinutes > 0)) return <div className={styles.root}><DashboardHeading data={data} /><FirstRun /></div>;
 
+  const upcomingShifts = data.weekDays.flatMap((day) => day.shifts)
+    .filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt));
+  const capCard = <WeekCard
+    jobs={live.jobs}
+    workedMinutes={data.weekCap.workedMinutes + live.workedDelta}
+    limitMinutes={data.globalLimitMinutes}
+    activeBreakLabel={data.activeBreakLabel}
+    rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)}
+    upcomingCount={new Set(upcomingShifts.map((shift) => shift.id)).size}
+  />;
+  if (!data.hasAnyShift && data.jobs.length > 0 && !timer) {
+    const job = data.jobs[0];
+    return <div className={styles.root}>
+      <DashboardHeading data={data} />
+      {capCard}
+      <section className="premium-card mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-[var(--card)] p-5">
+        <div className="min-w-0">
+          <h2 className="break-words font-display text-lg font-semibold">{job.name} is ready</h2>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">Choose a date and time to see how your shift fits this week.</p>
+        </div>
+        <Link href={`/shifts/new?jobId=${encodeURIComponent(job.id)}`} className={buttonVariants()}>Plan your first shift<ArrowRight aria-hidden="true" className="size-4" /></Link>
+      </section>
+    </div>;
+  }
   return <div className={styles.root}>
     <DashboardHeading data={data} />
-    <WeekCard jobs={live.jobs} workedMinutes={data.totals.week.minutes + live.workedDelta} limitMinutes={data.globalLimitMinutes} activeBreakLabel={data.activeBreakLabel} rangeLabel={weekRangeLabel(data.viewer, data.snapshotAt)} upcomingCount={new Set(data.weekDays.flatMap((day) => day.shifts).filter((shift) => Date.parse(shift.startsAt) > Date.parse(data.snapshotAt)).map((shift) => shift.id)).size} />
+    {capCard}
 
     {/* The week, then what is next: the same order stacked and side by side. */}
     <section className={styles.topGrid}>
