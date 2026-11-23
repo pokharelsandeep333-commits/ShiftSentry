@@ -721,13 +721,40 @@ body {
   .faq-item[open]::details-content { block-size: auto; opacity: 1; }
 }
 
+/* The theme strip (theme-showcase.tsx). Each slide carries its theme's capture
+   in both modes; only the current mode's shows, and a hidden lazy image is
+   never fetched. */
+.theme-shot[data-mode="dark"] { display: none; }
+.dark .theme-shot[data-mode="light"] { display: none; }
+.dark .theme-shot[data-mode="dark"] { display: block; }
+
+/* Slides grow toward the centre of the strip and fall back as they leave it,
+   driven by the strip's own scroll, so the next theme visibly arrives. */
+@supports (animation-timeline: view()) {
+  .theme-slide {
+    animation: theme-slide linear both;
+    animation-timeline: view(inline);
+  }
+}
+@keyframes theme-slide {
+  0% { opacity: 0.45; scale: 0.9; }
+  50% { opacity: 1; scale: 1; }
+  100% { opacity: 0.45; scale: 0.9; }
+}
+
+/* Theme dots: a ring in the theme's own --primary marks the current one. */
+.theme-dot { transition: background-color 200ms ease; }
+.theme-dot:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.theme-dot:hover > span { scale: 1.12; }
+.theme-dot-active { box-shadow: inset 0 0 0 2px var(--primary); }
+.theme-dot:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
 /* The theme sweep: the new theme's page is revealed by a clip-path edge that
    travels across from the side the visitor scrolled toward, while the old
    page holds still underneath. `data-theme-sweep` is set only for the length
    of that one transition, so no other view transition is affected. */
 :root[data-theme-sweep]::view-transition-old(root) { animation: none; }
-:root[data-theme-sweep]::view-transition-group(root) { animation-duration: 450ms; }
-:root[data-theme-sweep]::view-transition-new(root) { animation: 450ms cubic-bezier(0.32, 0.72, 0, 1) both theme-sweep-forward; }
+:root[data-theme-sweep]::view-transition-new(root) { animation: 640ms cubic-bezier(0.65, 0, 0.35, 1) both theme-sweep-forward; }
 :root[data-theme-sweep="back"]::view-transition-new(root) { animation-name: theme-sweep-back; }
 @keyframes theme-sweep-forward {
   from { clip-path: inset(0 0 0 100%); }
