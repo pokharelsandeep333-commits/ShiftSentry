@@ -16,6 +16,10 @@ type PremiumSelectProps = {
   className?: string;
   /** Optional: mirror the selection into React state. */
   onValueChange?: (value: string) => void;
+  /** Marks the trigger invalid, for a server message under the field. */
+  invalid?: boolean;
+  /** Ids of the hint and message that describe the field. */
+  describedBy?: string;
 };
 
 /** How long consecutive keystrokes keep building one typeahead query. */
@@ -39,7 +43,7 @@ const PANEL_MAX_HEIGHT = 256;
  * The value reaches the form through a hidden input, exactly as Radix's own
  * hidden control did.
  */
-export function PremiumSelect({ name, defaultValue, options, labelledBy, required = false, className, onValueChange }: PremiumSelectProps) {
+export function PremiumSelect({ name, defaultValue, options, labelledBy, required = false, className, onValueChange, invalid = false, describedBy }: PremiumSelectProps) {
   const reactId = useId();
   const triggerId = `${reactId}-trigger`;
   const listboxId = `${reactId}-listbox`;
@@ -160,6 +164,8 @@ export function PremiumSelect({ name, defaultValue, options, labelledBy, require
       aria-activedescendant={open ? optionId(activeIndex) : undefined}
       aria-labelledby={`${labelledBy} ${triggerId}`}
       aria-required={required || undefined}
+      aria-invalid={invalid || undefined}
+      aria-describedby={describedBy}
       className={cn("field-control group flex items-center justify-between gap-3 text-left text-sm font-medium", !selectedLabel && "text-[var(--muted-foreground)]", className)}
       onClick={() => (open ? dismiss(false) : openList())}
       onKeyDown={handleKeyDown}

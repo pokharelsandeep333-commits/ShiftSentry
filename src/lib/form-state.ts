@@ -5,7 +5,14 @@
  * async functions -- a shared initial-state constant cannot live beside the
  * actions that return it.
  */
-export type FormActionState = { message: string };
+export type FormActionState = { message: string; fieldErrors?: FieldErrors };
+
+/**
+ * Messages keyed by the form's input name (`hourlyRate`, not `hourlyRateCents`),
+ * so each one renders under the field that caused it. `message` is then kept
+ * for what no single field owns: a lost row, a database failure.
+ */
+export type FieldErrors = Partial<Record<string, string>>;
 
 export const emptyFormState: FormActionState = { message: "" };
 
@@ -19,7 +26,7 @@ export const emptyFormState: FormActionState = { message: "" };
  * success, which the client watches to confirm and to reset its idea of what
  * counts as unsaved.
  */
-export type SavedFormState = { message: string; savedAt: number | null };
+export type SavedFormState = { message: string; savedAt: number | null; fieldErrors?: FieldErrors };
 
 export const emptySavedFormState: SavedFormState = { message: "", savedAt: null };
 

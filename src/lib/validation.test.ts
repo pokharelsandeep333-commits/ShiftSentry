@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { jobGoogleSettingsSchema, payScheduleFormSchema, resourceIdSchema, shiftSchema, timerStartedAtSchema } from "./validation";
+import { fileIssues, readDeductionForm, readJobForm, readSettingsForm } from "./form-input";
 
 test("rejects malformed and injection-shaped resource identifiers", () => {
   assert.equal(resourceIdSchema.safeParse("not-a-uuid").success, false);
@@ -65,4 +66,78 @@ test("a running timer's start is accepted only as the timestamp PostgREST return
   assert.equal(timerStartedAtSchema.safeParse("2026-11-17T22:37:12+00:00,started_at.gt.2000").success, false);
   assert.equal(timerStartedAtSchema.safeParse("2026-13-45T99:99:99Z").success, false);
   assert.equal(timerStartedAtSchema.safeParse(null).success, false);
+});
+
+// Form readers (src/lib/form-input.ts): each message lands under the input that caused it.
+
+function form(fields: Record<string, string>) {
+  const data = new FormData();
+  for (const [name, value] of Object.entries(fields)) data.set(name, value);
+  return data;
+}
+
+const validJob = { name: "Campus desk", color: "#6d5ce7", hourlyRate: "18.50", taxRate: "7", weeklyLimitHours: "", payFrequency: "none" };
+
+test("job form: a valid form reads into values and pay schedule columns", () => {
+  const read = readJobForm(form({ ...validJob, weeklyLimitHours: "20" }));
+  assert.equal(read.ok, true);
+  if (!read.ok) return;
+  assert.deepEqual({ ...read.data, schedule: read.data.schedule.pay_schedule }, { name: "Campus desk", color: "#6d5ce7", weeklyLimitMinutes: 1200, hourlyRateCents: 1850, taxRateBasisPoints: 700, schedule: "none" });
+  const blank = readJobForm(form(validJob));
+  assert.equal(blank.ok && blank.data.weeklyLimitMinutes, null);
+});
+
+test("job form: every bad field gets its own message, keyed by input name, with no top message", () => {
+  const read = readJobForm(form({ ...validJob, name: " ", hourlyRate: "abc", taxRate: "150", weeklyLimitHours: "200", payFrequency: "2w", payAnchorDate: "" }));
+  assert.equal(read.ok, false);
+  if (read.ok) return;
+  assert.equal(read.message, "");
+  assert.deepEqual(read.fieldErrors, {
+    name: "Job name is required.",
+    hourlyRate: "Enter a valid hourly rate, such as 18.50.",
+    taxRate: "Enter a valid tax rate between 0% and 100%.",
+    weeklyLimitHours: "Enter a weekly limit between 1 and 168 hours, or leave it blank for no cap.",
+    payAnchorDate: "Enter a date one of this job's pay periods started, such as the first day on your last paystub.",
+  });
+});
+
+test("job form: a form without the pay schedule fields means no schedule", () => {
+  const older = form(validJob);
+  older.delete("payFrequency");
+  const read = readJobForm(older);
+  assert.equal(read.ok && read.data.schedule.pay_schedule, "none");
+});
+
+test("deduction form: rate and name messages go under rate and name; a bad job id is a top message", () => {
+  const jobId = "5b7e0d52-6a4e-4b8e-9d1a-2f3c4d5e6f70";
+  const bad = readDeductionForm(form({ jobId, name: "", rate: "x" }));
+  assert.equal(bad.ok, false);
+  if (!bad.ok) assert.deepEqual([bad.message, bad.fieldErrors], ["", { rate: "Enter a valid deduction rate between 0% and 100%.", name: "Deduction name is required." }]);
+  const lost = readDeductionForm(form({ jobId: "not-a-uuid", name: "Retirement", rate: "3" }));
+  assert.equal(!lost.ok && lost.message.length > 0 && Object.keys(lost.fieldErrors).length === 0, true);
+  const good = readDeductionForm(form({ jobId, name: " Retirement ", rate: "3" }));
+  assert.deepEqual(good.ok && good.data, { jobId, name: "Retirement", rateBasisPoints: 300 });
+});
+
+test("settings form: the weekly limit message goes under the hours input", () => {
+  const read = readSettingsForm(form({ displayName: "Sam", timeZone: "America/Chicago", weekStartsOn: "1", globalWeeklyLimitHours: "200" }));
+  assert.equal(read.ok, false);
+  if (!read.ok) assert.deepEqual([read.message, Object.keys(read.fieldErrors)], ["", ["globalWeeklyLimitHours"]]);
+  const zone = readSettingsForm(form({ displayName: "", timeZone: "Mars/Olympus", weekStartsOn: "1", globalWeeklyLimitHours: "" }));
+  assert.equal(!zone.ok && zone.fieldErrors.timeZone, "Choose a valid IANA time zone.");
+  const good = readSettingsForm(form({ displayName: "Sam", timeZone: "America/Chicago", weekStartsOn: "0", globalWeeklyLimitHours: "20" }));
+  assert.deepEqual(good.ok && [good.data.timeZone, good.data.weekStartsOn, good.data.globalWeeklyLimitMinutes], ["America/Chicago", 0, 1200]);
+});
+
+test("fileIssues: first message per field wins, an earlier message is kept, unmapped issues become the top message", () => {
+  const fieldErrors: Record<string, string | undefined> = { hourlyRate: "set first" };
+  const message = fileIssues([
+    { path: ["hourlyRateCents"], message: "from schema" },
+    { path: ["name"], message: "first" },
+    { path: ["name"], message: "second" },
+    { path: ["jobId"], message: "lost row" },
+    { path: [], message: "whole form" },
+  ], { hourlyRateCents: "hourlyRate", name: "name" }, fieldErrors);
+  assert.equal(message, "lost row");
+  assert.deepEqual(fieldErrors, { hourlyRate: "set first", name: "first" });
 });
