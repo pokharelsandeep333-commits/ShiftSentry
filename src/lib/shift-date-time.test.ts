@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addWeeksToLocalDateTime, combineShiftDateAndTime, formatShiftDateAndTime, formatShiftDateOnly, parseShiftDateTimeInput, synchronizedEndDate } from "./shift-date-time";
+import { addMinutesToLocalDateTime, addWeeksToLocalDateTime, combineShiftDateAndTime, formatShiftDateAndTime, formatShiftDateOnly, parseShiftDateTimeInput, synchronizedEndDate } from "./shift-date-time";
 
 test("parses compact shift date and time input", () => {
   assert.deepEqual(parseShiftDateTimeInput("8252026300pm"), {
@@ -48,4 +48,20 @@ test("rejects unparseable or non-integer week offsets", () => {
   assert.equal(addWeeksToLocalDateTime("", 1), "");
   assert.equal(addWeeksToLocalDateTime("not-a-date", 1), "");
   assert.equal(addWeeksToLocalDateTime("2026-08-25T15:00", 1.5), "");
+});
+
+test("adds minutes to a local date-time on the wall clock", () => {
+  assert.equal(addMinutesToLocalDateTime("2026-08-25T15:00", 120), "2026-08-25T17:00");
+  assert.equal(addMinutesToLocalDateTime("2026-08-25T15:00", 0), "2026-08-25T15:00");
+  assert.equal(addMinutesToLocalDateTime("2026-08-25T23:30", 120), "2026-08-26T01:30");
+  assert.equal(addMinutesToLocalDateTime("2026-12-31T23:00", 90), "2027-01-01T00:30");
+  assert.equal(addMinutesToLocalDateTime("2026-03-01T00:15", -30), "2026-02-28T23:45");
+  // The US spring-forward night: still two hours on the clock.
+  assert.equal(addMinutesToLocalDateTime("2026-03-08T01:30", 120), "2026-03-08T03:30");
+});
+
+test("rejects unparseable or non-integer minute offsets", () => {
+  assert.equal(addMinutesToLocalDateTime("", 30), "");
+  assert.equal(addMinutesToLocalDateTime("2026-08-25T25:00", 30), "");
+  assert.equal(addMinutesToLocalDateTime("2026-08-25T15:00", 0.5), "");
 });

@@ -113,6 +113,22 @@ export function addWeeksToLocalDateTime(value: string, weeks: number) {
   return `${bumped.toISOString().slice(0, 10)}T${parsed.time}`;
 }
 
+/**
+ * The wall-clock time N minutes later (or earlier), rolling the local date
+ * over midnight. Like `addWeeksToLocalDateTime`, this is calendar arithmetic
+ * on the local reading, not elapsed time: the form turns the result into an
+ * instant through the viewer's zone. Returns "" for unparseable input or a
+ * non-integer offset.
+ */
+export function addMinutesToLocalDateTime(value: string, minutes: number) {
+  const parsed = parseShiftDateTimeInput(value);
+  if (!parsed || !Number.isInteger(minutes)) return "";
+  const [year, month, day] = parsed.date.split("-").map(Number);
+  const [hour, minute] = parsed.time.split(":").map(Number);
+  const moved = new Date(Date.UTC(year, month - 1, day, hour, minute + minutes));
+  return moved.toISOString().slice(0, 16);
+}
+
 export function synchronizedEndDate(startDate: string, endDateFollowsStart: boolean) {
   return endDateFollowsStart && formatShiftDateOnly(startDate) ? startDate : null;
 }
