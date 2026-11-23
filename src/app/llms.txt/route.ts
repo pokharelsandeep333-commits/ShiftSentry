@@ -19,6 +19,7 @@ export function GET() {
     "",
     `- [Home and FAQ](${origin}/): what ShiftSentry does, the rules it enforces, and common questions`,
     `- [About](${origin}/about): who makes ShiftSentry and how it runs`,
+    `- [Guides](${origin}/guides): every guide on one page`,
     "",
     "## Guides",
     "",

@@ -91,7 +91,7 @@ export function WeekGauge() {
     </div>
 
     <div role="group" aria-labelledby="example-week-try" className="mt-2 flex flex-wrap items-center gap-2">
-      <span id="example-week-try" className="w-full text-[13px] text-[var(--muted-foreground)] sm:mr-1 sm:w-auto">Try adding a Saturday shift:</span>
+      <span id="example-week-try" className="w-full text-[13px] text-[var(--muted-foreground)] sm:mr-1 sm:w-auto">Try adding one more shift:</span>
       {ATTEMPTS.map(({ minutes, place }, index) => <button key={`${place}-${minutes}`} type="button" aria-pressed={pressed === index} onClick={() => setPressed(pressed === index ? null : index)} className={cn(
         "min-h-11 rounded-full border px-4 text-[13px] font-semibold transition-[background-color,border-color,color,transform] duration-200 ease-out active:translate-y-px",
         focusRing,

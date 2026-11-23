@@ -107,7 +107,7 @@ function PeriodRemoval({ period, onClose, onDeleted }: { period: BreakPeriod; on
   </form>;
 }
 
-export function BreakPeriodsForm({ periods }: { periods: BreakPeriod[] }) {
+export function BreakPeriodsForm({ periods, bare = false }: { periods: BreakPeriod[]; /** In its own Settings pane: no rule above, heading for screen readers only. */ bare?: boolean }) {
   const [selection, setSelection] = useState<{ id: string; mode: "edit" | "delete" } | "add" | null>(null);
   const [status, setStatus] = useState("");
   const trigger = useRef<HTMLButtonElement>(null);
@@ -129,7 +129,7 @@ export function BreakPeriodsForm({ periods }: { periods: BreakPeriod[] }) {
     setStatus(message);
   };
 
-  return <SettingsGroup id="break-periods" title="Break periods" description="When the first day of your workweek falls within these dates, the break cap applies for the whole week. Both dates count. Per-job limits still apply." className="mt-5 scroll-mt-6 !border-t !pt-5">
+  return <SettingsGroup id="break-periods" title="Break periods" description="When the first day of your workweek falls within these dates, the break cap applies for the whole week. Both dates count. Per-job limits still apply." className={bare ? "scroll-mt-6" : "mt-5 scroll-mt-6 !border-t !pt-5"} hideHeading={bare}>
     {periods.length > 0 && <ul className="grid gap-3">
       {periods.map((period) => <li key={period.id} className="grid min-w-0 gap-3 rounded-xl border p-3 sm:p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">

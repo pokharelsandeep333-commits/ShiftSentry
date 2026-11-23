@@ -16,6 +16,7 @@ details.shift-check { display: block; }
 .shift-segment a:hover { color:var(--foreground); background:var(--surface-subtle); }
 .shift-segment a[aria-current] { color:var(--primary); background:var(--primary-soft); }
 .shift-segment a:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+@media (pointer: coarse) { .shift-segment a { min-height:44px; } }
 
 .shift-weeks { display:grid; gap:12px; }
 
@@ -82,14 +83,24 @@ details.shift-check { display: block; }
 
 .shift-empty { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:18px 22px; font-size:14px; color:var(--shift-copy); }
 
+/* Copy to next week: a button under the week's shifts, and its dialog's list. */
+.week-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; padding:2px 22px 14px; }
+.copy-week-list { list-style:none; margin:0; padding:0; display:grid; gap:2px; max-height:min(50vh,22rem); overflow-y:auto; }
+.copy-week-list > li { display:grid; gap:2px; padding:8px 10px; border-radius:10px; background:var(--surface-subtle); font-size:13px; }
+.copy-week-list > li[data-skipped] { background:transparent; border:1px dashed var(--border); }
+.copy-week-job { display:flex; align-items:center; gap:8px; min-width:0; font-weight:550; overflow-wrap:anywhere; }
+.copy-week-job > i { width:8px; height:8px; flex-shrink:0; border-radius:50%; background:var(--job); }
+.copy-week-time { padding-left:16px; color:var(--muted-foreground); font-variant-numeric:tabular-nums; }
+.copy-week-skip { padding-left:16px; font-size:12px; font-weight:600; color:var(--warning-ink); }
+
 .shift-icon-button { display:grid; place-items:center; width:36px; height:36px; border-radius:10px; color:var(--shift-copy); cursor:pointer; }
 .shift-icon-button:hover { color:var(--primary); background:var(--primary-soft); }
-.shift-menu { z-index:80; min-width:194px; padding:6px; background:var(--card); border:1px solid var(--border); border-radius:14px; color:var(--foreground); box-shadow:0 12px 30px -12px #3c2e7460; }
+.shift-menu { z-index:80; min-width:194px; padding:6px; background:var(--card); border:1px solid var(--border); border-radius:14px; color:var(--foreground); box-shadow:0 12px 30px -12px color-mix(in srgb,color-mix(in srgb,var(--primary) 45%,#000) 38%,transparent); }
 .shift-menu [role=menuitem] { display:flex; align-items:center; gap:10px; min-height:38px; padding:8px 10px; border-radius:8px; outline:0; font-size:13px; cursor:pointer; }
 .shift-menu [data-highlighted] { background:var(--primary-soft); color:var(--primary); }
 .shift-menu .delete-item { color:var(--danger-ink); }
 .shift-menu-rule { height:1px; background:var(--border); margin:4px; }
-.shift-button { background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 86%,white),var(--primary)); color:var(--primary-foreground); border-radius:12px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 20px; font-size:14px; font-weight:550; box-shadow:0 5px 13px -8px #6d5ce7aa; transition:filter .16s,transform .16s; cursor:pointer; }
+.shift-button { background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 86%,white),var(--primary)); color:var(--primary-foreground); border-radius:12px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 20px; font-size:14px; font-weight:550; box-shadow:0 5px 13px -8px color-mix(in srgb,var(--primary) 67%,transparent); transition:filter .16s,transform .16s; cursor:pointer; }
 .shift-button:hover { filter:brightness(1.04); }
 .shift-button:active { transform:translateY(1px); }
 .shift-button:disabled { opacity:.65; cursor:wait; }
@@ -115,6 +126,7 @@ details.shift-check { display: block; }
   .week-hours { font-size:17px; }
   .week-net { font-size:13px; }
   .week-note-line, .week-note-editor { padding-inline:16px; }
+  .week-actions { padding-inline:16px; }
   .shift-day { grid-template-columns:40px minmax(0,1fr); gap:10px; padding:8px 6px 8px 14px; }
   .day-tile { width:40px; height:46px; }
   .day-tile > span:last-child { font-size:17px; }
@@ -135,7 +147,7 @@ details.shift-check { display: block; }
 .shift-editor { max-width:380px; }
 .shift-back { margin:-8px 0 14px -10px; color:var(--shift-copy); }
 .editor-heading { display:flex; justify-content:space-between; gap:16px; align-items:center; margin-bottom:22px; }
-.shift-editor-frame { padding:9px; border:1px solid var(--shift-edge); border-radius:25px; background:linear-gradient(145deg,color-mix(in srgb,var(--shift-white) 80%,var(--shift-tint)),color-mix(in srgb,var(--shift-white) 55%,var(--shift-tint))); box-shadow:0 10px 32px -24px #6c5ab45c; }
+.shift-editor-frame { padding:9px; border:1px solid var(--shift-edge); border-radius:25px; background:linear-gradient(145deg,color-mix(in srgb,var(--shift-white) 80%,var(--shift-tint)),color-mix(in srgb,var(--shift-white) 55%,var(--shift-tint))); box-shadow:0 10px 32px -24px color-mix(in srgb,color-mix(in srgb,var(--primary) 75%,#000) 36%,transparent); }
 .shift-editor-card { background:color-mix(in srgb,var(--shift-white) 97%,var(--shift-tint)); border:1px solid var(--shift-edge); border-radius:18px; padding:20px; }
 .shift-editor-heading { display:flex; align-items:center; gap:10px; margin:0 0 22px; }
 .shift-editor-heading a { display:grid; place-items:center; width:32px; height:36px; margin-left:-6px; border-radius:8px; }
@@ -213,7 +225,7 @@ details.shift-check { display: block; }
 .shift-page .shift-form .composer-head .composer-label { float:none; width:auto; margin:0; }
 
 .job-chips { display:flex; flex-wrap:wrap; gap:8px; }
-.shift-page .shift-form .job-chip { display:inline-flex; align-items:center; gap:10px; min-height:44px; max-width:100%; margin:0; padding:0 18px 0 14px; border:1px solid var(--border); border-radius:999px; background:var(--card); font-size:14px; font-weight:550; color:var(--foreground); cursor:pointer; transition:background-color .16s var(--ease-out), border-color .16s var(--ease-out), color .16s var(--ease-out); }
+.shift-page .shift-form .job-chip { display:inline-flex; align-items:center; gap:10px; min-height:44px; max-width:100%; margin:0; padding:6px 18px 6px 14px; border:1px solid var(--border); border-radius:22px; line-height:1.25; background:var(--card); font-size:14px; font-weight:550; color:var(--foreground); cursor:pointer; transition:background-color .16s var(--ease-out), border-color .16s var(--ease-out), color .16s var(--ease-out); }
 .job-chip > i { width:10px; height:10px; flex-shrink:0; border-radius:50%; background:var(--job); }
 .job-chip > span { overflow-wrap:anywhere; }
 .job-chip-note { color:var(--shift-copy); font-weight:400; }
@@ -251,7 +263,6 @@ details.shift-check { display: block; }
 .day-week-tile[data-today] > span { color:var(--primary); }
 .day-week-tile[aria-pressed=true] { border-color:var(--primary); background:var(--primary); }
 .day-week-tile[aria-pressed=true] > span { color:var(--primary-foreground); }
-.day-week-tile[aria-pressed=true] > span:first-child { color:color-mix(in srgb, var(--primary-foreground) 78%, transparent); }
 .day-week-tile[aria-pressed=true] > i[data-busy] { background:color-mix(in srgb, var(--primary-foreground) 70%, transparent); }
 
 .day-track { display:grid; gap:8px; }
@@ -441,16 +452,7 @@ details.shift-check { display: block; }
 }
 @media (max-width:349px) { .shift-schedule-row { grid-template-columns:minmax(0,1fr); } }
 
-/* Sideways-scrolling chip rows on a phone (clock-in jobs, log filters): the
-   cut-off chip at the edge says there is more, so the bar itself is hidden. */
-.shift-scroller { scrollbar-width: none; overscroll-behavior-x: contain; }
-.shift-scroller::-webkit-scrollbar { display: none; }
-
-/* Add/edit shift on a phone: the job chips scroll sideways in one row instead
-   of stacking one per row (the same treatment as the clock-in card). The
-   padding keeps the chips' focus outline inside the scroll box. */
-@media (max-width: 639px) {
-  .job-chips { flex-wrap:nowrap; overflow-x:auto; scroll-snap-type:x proximity; margin:-4px; padding:4px; }
-  .shift-page .shift-form .job-chip { flex-shrink:0; max-width:none; scroll-snap-align:start; }
-  .job-chip > span { white-space:nowrap; overflow-wrap:normal; }
-}
+/* Job and filter chips wrap at every width (owner's call, 2026-11-22): a
+   sideways scroller on a phone hid every job past the first one or two, and
+   a long name was cut off at the edge. A name too long for the row breaks
+   onto a second line inside its chip (`.job-chip > span` above). */

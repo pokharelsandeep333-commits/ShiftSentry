@@ -218,7 +218,7 @@ export function ShiftForm({ mode, jobs, timeZone, initialShift, initialDate, ini
     {timerStartedAt && <input type="hidden" name="timerStartedAt" value={timerStartedAt} />}
     <fieldset className="composer-section composer-job">
       <legend className="composer-label">Job</legend>
-      <div className="job-chips shift-scroller">
+      <div className="job-chips">
         {jobs.map((job) => <label key={job.id} className="job-chip" style={jobColor(job.color)}>
           <input type="radio" name="jobId" value={job.id} checked={jobId === job.id} onChange={() => { markEdited(); setJobId(job.id); }} required className="sr-only" />
           <i aria-hidden="true" /><span>{job.name}{job.archived && <span className="job-chip-note"> · archived</span>}</span>

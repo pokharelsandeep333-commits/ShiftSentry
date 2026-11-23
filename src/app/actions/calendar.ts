@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { listCalendars } from "@/lib/google/client";
 import { deleteConnection, withCalendarAccess } from "@/lib/google/connection";
-import type { SavedFormState } from "@/lib/form-state";
+import type { FieldErrors, SavedFormState } from "@/lib/form-state";
+import { fileIssues } from "@/lib/form-input";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { jobGoogleSettingsSchema } from "@/lib/validation";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
@@ -53,14 +54,18 @@ export async function saveJobGoogleSettings(_previous: SavedFormState, formData:
   const profile = await requireUser();
   if (!isGoogleCalendarEnabled()) return { message: "Google Calendar isn't available right now.", savedAt: null };
   const parsed = jobGoogleSettingsSchema.safeParse({ jobId: formData.get("jobId"), keyword: formData.get("keyword"), calendarId: formData.get("calendarId"), sync: formData.get("sync") });
-  if (!parsed.success) return { message: parsed.error.issues[0]?.message ?? "Check the Google Calendar settings.", savedAt: null };
+  if (!parsed.success) {
+    const fieldErrors: FieldErrors = {};
+    const message = fileIssues(parsed.error.issues, { keyword: "keyword", calendarId: "calendarId" }, fieldErrors);
+    return { message: message || (Object.keys(fieldErrors).length ? "" : "Check the Google Calendar settings."), savedAt: null, fieldErrors };
+  }
   const { jobId, keyword, sync } = parsed.data;
   let calendarId = parsed.data.calendarId;
   if (calendarId && calendarId !== "primary") {
     const access = await withCalendarAccess(profile.id, (token) => listCalendars(token));
     if (access.status !== "ok") return { message: "Couldn't reach Google Calendar to check that calendar. Try again.", savedAt: null };
     const match = access.value.find((calendar) => calendar.id === calendarId);
-    if (!match) return { message: "Choose one of your Google calendars.", savedAt: null };
+    if (!match) return { message: "", savedAt: null, fieldErrors: { calendarId: "Choose one of your Google calendars." } };
     if (match.primary) calendarId = "primary";
   }
 

@@ -1,35 +1,26 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { Brand } from "@/components/brand";
+import { PublicPage, readingColumn } from "@/components/public-page";
+
+/* Re-exported for the pages that already import it from here; see `src/lib/contact.ts`. */
+export { LEGAL_CONTACT_EMAIL } from "@/lib/contact";
+
+export const legalLink = "font-semibold text-[var(--primary)] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]";
 
 /**
- * The one public contact address, used by the legal pages, the landing footer
- * and /account-disabled. It is receive-only forwarding: never use it as the
- * From of mail the app or Supabase sends, or DMARC will reject that mail.
- */
-export const LEGAL_CONTACT_EMAIL = "contact@sandeeppokharel.com.np";
-
-export const legalLink = "font-semibold text-[var(--primary)] underline underline-offset-4 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)]";
-
-/**
- * The shell shared by /privacy and /terms. Both are public, static, and linked
- * from Google's consent-screen Branding, so neither may need a session.
+ * The shell shared by /privacy, /terms and /cookies. All are public and
+ * static, and /privacy and /terms are linked from Google's consent-screen
+ * Branding, so none may need a session. The landing's nav and footer
+ * (`PublicPage`) frame the reading column; the footer carries the links on to
+ * the other legal pages.
  */
 export function LegalPage({ title, effective, children }: { title: string; effective: string; children: ReactNode }) {
-  return <main className="min-h-dvh bg-[var(--background)] px-4 py-10 sm:px-8 sm:py-14">
-    <article className="mx-auto max-w-2xl">
-      <Link href="/" className="inline-flex min-h-11 items-center rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)]"><Brand /></Link>
-      <h1 className="mt-10 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
+  return <PublicPage>
+    <article className={readingColumn}>
+      <h1 className="font-display text-3xl font-semibold tracking-tight [text-wrap:balance] sm:text-4xl">{title}</h1>
       <p className="mt-3 text-sm text-[var(--muted-foreground)]">Effective {effective}</p>
       {children}
-      <p className="mt-12 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-        <Link href="/" className={`${legalLink} inline-flex min-h-11 items-center sm:min-h-0`}>Back to ShiftSentry</Link>
-        <Link href="/privacy" className={`${legalLink} inline-flex min-h-11 items-center sm:min-h-0`}>Privacy Policy</Link>
-        <Link href="/terms" className={`${legalLink} inline-flex min-h-11 items-center sm:min-h-0`}>Terms of Service</Link>
-        <Link href="/cookies" className={`${legalLink} inline-flex min-h-11 items-center sm:min-h-0`}>Cookies and storage</Link>
-      </p>
     </article>
-  </main>;
+  </PublicPage>;
 }
 
 export function LegalSection({ title, children }: { title: string; children: ReactNode }) {

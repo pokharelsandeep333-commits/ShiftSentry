@@ -9,31 +9,28 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 import { UNLINKED_SHIFT } from "@/lib/google/unlink";
 import { seriesIdOf, withEventIgnored, withSeriesIgnored } from "@/lib/google-sync-plan";
-import { calculateEarnings, parseMoneyToCents, parsePercentToBasisPoints, totalDeductionRate, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
-import { breakPeriodConfirmationSchema, breakPeriodImpactWeeksSchema, breakPeriodSchema, deductionSchema, jobSchema, payScheduleFormSchema, profileSettingsSchema, resourceIdSchema, shiftSchema, timerStartedAtSchema, weekNoteSchema } from "@/lib/validation";
+import { calculateEarnings, totalDeductionRate, type DeductionSnapshot, type PaySnapshot } from "@/lib/earnings";
+import { breakPeriodConfirmationSchema, breakPeriodImpactWeeksSchema, breakPeriodSchema, resourceIdSchema, shiftSchema, timerStartedAtSchema, weekNoteSchema } from "@/lib/validation";
 import { isWeekStart } from "@/lib/week-notes";
 import { addWeeksToLocalDateTime, parseShiftDateTimeInput } from "@/lib/shift-date-time";
 import { clampWeeks, readShiftFilters, shiftLogHref } from "@/lib/shift-log";
-import { emptyTimerState, type FormActionState, type SavedFormState, type TimerActionState } from "@/lib/form-state";
+import { emptyTimerState, type FieldErrors, type FormActionState, type SavedFormState, type TimerActionState } from "@/lib/form-state";
+import { readDeductionForm, readJobForm, readSettingsForm, readWeeklyLimit } from "@/lib/form-input";
 import { ADOPT_EARLY_MINUTES, adoptableShift, timerEditorHref, timerShift } from "@/lib/shift-timer";
 import { formatMinutes } from "@/lib/utils";
+import { readCapShifts } from "@/lib/cap-shifts";
+import { COPY_WEEK_MAX_SHIFTS, copySkipFromDatabase, planWeekCopy, type CopyPlanItem, type CopySkipReason, type CopySource, type CopyWeekItem, type CopyWeekOutcome, type CopyWeekPreview } from "@/lib/copy-week";
+import { createRateLimiter } from "@/lib/rate-limit";
+import { weekEndFor, weekStartDateFor } from "@/lib/time";
+import { weekStartOfLocalDate } from "@/lib/week-notes";
 
 function fail(message: string): never { throw new Error(message); }
-function cents(value: FormDataEntryValue | null) { const result = parseMoneyToCents(String(value ?? "")); return result === null ? fail("Enter a valid hourly rate, such as 18.50.") : result; }
-function basisPoints(value: FormDataEntryValue | null, label: string) { const result = parsePercentToBasisPoints(String(value ?? "")); return result === null ? fail(`Enter a valid ${label} between 0% and 100%.`) : result; }
-function checkCombinedRate(taxRateBasisPoints: number, deductions: DeductionSnapshot[]) { if (taxRateBasisPoints + totalDeductionRate(deductions) > 10_000) fail("Tax and deductions together cannot exceed 100%."); }
-function weeklyLimitMinutes(value: FormDataEntryValue | null) {
-  const raw = String(value ?? "").trim();
-  if (!raw) return null;
-  const hours = Number(raw);
-  if (!Number.isFinite(hours) || hours <= 0 || hours > 168) fail("Enter a weekly limit between 1 and 168 hours, or leave it blank for no cap.");
-  return Math.round(hours * 60);
-}
-/** The job form's pay schedule fields as `jobs` columns. A form without them (an older page) means no schedule. */
-function paySchedule(formData: FormData) {
-  const parsed = payScheduleFormSchema.safeParse({ frequency: formData.get("payFrequency") ?? "none", anchorDate: formData.get("payAnchorDate"), monthDay: formData.get("payMonthDay"), paydayOffsetDays: formData.get("paydayOffsetDays") });
-  return parsed.success ? parsed.data : fail(parsed.error.issues[0]?.message ?? "Check the pay schedule.");
-}
+const COMBINED_RATE_MESSAGE = "Tax and deductions together cannot exceed 100%.";
+function combinedRateTooHigh(taxRateBasisPoints: number, deductions: DeductionSnapshot[]) { return taxRateBasisPoints + totalDeductionRate(deductions) > 10_000; }
+function checkCombinedRate(taxRateBasisPoints: number, deductions: DeductionSnapshot[]) { if (combinedRateTooHigh(taxRateBasisPoints, deductions)) fail(COMBINED_RATE_MESSAGE); }
+function weeklyLimitMinutes(value: FormDataEntryValue | null) { const limit = readWeeklyLimit(value); return "error" in limit ? fail(limit.error) : limit.minutes; }
+/** A form reader's rejection as the form's state: messages under their fields, a top message only for the rest. */
+function rejected(read: { message: string; fieldErrors: FieldErrors }): FormActionState { return { message: read.message, fieldErrors: read.fieldErrors }; }
 function resourceId(formData: FormData, name = "id") { const parsed = resourceIdSchema.safeParse(formData.get(name)); return parsed.success ? parsed.data : fail("Invalid resource identifier."); }
 
 export type ShiftActionState = { message: string; field: "startsAt" | "endsAt" | null };
@@ -437,13 +434,13 @@ export async function deleteShift(formData: FormData) {
 
 export async function createJob(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
   const profile = await requireUser();
+  const input = readJobForm(formData);
+  if (!input.ok) return rejected(input);
+  const job = input.data;
   let createdId = "";
   const problem = await attempt(async () => {
-    const parsed = jobSchema.safeParse({ name: formData.get("name"), color: formData.get("color"), weeklyLimitMinutes: weeklyLimitMinutes(formData.get("weeklyLimitHours")), hourlyRateCents: cents(formData.get("hourlyRate")), taxRateBasisPoints: basisPoints(formData.get("taxRate"), "tax rate") });
-    if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid job.");
-    const schedule = paySchedule(formData);
     const supabase = await createServerSupabaseClient();
-    const { data: created, error } = await supabase.from("jobs").insert({ user_id: profile.id, name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints, ...schedule }).select("id").single();
+    const { data: created, error } = await supabase.from("jobs").insert({ user_id: profile.id, name: job.name, color: job.color, weekly_limit_minutes: job.weeklyLimitMinutes, hourly_rate_cents: job.hourlyRateCents, tax_rate_basis_points: job.taxRateBasisPoints, ...job.schedule }).select("id").single();
     if (error || !created) fail("Unable to create the job. Please try again.");
     createdId = created.id;
   });
@@ -454,41 +451,48 @@ export async function createJob(_previousState: FormActionState, formData: FormD
 
 export async function updateJobDetails(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
   const profile = await requireUser();
-  let id = "";
+  const jobId = resourceIdSchema.safeParse(formData.get("id"));
+  if (!jobId.success) return { message: "Invalid resource identifier." };
+  const id = jobId.data;
+  const input = readJobForm(formData);
+  if (!input.ok) return rejected(input);
+  const job = input.data;
+  let rateTooHigh = false;
   const problem = await attempt(async () => {
-    id = resourceId(formData);
-    const parsed = jobSchema.safeParse({ name: formData.get("name"), color: formData.get("color"), weeklyLimitMinutes: weeklyLimitMinutes(formData.get("weeklyLimitHours")), hourlyRateCents: cents(formData.get("hourlyRate")), taxRateBasisPoints: basisPoints(formData.get("taxRate"), "tax rate") });
-    if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid job.");
-    const schedule = paySchedule(formData);
     const supabase = await createServerSupabaseClient();
     const { data: deductions, error: deductionError } = await supabase.from("job_deductions").select("name,rate_basis_points,jobs!inner(user_id)").eq("job_id", id).eq("jobs.user_id", profile.id);
     if (deductionError) fail("Unable to validate deductions. Please try again.");
-    checkCombinedRate(parsed.data.taxRateBasisPoints, (deductions ?? []).map((item) => ({ name: item.name, rateBasisPoints: item.rate_basis_points })));
+    rateTooHigh = combinedRateTooHigh(job.taxRateBasisPoints, (deductions ?? []).map((item) => ({ name: item.name, rateBasisPoints: item.rate_basis_points })));
+    if (rateTooHigh) return;
     // Renaming is safe: shifts reference the job by id, and each one carries its
     // own pay snapshot, so nothing historical moves.
-    const { error } = await supabase.from("jobs").update({ name: parsed.data.name, color: parsed.data.color, weekly_limit_minutes: parsed.data.weeklyLimitMinutes ?? null, hourly_rate_cents: parsed.data.hourlyRateCents, tax_rate_basis_points: parsed.data.taxRateBasisPoints, ...schedule }).eq("id", id).eq("user_id", profile.id);
+    const { error } = await supabase.from("jobs").update({ name: job.name, color: job.color, weekly_limit_minutes: job.weeklyLimitMinutes, hourly_rate_cents: job.hourlyRateCents, tax_rate_basis_points: job.taxRateBasisPoints, ...job.schedule }).eq("id", id).eq("user_id", profile.id);
     if (error) fail("Unable to update job details. Please try again.");
   });
   if (problem) return { message: problem };
+  // The tax rate is the field typed here; the deductions it meets are listed on the same page.
+  if (rateTooHigh) return { message: "", fieldErrors: { taxRate: COMBINED_RATE_MESSAGE } };
   revalidatePath("/"); revalidatePath("/jobs"); revalidatePath(`/jobs/${id}`); redirect(`/jobs/${id}?saved=job-updated`);
 }
 
 export async function addJobDeduction(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
   const profile = await requireUser();
-  let jobId = "";
+  const input = readDeductionForm(formData);
+  if (!input.ok) return rejected(input);
+  const deduction = input.data;
+  const jobId = deduction.jobId;
+  let rateTooHigh = false;
   const problem = await attempt(async () => {
-    const rateBasisPoints = basisPoints(formData.get("rate"), "deduction rate");
-    const parsed = deductionSchema.safeParse({ jobId: formData.get("jobId"), name: formData.get("name"), rateBasisPoints });
-    if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid deduction.");
     const supabase = await createServerSupabaseClient();
-    const { data: job, error: jobError } = await supabase.from("jobs").select("tax_rate_basis_points,job_deductions(name,rate_basis_points)").eq("id", parsed.data.jobId).eq("user_id", profile.id).single();
+    const { data: job, error: jobError } = await supabase.from("jobs").select("tax_rate_basis_points,job_deductions(name,rate_basis_points)").eq("id", jobId).eq("user_id", profile.id).single();
     if (jobError || !job) fail("Job not found.");
-    checkCombinedRate(job.tax_rate_basis_points, [...(job.job_deductions ?? []).map((item) => ({ name: item.name, rateBasisPoints: item.rate_basis_points })), { name: parsed.data.name, rateBasisPoints: parsed.data.rateBasisPoints }]);
-    const { error } = await supabase.from("job_deductions").insert({ job_id: parsed.data.jobId, name: parsed.data.name, rate_basis_points: parsed.data.rateBasisPoints });
+    rateTooHigh = combinedRateTooHigh(job.tax_rate_basis_points, [...(job.job_deductions ?? []).map((item) => ({ name: item.name, rateBasisPoints: item.rate_basis_points })), { name: deduction.name, rateBasisPoints: deduction.rateBasisPoints }]);
+    if (rateTooHigh) return;
+    const { error } = await supabase.from("job_deductions").insert({ job_id: jobId, name: deduction.name, rate_basis_points: deduction.rateBasisPoints });
     if (error) fail("Unable to add the deduction. Please try again.");
-    jobId = parsed.data.jobId;
   });
   if (problem) return { message: problem };
+  if (rateTooHigh) return { message: "", fieldErrors: { rate: COMBINED_RATE_MESSAGE } };
   revalidatePath("/jobs"); revalidatePath(`/jobs/${jobId}`); redirect(`/jobs/${jobId}?saved=deduction-added`);
 }
 
@@ -536,13 +540,12 @@ export async function unarchiveJob(formData: FormData) { const profile = await r
 
 export async function updateSettings(_previousState: FormActionState, formData: FormData): Promise<FormActionState> {
   const profile = await requireUser();
+  const input = readSettingsForm(formData);
+  if (!input.ok) return rejected(input);
+  const settings = input.data;
   const problem = await attempt(async () => {
-    const limitHours = String(formData.get("globalWeeklyLimitHours") ?? "");
-    const limitMinutes = limitHours ? Math.round(Number(limitHours) * 60) : null;
-    const parsed = profileSettingsSchema.safeParse({ displayName: formData.get("displayName"), timeZone: formData.get("timeZone"), weekStartsOn: formData.get("weekStartsOn"), globalWeeklyLimitMinutes: limitMinutes });
-    if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Invalid settings.");
     const supabase = await createServerSupabaseClient();
-    const { error } = await supabase.from("profiles").update({ display_name: parsed.data.displayName || null, time_zone: parsed.data.timeZone, week_starts_on: parsed.data.weekStartsOn, global_weekly_limit_minutes: parsed.data.globalWeeklyLimitMinutes ?? null }).eq("id", profile.id);
+    const { error } = await supabase.from("profiles").update({ display_name: settings.displayName || null, time_zone: settings.timeZone, week_starts_on: settings.weekStartsOn, global_weekly_limit_minutes: settings.globalWeeklyLimitMinutes ?? null }).eq("id", profile.id);
     if (error) fail("Unable to update settings. Please try again.");
   });
   if (problem) return { message: problem };
@@ -641,4 +644,115 @@ export async function stopFollowingGoogle(formData: FormData) {
   if (error) fail("Unable to update the shift. Please try again.");
   revalidatePath("/shifts"); revalidatePath("/calendar");
   redirect(`/shifts/${id}/edit`);
+}
+
+// ── Copy a week's shifts into the next week ──────────────────────────────────
+// Self-contained: the planning is pure (src/lib/copy-week.ts) and each copy is
+// written through the same helpers as createShift.
+
+/** Opening the dialog reads; copying writes up to COPY_WEEK_MAX_SHIFTS rows, so it is held tighter. */
+const allowCopyPreview = createRateLimiter({ limit: 30, windowMs: 60_000 });
+const allowCopyWeek = createRateLimiter({ limit: 6, windowMs: 60_000 });
+
+type CopyJobRow = JobPayRow & { id: string; name: string; color: string; archived_at: string | null; weekly_limit_minutes: number | null };
+
+function copyWeekItem(item: CopyPlanItem, job: CopyJobRow | undefined, timeZone: string, skip: CopySkipReason | null): CopyWeekItem {
+  const startsAt = item.startsAt ?? item.source.startsAt;
+  const endsAt = item.endsAt ?? item.source.endsAt;
+  const overnight = formatInTimeZone(startsAt, timeZone, "yyyy-MM-dd") !== formatInTimeZone(endsAt, timeZone, "yyyy-MM-dd");
+  return {
+    jobName: job?.name ?? "Archived job",
+    color: job?.color ?? "#98a2b3",
+    day: formatInTimeZone(startsAt, timeZone, "EEE, MMM d"),
+    time: `${formatInTimeZone(startsAt, timeZone, "h:mm a")} – ${formatInTimeZone(endsAt, timeZone, "h:mm a")}`,
+    endsOn: overnight ? formatInTimeZone(endsAt, timeZone, "EEE") : null,
+    skip,
+  };
+}
+
+/**
+ * Reads the week starting on the local date `weekStart` and plans its copy one
+ * week later. Both the preview and the copy call this, so the copy re-plans
+ * against what is in the database now rather than trusting the dialog.
+ */
+async function planCopyOfWeek(profile: Awaited<ReturnType<typeof requireUser>>, weekStart: unknown) {
+  const { time_zone: timeZone, week_starts_on: weekStartsOn } = profile;
+  if (typeof weekStart !== "string" || !isWeekStart(weekStart, weekStartsOn)) return { error: "That week could not be found. Refresh the page and try again." } as const;
+  const sourceStart = weekStartOfLocalDate(weekStart, timeZone, weekStartsOn);
+  const targetStart = weekEndFor(sourceStart, timeZone, weekStartsOn);
+  const targetEnd = weekEndFor(targetStart, timeZone, weekStartsOn);
+  // An overnight copy on the last day ends in the week after, whose cap it also meets.
+  const windowEnd = weekEndFor(targetEnd, timeZone, weekStartsOn);
+
+  const supabase = await createServerSupabaseClient();
+  const { data: rows, error } = await supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes").eq("user_id", profile.id)
+    .gte("starts_at", sourceStart.toISOString()).lt("starts_at", targetStart.toISOString()).order("starts_at").limit(COPY_WEEK_MAX_SHIFTS + 1);
+  if (error) return { error: "We couldn't read this week's shifts. Please try again." } as const;
+  if (!rows.length) return { error: "This week has no shifts to copy." } as const;
+  if (rows.length > COPY_WEEK_MAX_SHIFTS) return { error: `This week has more than ${COPY_WEEK_MAX_SHIFTS} shifts, too many to copy at once.` } as const;
+
+  const [jobsResult, existing, breaks] = await Promise.all([
+    supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,job_deductions(name,rate_basis_points)").eq("user_id", profile.id).in("id", [...new Set(rows.map((row) => row.job_id))]),
+    readCapShifts(supabase, profile.id, targetStart.toISOString(), windowEnd.toISOString()).catch(() => null),
+    supabase.from("break_periods").select("id,start_date,end_date,weekly_limit_minutes,label").eq("user_id", profile.id)
+      .gte("end_date", weekStartDateFor(targetStart, timeZone, weekStartsOn))
+      .lt("start_date", weekStartDateFor(windowEnd, timeZone, weekStartsOn)),
+  ]);
+  if (jobsResult.error || !existing || breaks.error) return { error: "We couldn't check next week. Please try again." } as const;
+
+  const jobs = new Map<string, CopyJobRow>((jobsResult.data ?? []).map((job) => [job.id, job]));
+  const sources: CopySource[] = rows.map((row) => {
+    const job = jobs.get(row.job_id);
+    return { id: row.id, jobId: row.job_id, startsAt: new Date(row.starts_at), endsAt: new Date(row.ends_at), notes: row.notes, job: { archived: !job || Boolean(job.archived_at), weeklyLimitMinutes: job?.weekly_limit_minutes ?? null } };
+  });
+  const plan = planWeekCopy({ sources, existing, timeZone, weekStartsOn, globalLimit: profile.global_weekly_limit_minutes, breakPeriods: breaks.data, now: new Date() });
+  const lastDay = new Date(targetEnd.getTime() - 60_000);
+  const sameMonth = formatInTimeZone(targetStart, timeZone, "yyyy-MM") === formatInTimeZone(lastDay, timeZone, "yyyy-MM");
+  const targetRange = `${formatInTimeZone(targetStart, timeZone, "MMM d")} – ${formatInTimeZone(lastDay, timeZone, sameMonth ? "d" : "MMM d")}`;
+  return { supabase, plan, jobs, targetRange };
+}
+
+/** What "Copy to next week" would do, without writing anything. */
+export async function previewWeekCopy(weekStart: string): Promise<CopyWeekPreview> {
+  const profile = await requireUser();
+  if (!allowCopyPreview(profile.id)) return { status: "error", message: "Too many requests. Wait a minute and try again." };
+  const planned = await planCopyOfWeek(profile, weekStart);
+  if ("error" in planned) return { status: "error", message: planned.error ?? "Something went wrong. Please try again." };
+  return { status: "ok", targetRange: planned.targetRange, items: planned.plan.map((item) => copyWeekItem(item, planned.jobs.get(item.source.jobId), profile.time_zone, item.skip)) };
+}
+
+/**
+ * Copies a week's shifts one week later. Each copy is validated by Zod, priced
+ * from its job's current pay (as a new shift is) and inserted on its own, so
+ * the triggers judge every one and a refusal skips that shift, never the rest.
+ */
+export async function copyWeekToNext(weekStart: string): Promise<CopyWeekOutcome> {
+  const profile = await requireUser();
+  if (!allowCopyWeek(profile.id)) return { status: "error", message: "Too many copies in a row. Wait a minute and try again." };
+  const planned = await planCopyOfWeek(profile, weekStart);
+  if ("error" in planned) return { status: "error", message: planned.error ?? "Something went wrong. Please try again." };
+  const { supabase, plan, jobs, targetRange } = planned;
+
+  let created = 0;
+  const items: CopyWeekItem[] = [];
+  for (const item of plan) {
+    const job = jobs.get(item.source.jobId);
+    let skip = item.skip;
+    if (!skip && job && item.startsAt && item.endsAt) {
+      const parsed = shiftSchema.safeParse({ jobId: item.source.jobId, startsAt: item.startsAt, endsAt: item.endsAt, notes: item.source.notes ?? "" });
+      if (!parsed.success) skip = "bad-span";
+      else {
+        const problem = await attempt(async () => {
+          const { error } = await supabase.from("shifts").insert({ user_id: profile.id, ...shiftPayload(parsed.data, paySnapshotFromJob(job)) });
+          if (error) fail(error.message);
+        });
+        if (problem) skip = copySkipFromDatabase(problem);
+        else created += 1;
+      }
+    } else if (!skip) skip = "not-saved";
+    items.push(copyWeekItem(item, job, profile.time_zone, skip));
+  }
+
+  if (created) { revalidatePath("/"); revalidatePath("/shifts"); revalidatePath("/calendar"); }
+  return { status: "ok", targetRange, created, items };
 }

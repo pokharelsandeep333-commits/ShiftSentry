@@ -6,6 +6,7 @@ import { AddDeductionForm, JobDetailsForm } from "@/components/jobs/job-forms";
 import { JobGoogleForm } from "@/components/jobs/job-google-form";
 import { JobAvatar, formatPercent, takeHomePerHourCents, withheldBasisPoints } from "@/components/jobs/job-summary";
 import { SavedToast } from "@/components/saved-toast";
+import { SettingRow } from "@/components/settings/setting-row";
 import { SettingsSection } from "@/components/settings/settings-section";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { formatCents } from "@/lib/earnings";
 import { payScheduleFromColumns, type JobPayColumns } from "@/lib/pay-period";
 
-const linkClass = "font-semibold text-[var(--primary)] underline-offset-4 hover:underline";
+const linkClass = "font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 px-4 py-3 first:pl-0 sm:px-5 sm:first:pl-0">
@@ -92,21 +93,20 @@ export function JobEditor({ job, googleOn, googleCalendars, today, savedMessage 
     </dl>
 
     <div className="grid max-w-3xl gap-6">
-      <SettingsSection id="details" icon={SlidersHorizontal} title="Details and pay" description="Name, colour, pay, weekly limit and pay period.">
+      <SettingsSection id="details" icon={SlidersHorizontal} title="Details and pay" description="Name, colour, pay, weekly limit and pay period. Pay changes apply to shifts you add from now on.">
         <JobDetailsForm id={job.id} name={job.name} hourlyRateCents={job.hourly_rate_cents} taxRateBasisPoints={job.tax_rate_basis_points} color={job.color} weeklyLimitMinutes={job.weekly_limit_minutes} paySchedule={payScheduleFromColumns(job)} today={today} />
       </SettingsSection>
 
       <SettingsSection id="deductions" icon={Percent} title="Deductions" description="Percentages taken from gross pay, like retirement or union dues. Like the rate, they apply to shifts you add from now on.">
         <div className="grid gap-5">
-          {job.job_deductions.length > 0 && <ul className="grid gap-2">
-            {job.job_deductions.map((deduction) => <li key={deduction.id} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--surface-subtle)] py-1.5 pl-3.5 pr-1.5 text-sm">
-              <span className="min-w-0 truncate"><span className="font-semibold">{deduction.name}</span> · {formatPercent(deduction.rate_basis_points)}</span>
-              <form action={deleteJobDeduction}><input type="hidden" name="id" value={deduction.id} /><Button size="sm" variant="ghost">Remove</Button></form>
-            </li>)}
-          </ul>}
-          <p className="text-sm leading-6 text-[var(--muted-foreground)]">
-            Tax {formatPercent(job.tax_rate_basis_points)}{deductionTotal ? <> + deductions {formatPercent(deductionTotal)}</> : null} = <span className="font-semibold text-[var(--foreground)]">{formatPercent(withheldBasisPoints(job))} withheld</span>. Together they can&apos;t pass 100%.
-          </p>
+          <div className="divide-y">
+            {job.job_deductions.map((deduction) => <SettingRow key={deduction.id} label={deduction.name} hint={`${formatPercent(deduction.rate_basis_points)} of gross pay`} wide>
+              <form action={deleteJobDeduction}><input type="hidden" name="id" value={deduction.id} /><Button size="sm" variant="outline" aria-label={`Remove ${deduction.name}`}>Remove</Button></form>
+            </SettingRow>)}
+            <SettingRow label="Withheld in total" hint={<>Tax {formatPercent(job.tax_rate_basis_points)}{deductionTotal ? <> + deductions {formatPercent(deductionTotal)}</> : null}. Together they can&apos;t pass 100%.</>} wide>
+              <p className="font-display text-lg font-semibold sm:text-right">{formatPercent(withheldBasisPoints(job))}</p>
+            </SettingRow>
+          </div>
           <div className="border-t pt-5"><AddDeductionForm jobId={job.id} /></div>
         </div>
       </SettingsSection>
@@ -117,10 +117,9 @@ export function JobEditor({ job, googleOn, googleCalendars, today, savedMessage 
       </SettingsSection>}
 
       <SettingsSection id="archive" icon={Archive} title="Archive this job" description="Saved shifts still count toward your global weekly cap. Archiving hides this job from earnings reports and new shifts. You can restore it from Jobs." danger>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs leading-5 text-[var(--muted-foreground)]">To delete a job, archive it first. It can be deleted once it has no shifts.</p>
-          <form action={archiveJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Archive" confirmLabel="Archive job?" variant="outline" /></form>
-        </div>
+        <SettingRow label="Archive" hint="To delete a job, archive it first. It can be deleted once it has no shifts." wide>
+          <form action={archiveJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Archive" confirmLabel="Archive job?" variant="outline" size="sm" /></form>
+        </SettingRow>
       </SettingsSection>
     </div>
   </>;

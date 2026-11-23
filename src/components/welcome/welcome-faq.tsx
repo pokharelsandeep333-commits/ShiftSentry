@@ -1,3 +1,6 @@
+import { ChevronDown, Mail } from "lucide-react";
+import { LEGAL_CONTACT_EMAIL } from "@/components/legal-page";
+
 export type FaqItem = { question: string; answer: string };
 
 /**
@@ -29,19 +32,34 @@ export function faqItems(calendarEnabled: boolean): FaqItem[] {
 /**
  * The questions as native disclosure widgets: keyboard and screen-reader
  * behaviour come from `<details>`, and every answer is in the server HTML,
- * open or not, for crawlers and for find-in-page.
+ * open or not, for crawlers and for find-in-page. On wide screens the heading
+ * and the contact line sit in a sticky left column beside the list. Opening
+ * one eases its answer open where the browser can animate to `auto`
+ * (`.faq-item` in globals.css); elsewhere it simply appears.
  */
 export function WelcomeFaq({ items, className, titleClassName }: { items: FaqItem[]; className: string; titleClassName: string }) {
   return <section id="faq" aria-labelledby="faq-title" className={className}>
-    <h2 id="faq-title" className={titleClassName}>Questions, answered.</h2>
-    <div className="mt-6 divide-y border-y sm:mt-8">
-      {items.map(({ question, answer }) => <details key={question} className="group">
-        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 font-display text-base font-semibold leading-snug focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] [&::-webkit-details-marker]:hidden">
-          {question}
-          <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--primary-soft)] text-lg leading-none text-[var(--primary)] transition-[rotate] duration-200 group-open:rotate-45">+</span>
-        </summary>
-        <p className="max-w-[62ch] pb-5 text-[15px] leading-7 text-[var(--muted-foreground)]">{answer}</p>
-      </details>)}
+    <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
+      <div className="lg:col-span-4">
+        <div className="lg:sticky lg:top-28">
+          <h2 id="faq-title" className={titleClassName}>Questions, answered.</h2>
+          <p className="mt-4 max-w-sm text-[15px] leading-7 text-[var(--muted-foreground)]">Can&apos;t find yours? Send it straight to the person who builds ShiftSentry.</p>
+          <a href={`mailto:${LEGAL_CONTACT_EMAIL}`} title={LEGAL_CONTACT_EMAIL} className="welcome-ghost mt-5 inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-[background-color,border-color,translate] duration-200 ease-out hover:-translate-y-0.5">
+            <Mail className="size-4 text-[var(--primary)]" strokeWidth={2} />Email a question
+          </a>
+        </div>
+      </div>
+      <div className="divide-y border-y lg:col-span-8">
+        {items.map(({ question, answer }) => <details key={question} className="faq-item group">
+          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-6 py-5 font-display text-base font-semibold leading-snug transition-colors hover:text-[var(--primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] sm:text-[1.0625rem] [&::-webkit-details-marker]:hidden">
+            {question}
+            <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full border text-[var(--muted-foreground)] transition-[rotate,background-color,border-color,color] duration-300 ease-out group-open:rotate-180 group-open:border-transparent group-open:bg-[var(--primary)] group-open:text-[var(--primary-foreground)]">
+              <ChevronDown className="size-4" strokeWidth={2.25} />
+            </span>
+          </summary>
+          <p className="max-w-[62ch] pb-6 pr-14 text-[15px] leading-7 text-[var(--muted-foreground)]">{answer}</p>
+        </details>)}
+      </div>
     </div>
   </section>;
 }

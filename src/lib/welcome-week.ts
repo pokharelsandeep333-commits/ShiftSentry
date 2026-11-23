@@ -18,7 +18,9 @@ export const EXAMPLE_WEEK: ExampleWeek = {
   limitMinutes: 1_200,
   alertPercent: 80,
   jobs: [
-    { id: "campus", name: "Campus desk", color: "#9486ff", hourlyRateCents: 1_250, taxRateBasisPoints: 1_200, limitMinutes: 720 },
+    /* The accent's light fill (`--primary-bright`), so this job follows the
+       chosen accent; the café keeps its fixed green. Used only in CSS. */
+    { id: "campus", name: "Campus desk", color: "var(--primary-bright)", hourlyRateCents: 1_250, taxRateBasisPoints: 1_200, limitMinutes: 720 },
     { id: "cafe", name: "River café", color: "#32d583", hourlyRateCents: 1_100, taxRateBasisPoints: 1_200, limitMinutes: null },
   ],
   shifts: [

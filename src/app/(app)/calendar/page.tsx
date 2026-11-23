@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const linkClass = "font-semibold text-[var(--primary)] underline-offset-4 hover:underline";
+const linkClass = "font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]";
 const GOOGLE_NOTES = {
   not_connected: <>See your Google Calendar events here too. <Link href="/settings#google-calendar" className={linkClass}>Connect in Settings</Link></>,
   needs_reconnect: <>Google Calendar needs reconnecting. <Link href="/settings#google-calendar" className={linkClass}>Settings</Link></>,

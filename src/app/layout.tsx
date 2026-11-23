@@ -6,6 +6,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { ServiceWorkerRegistrar } from "@/components/service-worker";
+import { ACCENT_BOOTSTRAP, ACCENT_CSS } from "@/lib/accent";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://sentry.sandeeppokharel.com.np"),
@@ -61,8 +62,12 @@ export const viewport: Viewport = {
  * sidebar would open for a frame and then snap shut. The key and its JSON
  * encoding are `createLocalPreference`'s, owned by `SidebarToggle`.
  *
- * The string is a compile-time constant with no interpolation of anything --
- * this is not a channel for user input, which is what the repo's rule about
+ * And it restores the chosen accent colour (`data-accent` on <html>, see
+ * `src/lib/accent.ts`), so a picked accent never flashes violet first.
+ *
+ * The string is a compile-time constant: the only interpolation is
+ * `ACCENT_BOOTSTRAP`, itself built from the constant accent list. This is not
+ * a channel for user input, which is what the repo's rule about
  * `dangerouslySetInnerHTML` is guarding against.
  */
 const THEME_BOOTSTRAP = `
@@ -77,6 +82,7 @@ try {
   if (localStorage.getItem('shiftsentry:sidebar') === '"collapsed"') {
     document.documentElement.dataset.sidebar = 'collapsed';
   }
+${ACCENT_BOOTSTRAP}
 } catch (e) {}
 `;
 
@@ -105,6 +111,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html suppressHydrationWarning lang="en" className="h-full antialiased">
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        {/* The colour themes' rules, generated from the constant list in src/lib/accent.ts; style-src allows inline styles. */}
+        <style dangerouslySetInnerHTML={{ __html: ACCENT_CSS }} />
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider><ToastProvider>{children}<ServiceWorkerRegistrar /></ToastProvider></ThemeProvider>

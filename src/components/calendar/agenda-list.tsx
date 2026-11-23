@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
+import { Plus } from "lucide-react";
 import { itemsOnDay, type CalendarItem } from "@/lib/calendar-layout";
+import { quickAddDayHref } from "@/lib/calendar-quick-add";
 import { cn } from "@/lib/utils";
 
-/** The phone layout: the same items as a day-by-day list; empty days are skipped. */
+/**
+ * The phone layout: the same items as a day-by-day list; empty days are
+ * skipped. Each day heading carries an Add link for that date (quick add, the
+ * phone's version of tapping an empty slot), and an empty selected day gets
+ * its own card with one.
+ */
 export function AgendaList({ days, today, anchor, items, timeZone }: { days: string[]; anchor: string; today: string; items: CalendarItem[]; timeZone: string }) {
   const time = (iso: string) => formatInTimeZone(iso, timeZone, "h:mm a");
   const withItems = days.map((day) => ({ day, dayItems: itemsOnDay(items, day, timeZone) })).filter(({ dayItems }) => dayItems.length > 0);
@@ -12,10 +19,13 @@ export function AgendaList({ days, today, anchor, items, timeZone }: { days: str
     {emptyDay && <section className="rounded-2xl border bg-[var(--card)] p-4">
       <h2 className="font-display text-base font-semibold">{formatInTimeZone(`${anchor}T12:00:00Z`, "UTC", "EEEE, MMM d")}</h2>
       <p className="mt-1 text-sm text-[var(--muted-foreground)]">{withItems.length ? "Nothing scheduled on this day." : "Nothing scheduled in this range."}</p>
-      <Link href={`/shifts/new?date=${anchor}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Plan a shift on this date</Link>
+      <Link href={quickAddDayHref(anchor) ?? "/shifts/new"} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Plan a shift on this date</Link>
     </section>}
     {withItems.map(({ day, dayItems }) => <section key={day}>
-      <h2 className={cn("text-sm font-semibold", day === today && "text-[var(--primary)]")}>{day === today ? "Today · " : ""}{formatInTimeZone(`${day}T12:00:00.000Z`, "UTC", "EEEE, MMM d")}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className={cn("text-sm font-semibold", day === today && "text-[var(--primary)]")}>{day === today ? "Today · " : ""}{formatInTimeZone(`${day}T12:00:00.000Z`, "UTC", "EEEE, MMM d")}</h2>
+        <Link href={quickAddDayHref(day) ?? "/shifts/new"} aria-label={`Add shift on ${formatInTimeZone(`${day}T12:00:00.000Z`, "UTC", "EEEE, MMMM d")}`} className="-my-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-semibold text-[var(--primary)] transition-colors hover:bg-[var(--surface-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--primary)]"><Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />Add</Link>
+      </div>
       <ul className="mt-2 space-y-2">
         {dayItems.map((item) => {
           const body = <>

@@ -26,13 +26,17 @@ import { SignInLink } from "@/components/welcome/sign-in-link";
  * click instead of after a round trip. The home link does not: it points at
  * the page it sits on, and its prefetch was a request and a payload parse at
  * load for nothing.
+ *
+ * The public reading pages (`PublicPage`) render it too, with `base="/"`: off
+ * the landing its section links have to name the landing (`/#how`), while on
+ * the landing they stay bare fragments, so a click only scrolls.
  */
 const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]";
 const navLink = `whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] ${focusRing}`;
 /* 44px tall on phones, the touch-target floor; the desktop bar keeps its 36px pills. */
 const navButton = `inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full px-3 text-sm font-semibold transition-[background-color,border-color] duration-200 sm:px-4 md:h-9 ${focusRing}`;
 
-export function WelcomeNav() {
+export function WelcomeNav({ base = "" }: { base?: "" | "/" }) {
   const sentinel = useRef<HTMLSpanElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -52,8 +56,11 @@ export function WelcomeNav() {
           <BrandMark size="default" className="size-9 rounded-xl" />
           <span className="welcome-nav-word font-display text-[1.0625rem] font-semibold text-[var(--foreground)]">ShiftSentry</span>
         </Link>
-        <nav aria-label="Page" className="hidden items-center gap-1 md:flex">
-          <a href="#week" className={navLink}>How it works</a>
+        {/* From lg only: at tablet widths four links collide with the buttons. Privacy is in the footer. */}
+        <nav aria-label="Page" className="hidden items-center gap-1 lg:flex">
+          <a href={`${base}#how`} className={navLink}>How it works</a>
+          <a href={`${base}#week`} className={navLink}>Example week</a>
+          <Link href="/about" className={navLink}>About</Link>
           <Link href="/privacy" className={navLink}>Privacy</Link>
         </nav>
         <div className="flex items-center gap-1.5 justify-self-end sm:gap-2">

@@ -5,7 +5,7 @@ import { LEGAL_VERSION } from "@/lib/legal";
 const origin = "https://sentry.sandeeppokharel.com.np";
 
 /** Bump when the landing's or the about page's text changes. */
-const LANDING_UPDATED = "2026-11-02";
+const LANDING_UPDATED = "2026-11-22";
 const ABOUT_UPDATED = "2026-11-02";
 
 /**
@@ -21,6 +21,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const legalUpdated = LEGAL_VERSION.slice(0, 10);
   return [
     { url: `${origin}/`, lastModified: LANDING_UPDATED, changeFrequency: "weekly", priority: 1 },
+    { url: `${origin}/guides`, lastModified: GUIDES.map((guide) => guide.updated).sort().at(-1), changeFrequency: "monthly", priority: 0.6 },
     ...GUIDES.map((guide) => ({ url: `${origin}/guides/${guide.slug}`, lastModified: guide.updated, changeFrequency: "monthly" as const, priority: 0.7 })),
     { url: `${origin}/about`, lastModified: ABOUT_UPDATED, changeFrequency: "yearly", priority: 0.5 },
     { url: `${origin}/login`, changeFrequency: "yearly", priority: 0.5 },

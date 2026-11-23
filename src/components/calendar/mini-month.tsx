@@ -84,7 +84,7 @@ export function MiniMonth({ anchor, today, view, weekStartsOn, selectedDays }: {
             aria-current={day === anchor ? "date" : undefined}
             className={cn(
               "grid size-9 place-items-center rounded-full text-xs tabular-nums lg:size-7 lg:text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
-              isToday ? "bg-[var(--primary)] font-semibold text-[var(--primary-foreground)]" : day === anchor ? "font-semibold text-[var(--primary)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--primary)_45%,transparent)]" : inMonth ? "text-[var(--foreground)] hover:bg-[var(--surface-subtle)]" : "text-[var(--muted-foreground)] opacity-70 hover:bg-[var(--surface-subtle)]",
+              isToday ? "bg-[var(--primary)] font-semibold text-[var(--primary-foreground)]" : day === anchor ? "font-semibold text-[var(--primary)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--primary)_45%,transparent)]" : inMonth ? "text-[var(--foreground)] hover:bg-[var(--surface-subtle)]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)]",
             )}
           >{Number(day.slice(8))}</Link>
         </div>;

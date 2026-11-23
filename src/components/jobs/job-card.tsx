@@ -39,8 +39,9 @@ export function JobCard({ job, googleOn }: { job: CardJob; googleOn: boolean }) 
         <ChevronRight className="mt-1 size-5 shrink-0 text-[var(--muted-foreground)] transition-[translate] group-hover:translate-x-0.5 group-hover:text-[var(--primary)]" aria-hidden="true" />
       </div>
       <dl className="mt-5 grid flex-1 grid-cols-2 content-start gap-x-4 gap-y-3 border-t pt-4 text-sm">
-        <div><dt className="text-xs text-[var(--muted-foreground)]">Weekly limit</dt><dd className="mt-0.5 font-semibold">{job.weekly_limit_minutes ? formatMinutes(job.weekly_limit_minutes) : "None"}</dd></div>
-        <div><dt className="text-xs text-[var(--muted-foreground)]">Tax and deductions</dt><dd className="mt-0.5 font-semibold">{formatPercent(withheldBasisPoints(job))}{deductions ? <span className="font-normal text-[var(--muted-foreground)]"> · {deductions} deduction{deductions === 1 ? "" : "s"}</span> : null}</dd></div>
+        {/* No limit is the default, so it says nothing; tax then takes the row. */}
+        {job.weekly_limit_minutes ? <div><dt className="text-xs text-[var(--muted-foreground)]">Weekly limit</dt><dd className="mt-0.5 font-semibold">{formatMinutes(job.weekly_limit_minutes)}</dd></div> : null}
+        <div className={job.weekly_limit_minutes ? undefined : "col-span-2"}><dt className="text-xs text-[var(--muted-foreground)]">Tax and deductions</dt><dd className="mt-0.5 font-semibold">{formatPercent(withheldBasisPoints(job))}{deductions ? <span className="font-normal text-[var(--muted-foreground)]"> · {deductions} deduction{deductions === 1 ? "" : "s"}</span> : null}</dd></div>
         <div className="col-span-2"><dt className="text-xs text-[var(--muted-foreground)]">Pay period</dt><dd className="mt-0.5 font-semibold">{schedule ? describePaySchedule(schedule) : <span className="font-normal text-[var(--muted-foreground)]">Not set</span>}</dd></div>
       </dl>
       <div className="mt-4 flex flex-wrap items-center gap-2">

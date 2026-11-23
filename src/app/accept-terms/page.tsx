@@ -26,7 +26,7 @@ export default async function AcceptTermsPage({ searchParams }: { searchParams: 
       <Card><CardHeader><p className="text-xs font-semibold uppercase tracking-wider text-[var(--primary)]">Agreement {LEGAL_VERSION}</p><h1 className="font-display text-3xl font-semibold tracking-tight">Before you continue</h1><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">Please review the Terms and Privacy Policy. ShiftSentry is free, and your work records stay private.</p></CardHeader>
         <CardContent>{demo && <p role="status" className="mb-4 text-sm text-[var(--muted-foreground)]">Preview only. Agreement recording requires a configured account service.</p>}<AcceptanceForm next={next} demo={demo} /></CardContent>
       </Card>
-      <p className="text-sm leading-6 text-[var(--muted-foreground)]">You can decline and still <Link className="font-semibold text-[var(--primary)] underline" href="/account">export or delete your account</Link>.</p>
+      <p className="text-sm leading-6 text-[var(--muted-foreground)]">You can decline and still <Link className="font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]" href="/account">export or delete your account</Link>.</p>
       <div className="flex flex-wrap gap-3"><Link href="/account" className={buttonVariants({ variant: "outline" })}>Account tools</Link>{!demo && <SignOutButton variant="ghost" />}</div>
     </div>
   </main>;

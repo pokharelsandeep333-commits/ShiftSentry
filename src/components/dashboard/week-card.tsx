@@ -44,7 +44,7 @@ export function WeekCard({ jobs, workedMinutes, limitMinutes, activeBreakLabel, 
         <StatusPill meter={meter} />
         <p className={cn(styles.capDescription, "text-sm text-[var(--muted-foreground)]")} title={rangeLabel}>Logged plus scheduled hours.</p>
       </div>
-      {activeBreakLabel && limitMinutes !== null && <p className="mt-2 break-words text-sm text-[var(--muted-foreground)]"><Link href="/settings#break-periods" className="font-semibold text-[var(--primary)] underline-offset-4 hover:underline">{activeBreakLabel}</Link> · {formatMinutes(limitMinutes)} cap this week</p>}
+      {activeBreakLabel && limitMinutes !== null && <p className="mt-2 break-words text-sm text-[var(--muted-foreground)]"><Link href="/settings#break-periods" className="font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">{activeBreakLabel}</Link> · {formatMinutes(limitMinutes)} cap this week</p>}
       <p className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="font-display text-[2.5rem] font-semibold leading-none tracking-[-0.035em] normal-nums sm:text-6xl">{planned.hours}<span className="ml-0.5 text-2xl text-[var(--muted-foreground)] sm:text-3xl">h</span>{planned.minutes > 0 && <span className="ml-2 text-2xl text-[var(--muted-foreground)] sm:text-3xl">{planned.minutes}m</span>}</span>
         <span className="text-sm text-[var(--muted-foreground)]">{limitMinutes === null ? "planned · no cap set" : `of ${formatMinutes(limitMinutes)}`}</span>

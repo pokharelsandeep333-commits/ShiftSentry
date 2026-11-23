@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatInTimeZone } from "date-fns-tz";
 import { TimerReset } from "lucide-react";
 import { discardShiftTimer, startShiftTimer, stopShiftTimer } from "@/app/actions/work";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast-provider";
@@ -76,42 +76,50 @@ function RememberingIdleClock({ jobs, initialJobId, onJobChange }: { jobs: Clock
 
 function IdleClock({ jobs, initialJobId, onJobChange }: { jobs: ClockJob[]; initialJobId: string | null; onJobChange?: (jobId: string) => void }) {
   const headingId = useId();
+  const hintId = useId();
   const [state, action] = useActionState(startShiftTimer, emptyTimerState);
   // Null until the person taps a job, so the suggested or remembered one
   // (which may arrive after hydration) applies until then.
   const [picked, setPicked] = useState<string | null>(null);
   const isJob = (id: string | null): id is string => id !== null && jobs.some((job) => job.id === id);
-  const chosen = isJob(picked) ? picked : isJob(initialJobId) ? initialJobId : jobs[0].id;
+  // Always a job in practice (the first one when nothing else applies); null
+  // only if the list has none valid, which the card then says in words.
+  const chosen: string | null = isJob(picked) ? picked : isJob(initialJobId) ? initialJobId : jobs[0]?.id ?? null;
   const pick = (id: string) => { setPicked(id); onJobChange?.(id); };
 
   return <section aria-labelledby={headingId} className="premium-card mb-5 rounded-2xl border bg-[var(--card)] p-4 sm:p-5">
     {/* On a phone: the heading and Start share the first row and the job
-        chips scroll sideways in one row under them, so the card takes two
-        rows rather than one per job and the log stays near the top. From sm
-        it is one row: heading, chips, Start. The wrapper is `contents` below
-        sm so its children sit in the form's grid. */}
+        chips wrap under them, so every job (and the one picked) stays in view
+        and a long name breaks onto a second line instead of being cut off.
+        From sm it is one row: heading, chips, Start. The wrapper is
+        `contents` below sm so its children sit in the form's grid. */}
     <form action={action} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 sm:flex sm:flex-row sm:justify-between sm:gap-5">
       <div className="contents sm:flex sm:min-w-0 sm:items-center sm:gap-4">
         <h2 id={headingId} className="col-start-1 row-start-1 font-display text-lg font-semibold sm:shrink-0">Clock in</h2>
         {jobs.length === 1
-          ? <p className="col-span-2 row-start-2 flex min-w-0 items-center gap-2 text-sm text-[var(--muted-foreground)]"><input type="hidden" name="jobId" value={chosen} /><Dot color={jobs[0].color} /><span className="truncate">{jobs[0].name}</span></p>
+          ? <p className="col-span-2 row-start-2 flex min-w-0 items-center gap-2 text-sm text-[var(--muted-foreground)]"><input type="hidden" name="jobId" value={jobs[0].id} /><Dot color={jobs[0].color} /><span className="truncate">{jobs[0].name}</span></p>
           : <fieldset className="col-span-2 row-start-2 min-w-0">
               <legend className="sr-only">Job</legend>
-              <div className="shift-scroller -mx-4 -my-1 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1 sm:m-0 sm:flex-wrap sm:overflow-visible sm:p-0">
+              <div className="flex flex-wrap gap-2">
                 {jobs.map((job) => <label key={job.id} className={cn(
-                  "press relative flex min-h-11 shrink-0 snap-start cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border px-3.5 text-sm font-medium transition-colors sm:min-h-9 sm:min-w-0 sm:max-w-full sm:shrink",
+                  "press relative flex min-h-11 min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-[1.375rem] border px-3.5 py-1.5 text-left text-sm leading-tight font-medium transition-colors sm:min-h-9 sm:py-0",
                   "has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-[var(--primary-soft)]",
                   chosen === job.id ? "border-[color-mix(in_srgb,var(--primary)_45%,var(--border))] bg-[var(--primary-soft)] text-[var(--foreground)]" : "bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
                 )}>
                   <input type="radio" name="jobId" value={job.id} checked={chosen === job.id} onChange={() => pick(job.id)} className="sr-only" />
                   <Dot color={job.color} />
-                  <span className="truncate">{job.name}</span>
+                  <span className="min-w-0 [overflow-wrap:anywhere] sm:truncate">{job.name}</span>
                 </label>)}
               </div>
             </fieldset>}
       </div>
-      <SubmitButton label="Start shift" pendingLabel="Starting…" size="lg" className="col-start-2 row-start-1 rounded-full sm:shrink-0" />
+      {chosen
+        ? <SubmitButton label="Start shift" pendingLabel="Starting…" size="lg" className="col-start-2 row-start-1 rounded-full sm:shrink-0" />
+        // Without a job the button is plainly off (outlined, no fill) rather
+        // than a faded violet that reads as broken, and the hint says why.
+        : <Button type="button" size="lg" disabled aria-describedby={hintId} className="col-start-2 row-start-1 rounded-full border border-dashed border-[color-mix(in_srgb,var(--muted-foreground)_45%,transparent)] bg-transparent text-[var(--muted-foreground)] shadow-none disabled:opacity-100 sm:shrink-0">Start shift</Button>}
     </form>
+    {!chosen && <p id={hintId} className="mt-2 text-xs text-[var(--muted-foreground)] sm:text-right">Pick a job to start</p>}
     {state.message && <Problem message={state.message} href={state.editHref} linkLabel="Edit that shift" />}
   </section>;
 }
@@ -156,7 +164,7 @@ function RunningClock({ timer, timeZone, weekStartsOn, snapshotAt, stopState: st
       {/* A refused Stop says why below; the live line would only repeat it. */}
       {!state.message && <ClockOutlook outlook={outlook} now={now} elapsed={elapsed} archived={timer.jobArchived} timeZone={timeZone} />}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        {!overDay && <Link href={editHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline sm:min-h-9">Stopped earlier? Set end time</Link>}
+        {!overDay && <Link href={editHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] sm:min-h-9 transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Stopped earlier? Set end time</Link>}
         <form action={discardShiftTimer} className="ml-auto">
           <input type="hidden" name="startedAt" value={timer.startedAt} />
           <ConfirmSubmit label="Discard" confirmLabel="Discard this timer?" detail="The clock stops and nothing is logged." />
@@ -234,7 +242,7 @@ function ClockOutlook({ outlook, now, elapsed, archived, timeZone }: { outlook: 
 
 function Problem({ message, href, linkLabel }: { message: string; href: string | null; linkLabel: string }) {
   return <p role="alert" className="relative mt-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm leading-6 text-[var(--danger-ink)]">
-    {message}{href && <> <Link href={href} className="font-semibold underline underline-offset-4">{linkLabel}</Link></>}
+    {message}{href && <> <Link href={href} className="font-semibold transition-colors hover:text-[var(--primary)]">{linkLabel}</Link></>}
   </p>;
 }
 

@@ -56,7 +56,7 @@ export function AdminOverview({ stats, recent, timeZone }: { stats: UsageStats; 
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-3">Recent admin activity<Link href="/admin/audit" className="text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Audit log</Link></CardTitle>
+          <CardTitle className="flex items-center justify-between gap-3">Recent admin activity<Link href="/admin/audit" className="text-sm font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Audit log</Link></CardTitle>
         </CardHeader>
         <CardContent><AuditList rows={recent} timeZone={timeZone} /></CardContent>
       </Card>
