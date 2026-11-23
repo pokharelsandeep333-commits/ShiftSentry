@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
-import { ACCENT_BOOTSTRAP, ACCENT_CSS, ACCENT_STORAGE_KEY, ACCENTS, captureName, DEFAULT_ACCENT, reviveAccent, type Accent } from "./accent";
+import { ACCENT_BOOTSTRAP, ACCENT_CSS, ACCENT_STORAGE_KEY, ACCENTS, captureName, DEFAULT_ACCENT, reviveAccent, SMALL_CAPTURE_SUFFIX, type Accent } from "./accent";
 
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const DEFAULT_SURFACES = { light: { background: "#f7f8fa", card: "#ffffff" }, dark: { background: "#101318", card: "#171b22" } };
@@ -15,6 +15,11 @@ function luminance(hex: string) {
 function contrast(a: string, b: string) {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
+}
+
+/** `color-mix(in srgb, top share%, bottom)` for two opaque hex colours. */
+function mix(top: string, bottom: string, share: number) {
+  return `#${[1, 3, 5].map((i) => Math.round(parseInt(top.slice(i, i + 2), 16) * share + parseInt(bottom.slice(i, i + 2), 16) * (1 - share)).toString(16).padStart(2, "0")).join("")}`;
 }
 
 function atLeast(a: string, b: string, label: string) {
@@ -54,6 +59,35 @@ test("a full theme's text and muted text read on its ground, cards and muted sur
   }
 });
 
+test("a theme's own warning ink reads on its ground, cards, muted surface and the warning wash", () => {
+  for (const accent of themes) {
+    if (!accent.warning) continue;
+    for (const mode of ["light", "dark"] as const) {
+      const surfaces = accent.surfaces?.[mode] ?? { ...DEFAULT_SURFACES[mode], muted: undefined };
+      const { fill, ink } = accent.warning[mode];
+      const grounds = [surfaces.background, surfaces.card, surfaces.muted].filter((ground): ground is string => Boolean(ground));
+      for (const ground of grounds) {
+        atLeast(ink, ground, `${accent.id} ${mode} warning ink`);
+        // The badge and banner wash: the fill at 12% over the card (week-card.tsx), 14% over the ground.
+        atLeast(ink, mix(fill, ground, 0.14), `${accent.id} ${mode} warning ink on its wash`);
+      }
+    }
+  }
+});
+
+test("Wasp's warning is red-orange, apart from its yellow", () => {
+  const wasp: Accent = ACCENTS.find((accent) => accent.id === "wasp")!;
+  assert.ok(wasp.warning, "wasp warning");
+  for (const mode of ["light", "dark"] as const) {
+    const fill = wasp.warning[mode].fill;
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(fill.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const hue = max === r ? (60 * (g - b)) / (max - min) : NaN;
+    assert.ok(hue >= 12 && hue <= 26, `${mode} hue ${hue.toFixed(0)}`);
+    assert.ok(ACCENT_CSS.includes(`--warning:${fill};--warning-ink:${wasp.warning[mode].ink};`), `${mode} warning rule`);
+  }
+});
+
 test("the default's values are globals.css's own tokens", () => {
   const violet = themes.find((accent) => accent.id === DEFAULT_ACCENT)!;
   assert.match(css, new RegExp(`:root \\{[^}]*--primary: ${violet.light};`));
@@ -83,7 +117,12 @@ test("ACCENT_CSS has each theme's light rule before its dark rule, on screen onl
 test("every theme has its landing captures, in both formats", () => {
   for (const accent of ACCENTS) for (const size of ["desktop", "mobile"] as const) for (const mode of ["light", "dark"] as const) {
     const stem = captureName(size, accent.id, mode);
-    for (const format of ["webp", "avif"]) assert.ok(existsSync(new URL(`../../public/welcome/${stem}.${format}`, import.meta.url)), `${stem}.${format}`);
+    // The desktop shot also has a half-width copy for phones (the landing's srcset).
+    const stems = size === "desktop" ? [stem, `${stem}${SMALL_CAPTURE_SUFFIX}`] : [stem];
+    for (const name of stems) for (const format of ["webp", "avif"]) {
+      assert.ok(existsSync(new URL(`../../public/welcome/${name}.${format}`, import.meta.url)), `${name}.${format}`);
+      assert.ok(existsSync(new URL(`../../public/welcome/${name}.${format}.json`, import.meta.url)), `${name}.${format}.json`);
+    }
     assert.ok(ACCENT_CSS.includes(`[data-shot="${accent.id}-${mode}"]`), `${accent.id}-${mode} shot rule`);
   }
 });

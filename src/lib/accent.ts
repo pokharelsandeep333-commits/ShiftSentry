@@ -28,8 +28,10 @@ import { createLocalPreference } from "./local-preference";
  *
  * Green and amber are left out: they mean "saved / earned" and "warning".
  * Lime (Sandeep's request) is yellow-green enough to read apart from the
- * success green; Wasp's yellow sits nearer the amber warning, which he
- * accepted. Stored per device under `shiftsentry:accent` and applied before
+ * success green. Wasp's yellow sat too near the amber warning, so Wasp brings
+ * its own red-orange `warning` (`--warning` / `--warning-ink`, both modes);
+ * the test pins its ink at 4.5:1 on the cards, ground and the badge wash.
+ * Stored per device under `shiftsentry:accent` and applied before
  * first paint by the theme bootstrap, so a chosen theme never flashes violet.
  * It applies on every page, landing and sign-in included (Sandeep's call,
  * 2026-11-22); the landing's 3D render is re-tinted by `renderFilter`.
@@ -44,6 +46,9 @@ export type ThemeSurfaces = {
   /** `--shadow-color`, as space-separated RGB channels. */
   shadow: string;
 };
+
+/** A theme's own warning colours: `--warning` (fills, rings, washes) and `--warning-ink` (text). */
+export type ThemeWarning = { fill: string; ink: string };
 
 export type Accent = {
   id: string;
@@ -68,6 +73,11 @@ export type Accent = {
    * instead of a render per theme.
    */
   renderFilter?: string;
+  /**
+   * The warning colours, when the default amber would blur into the theme's
+   * own colour (Wasp's yellow). Light and dark, like `surfaces`.
+   */
+  warning?: { light: ThemeWarning; dark: ThemeWarning };
 };
 
 export const ACCENTS = [
@@ -82,6 +92,7 @@ export const ACCENTS = [
     lightSoft: "color-mix(in srgb, #facc15 40%, transparent)",
     lightWash: "#facc15",
     renderFilter: "hue-rotate(160deg) saturate(1.25) brightness(1.05)",
+    warning: { light: { fill: "#f45d0f", ink: "#ad3d06" }, dark: { fill: "#ff6d2e", ink: "#ff9b66" } },
     surfaces: {
       light: { background: "#fffdf3", foreground: "#18181b", card: "#ffffff", muted: "#f6f2df", mutedForeground: "#66614f", border: "#e9e3cc", shadow: "231 226 204" },
       dark: { background: "#0c0c0d", foreground: "#f5f5f4", card: "#17171a", muted: "#222226", mutedForeground: "#a8a29e", border: "#2f2f34", shadow: "0 0 0" },
@@ -117,6 +128,10 @@ export function applyAccent(accent: AccentId) {
   else document.documentElement.dataset.accent = accent;
 }
 
+function warningDeclarations(warning: ThemeWarning) {
+  return `--warning:${warning.fill};--warning-ink:${warning.ink};`;
+}
+
 function surfaceDeclarations(surfaces: ThemeSurfaces) {
   return `--background:${surfaces.background};--foreground:${surfaces.foreground};--card:${surfaces.card};--muted:${surfaces.muted};--muted-foreground:${surfaces.mutedForeground};--border:${surfaces.border};--shadow-color:${surfaces.shadow};`;
 }
@@ -131,14 +146,21 @@ function surfaceDeclarations(surfaces: ThemeSurfaces) {
 const THEMED: readonly Accent[] = ACCENTS.filter((accent) => accent.id !== DEFAULT_ACCENT);
 
 export const ACCENT_CSS = `@media screen{${THEMED.map((accent) => [
-  `:root[data-accent="${accent.id}"]{--primary:${accent.light};${accent.surfaces ? surfaceDeclarations(accent.surfaces.light) : ""}${accent.lightSoft ? `--primary-soft:${accent.lightSoft};` : ""}${accent.lightWash ? `--accent-wash:${accent.lightWash};--primary-glow:color-mix(in srgb,${accent.lightWash} 35%,transparent);--tint-strength:34%;` : ""}}`,
-  `.dark[data-accent="${accent.id}"]{--primary:${accent.dark};${accent.surfaces ? surfaceDeclarations(accent.surfaces.dark) : ""}${accent.lightSoft ? "--primary-soft:color-mix(in srgb,var(--primary) 16%,transparent);" : ""}${accent.lightWash ? "--accent-wash:var(--primary);--primary-glow:color-mix(in srgb,var(--primary) 28%,transparent);--tint-strength:initial;" : ""}}`,
+  `:root[data-accent="${accent.id}"]{--primary:${accent.light};${accent.surfaces ? surfaceDeclarations(accent.surfaces.light) : ""}${accent.warning ? warningDeclarations(accent.warning.light) : ""}${accent.lightSoft ? `--primary-soft:${accent.lightSoft};` : ""}${accent.lightWash ? `--accent-wash:${accent.lightWash};--primary-glow:color-mix(in srgb,${accent.lightWash} 35%,transparent);--tint-strength:34%;` : ""}}`,
+  `.dark[data-accent="${accent.id}"]{--primary:${accent.dark};${accent.surfaces ? surfaceDeclarations(accent.surfaces.dark) : ""}${accent.warning ? warningDeclarations(accent.warning.dark) : ""}${accent.lightSoft ? "--primary-soft:color-mix(in srgb,var(--primary) 16%,transparent);" : ""}${accent.lightWash ? "--accent-wash:var(--primary);--primary-glow:color-mix(in srgb,var(--primary) 28%,transparent);--tint-strength:initial;" : ""}}`,
   `[data-accent="${accent.id}"]{--primary-bright:${accent.bright};}`,
   accent.renderFilter ? `[data-accent="${accent.id}"] .hero-art-float img{filter:${accent.renderFilter};}` : "",
 ].join("")).join("")}}
 .welcome-shot{display:none}
 :root:not([data-accent]):not(.dark) .welcome-shot[data-shot="${DEFAULT_ACCENT}-light"],:root.dark:not([data-accent]) .welcome-shot[data-shot="${DEFAULT_ACCENT}-dark"]{display:block}
 ${THEMED.map((accent) => `:root[data-accent="${accent.id}"]:not(.dark) .welcome-shot[data-shot="${accent.id}-light"],:root.dark[data-accent="${accent.id}"] .welcome-shot[data-shot="${accent.id}-dark"]{display:block}`).join("\n")}`;
+
+/**
+ * The desktop capture's half-width copy (720px wide) carries this suffix, for
+ * phones in the landing's `srcset`; `scripts/capture-dashboard.mjs` writes it.
+ */
+export const SMALL_CAPTURE_WIDTH = 720;
+export const SMALL_CAPTURE_SUFFIX = `-${SMALL_CAPTURE_WIDTH}`;
 
 /** The landing capture's file stem for a theme and mode: the default has no theme segment. */
 export function captureName(size: "desktop" | "mobile", accent: AccentId, mode: "light" | "dark") {

@@ -12,7 +12,7 @@ import { WelcomeJsonLd } from "@/components/welcome/welcome-json-ld";
 import { WelcomeNav } from "@/components/welcome/welcome-nav";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { cn } from "@/lib/utils";
-import { ACCENTS, captureName } from "@/lib/accent";
+import { ACCENTS, captureName, SMALL_CAPTURE_SUFFIX, SMALL_CAPTURE_WIDTH } from "@/lib/accent";
 
 /**
  * The public landing page, rendered by `/welcome`, which `src/proxy.ts` serves
@@ -176,14 +176,26 @@ function HeadlineGlyph({ icon: Icon, order }: { icon: ComponentType<LucideProps>
  * `<picture>`, AVIF first and the webp as the fallback. All are lazy: a
  * browser never fetches a lazy image that is `display: none`, so a visitor
  * downloads only the pair for their own theme and mode.
+ *
+ * The desktop shot also comes 720px wide (`SMALL_CAPTURE_SUFFIX`). Phones
+ * always take that one, whatever their pixel ratio (it is still about 2x at
+ * the ~350px it shows there); wider screens pick by `sizes`, which follows
+ * the `.welcome-container` widths in globals.css.
  */
+const DESKTOP_SHOT_SIZES = "(min-width: 1760px) 86rem, (min-width: 1440px) 78rem, (min-width: 1152px) 72rem, calc(100vw - 2rem)";
+
 function Screenshot({ size, width, height, alt, className }: { size: "desktop" | "mobile"; width: number; height: number; alt: string; className?: string }) {
   return <>
     {ACCENTS.flatMap((accent) => (["light", "dark"] as const).map((mode) => {
       const stem = captureName(size, accent.id, mode);
+      const small = `/welcome/${stem}${SMALL_CAPTURE_SUFFIX}`;
+      const both = (format: string) => `${small}.${format} ${SMALL_CAPTURE_WIDTH}w, /welcome/${stem}.${format} ${width}w`;
       return <picture key={stem}>
-        <source type="image/avif" srcSet={`/welcome/${stem}.avif`} />
-        <img src={`/welcome/${stem}.webp`} data-shot={`${accent.id}-${mode}`} width={width} height={height} alt={alt} loading="lazy" decoding="async" className={cn("welcome-shot h-auto w-full", className)} />
+        {size === "desktop" ? <>
+          <source media="(max-width: 639px)" type="image/avif" srcSet={`${small}.avif`} />
+          <source type="image/avif" srcSet={both("avif")} sizes={DESKTOP_SHOT_SIZES} />
+        </> : <source type="image/avif" srcSet={`/welcome/${stem}.avif`} />}
+        <img src={`/welcome/${stem}.webp`} srcSet={size === "desktop" ? both("webp") : undefined} sizes={size === "desktop" ? DESKTOP_SHOT_SIZES : undefined} data-shot={`${accent.id}-${mode}`} width={width} height={height} alt={alt} loading="lazy" decoding="async" className={cn("welcome-shot h-auto w-full", className)} />
       </picture>;
     }))}
   </>;
