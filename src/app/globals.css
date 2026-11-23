@@ -324,7 +324,12 @@ body {
  * and the pill's own box-shadow would override it.
  *
  * Motion always plays, whatever the visitor's `prefers-reduced-motion`
- * setting (Sandeep's call). Scroll reveals (`.rv`) are
+ * setting (Sandeep's call). Nothing loops forever: each float or crawl runs
+ * a few gentle cycles and rests where it started, an even count of
+ * `alternate` runs (or a whole number of dash periods) so the last frame is
+ * the element's own resting position and nothing jumps when it ends. Scroll
+ * reveals (`.rv`) are kept to a few pieces inside the illustrations, not
+ * every card, and are
  * scroll-driven (`animation-timeline: view()`), gated on support: without it
  * the content simply shows, which is the state every animation ends in.
  */
@@ -599,14 +604,19 @@ body {
   background: var(--primary);
   box-shadow: 0 10px 22px -10px var(--primary-glow), inset 0 1px 0 rgb(255 255 255 / 0.18);
 }
-.hiw-float { animation: hiw-float 5.5s ease-in-out var(--hiw-delay, 0ms) infinite alternate; }
+.hiw-float { animation: hiw-float 5.5s ease-in-out var(--hiw-delay, 0ms) 6 alternate; }
 .hiw-link path {
   stroke: color-mix(in srgb, var(--primary) 55%, transparent);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-dasharray: 3 7;
-  animation: hiw-dash 1.6s linear infinite;
+  animation: hiw-dash 1.6s linear 4;
 }
+/* Three drifts up and back (six `alternate` runs) and four dash crawls, each
+   ending where it began (-20 is two whole 3+7 dash periods). They wait,
+   paused, until their step scrolls into view (`data-inview`, set by
+   how-it-works-steps.tsx), so they have not finished before anyone sees them. */
+.hiw-steps > li:not([data-inview]) :is(.hiw-float, .hiw-link path) { animation-play-state: paused; }
 @keyframes hiw-float {
   from { translate: 0 0; }
   to { translate: 0 -7px; }
@@ -684,16 +694,17 @@ body {
 .hero-glyph { animation: glyph-pop 700ms var(--ease-out) calc(560ms + var(--glyph-order, 0) * 110ms) both; }
 
 /* The render settles in, then breathes; the chips come on after it and drift
-   on their own clocks so they never move in step. Both entrances wait, paused,
+   on their own clocks so they never move in step. Each makes three trips up
+   and back (six `alternate` runs) and comes to rest where it started. Both entrances wait, paused,
    until the image has loaded (`data-loaded`, set by hero-art.tsx), so the
    chips never label an empty disc. A paused animation's delay does not run
    either, so each chip still arrives its own delay after the image. */
 .hero-art { animation: art-in 1200ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both; }
-.hero-art-float { animation: art-float 9s ease-in-out 1.4s infinite alternate; }
+.hero-art-float { animation: art-float 9s ease-in-out 1.4s 6 alternate; }
 .hero-chip {
   animation:
     chip-in 700ms cubic-bezier(0.16, 1, 0.3, 1) var(--chip-delay, 600ms) both,
-    chip-float var(--chip-drift, 7s) ease-in-out calc(var(--chip-delay, 600ms) + 700ms) infinite alternate;
+    chip-float var(--chip-drift, 7s) ease-in-out calc(var(--chip-delay, 600ms) + 700ms) 6 alternate;
 }
 .hero-art:not([data-loaded]),
 .hero-art:not([data-loaded]) .hero-chip { animation-play-state: paused; }

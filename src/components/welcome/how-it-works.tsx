@@ -3,6 +3,7 @@ import { Ban, BriefcaseBusiness, CalendarDays, Plus, TriangleAlert } from "lucid
 import { formatCents } from "@/lib/earnings";
 import { cn, formatMinutes } from "@/lib/utils";
 import { EXAMPLE_WEEK, tryShift, weekTotals } from "@/lib/welcome-week";
+import { HowItWorksSteps } from "./how-it-works-steps";
 
 /**
  * The landing's three steps (add jobs, log and plan shifts, stay under the
@@ -17,8 +18,11 @@ import { EXAMPLE_WEEK, tryShift, weekTotals } from "@/lib/welcome-week";
  * `week_starts_on`, planned shifts counting toward hours, the 80% warning and
  * the refusal. Change the copy in the same change as the rule.
  *
- * Server component. Motion is CSS (`.hiw-*` in globals.css): the scroll
- * reveal, the floating pieces and the connectors' moving dashes.
+ * Server component. Motion is CSS (`.hiw-*` in globals.css): the bars and
+ * the limit bar growing in on scroll, and the floating pieces and the
+ * connectors' moving dashes, which run a few cycles once their step is in
+ * view (`HowItWorksSteps` marks it) and then rest. The steps themselves do not
+ * fade in.
  */
 const week = EXAMPLE_WEEK;
 const totals = weekTotals(week);
@@ -36,7 +40,7 @@ export function HowItWorks({ className, titleClassName }: { className: string; t
       <p className="mt-4 text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">A few minutes of setup. After that, ShiftSentry checks every shift against your limits before it is saved.</p>
     </div>
 
-    <ol className="mt-12 grid gap-14 sm:mt-14 lg:grid-cols-3 lg:gap-10">
+    <HowItWorksSteps className="hiw-steps mt-12 grid gap-14 sm:mt-14 lg:grid-cols-3 lg:gap-10">
       <Step title="Add your jobs." body="Give each one its hourly rate and tax, and its own weekly cap if it has one. Set your overall limit and the day your week starts." link>
         <JobsArt />
       </Step>
@@ -46,12 +50,12 @@ export function HowItWorks({ className, titleClassName }: { className: string; t
       <Step title="Stay under your limit." body={`You're warned at ${week.alertPercent}% of your week. A shift that would take you past any cap is refused before it's saved.`}>
         <LimitArt />
       </Step>
-    </ol>
+    </HowItWorksSteps>
   </section>;
 }
 
 function Step({ title, body, link, children }: { title: string; body: string; link?: boolean; children: ReactNode }) {
-  return <li className="rv relative">
+  return <li className="relative">
     <div aria-hidden="true" className="hiw-art relative h-48 w-full max-w-[22rem]">{children}</div>
     {/* The connector to the next step, centred in the gap between illustrations. */}
     {link && <svg aria-hidden="true" viewBox="0 0 96 28" className="hiw-link absolute right-[-4.25rem] top-[5.25rem] hidden w-[6rem] lg:block" fill="none">
@@ -62,7 +66,7 @@ function Step({ title, body, link, children }: { title: string; body: string; li
   </li>;
 }
 
-/* A floating piece: drifts on its own clock, offset by `delay`. */
+/* A floating piece: drifts a few times on its own clock, offset by `delay`. */
 function Float({ className, delay, children }: { className: string; delay: number; children: ReactNode }) {
   return <div className={cn("hiw-float absolute", className)} style={{ "--hiw-delay": `${delay}ms` } as CSSProperties}>{children}</div>;
 }
