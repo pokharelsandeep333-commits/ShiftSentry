@@ -17,6 +17,11 @@ import { clampWeeks, readShiftFilters, shiftLogHref } from "@/lib/shift-log";
 import { emptyTimerState, type FormActionState, type SavedFormState, type TimerActionState } from "@/lib/form-state";
 import { ADOPT_EARLY_MINUTES, adoptableShift, timerEditorHref, timerShift } from "@/lib/shift-timer";
 import { formatMinutes } from "@/lib/utils";
+import { readCapShifts } from "@/lib/cap-shifts";
+import { COPY_WEEK_MAX_SHIFTS, copySkipFromDatabase, planWeekCopy, type CopyPlanItem, type CopySkipReason, type CopySource, type CopyWeekItem, type CopyWeekOutcome, type CopyWeekPreview } from "@/lib/copy-week";
+import { createRateLimiter } from "@/lib/rate-limit";
+import { weekEndFor, weekStartDateFor } from "@/lib/time";
+import { weekStartOfLocalDate } from "@/lib/week-notes";
 
 function fail(message: string): never { throw new Error(message); }
 function cents(value: FormDataEntryValue | null) { const result = parseMoneyToCents(String(value ?? "")); return result === null ? fail("Enter a valid hourly rate, such as 18.50.") : result; }
@@ -641,4 +646,115 @@ export async function stopFollowingGoogle(formData: FormData) {
   if (error) fail("Unable to update the shift. Please try again.");
   revalidatePath("/shifts"); revalidatePath("/calendar");
   redirect(`/shifts/${id}/edit`);
+}
+
+// ── Copy a week's shifts into the next week ──────────────────────────────────
+// Self-contained: the planning is pure (src/lib/copy-week.ts) and each copy is
+// written through the same helpers as createShift.
+
+/** Opening the dialog reads; copying writes up to COPY_WEEK_MAX_SHIFTS rows, so it is held tighter. */
+const allowCopyPreview = createRateLimiter({ limit: 30, windowMs: 60_000 });
+const allowCopyWeek = createRateLimiter({ limit: 6, windowMs: 60_000 });
+
+type CopyJobRow = JobPayRow & { id: string; name: string; color: string; archived_at: string | null; weekly_limit_minutes: number | null };
+
+function copyWeekItem(item: CopyPlanItem, job: CopyJobRow | undefined, timeZone: string, skip: CopySkipReason | null): CopyWeekItem {
+  const startsAt = item.startsAt ?? item.source.startsAt;
+  const endsAt = item.endsAt ?? item.source.endsAt;
+  const overnight = formatInTimeZone(startsAt, timeZone, "yyyy-MM-dd") !== formatInTimeZone(endsAt, timeZone, "yyyy-MM-dd");
+  return {
+    jobName: job?.name ?? "Archived job",
+    color: job?.color ?? "#98a2b3",
+    day: formatInTimeZone(startsAt, timeZone, "EEE, MMM d"),
+    time: `${formatInTimeZone(startsAt, timeZone, "h:mm a")} – ${formatInTimeZone(endsAt, timeZone, "h:mm a")}`,
+    endsOn: overnight ? formatInTimeZone(endsAt, timeZone, "EEE") : null,
+    skip,
+  };
+}
+
+/**
+ * Reads the week starting on the local date `weekStart` and plans its copy one
+ * week later. Both the preview and the copy call this, so the copy re-plans
+ * against what is in the database now rather than trusting the dialog.
+ */
+async function planCopyOfWeek(profile: Awaited<ReturnType<typeof requireUser>>, weekStart: unknown) {
+  const { time_zone: timeZone, week_starts_on: weekStartsOn } = profile;
+  if (typeof weekStart !== "string" || !isWeekStart(weekStart, weekStartsOn)) return { error: "That week could not be found. Refresh the page and try again." } as const;
+  const sourceStart = weekStartOfLocalDate(weekStart, timeZone, weekStartsOn);
+  const targetStart = weekEndFor(sourceStart, timeZone, weekStartsOn);
+  const targetEnd = weekEndFor(targetStart, timeZone, weekStartsOn);
+  // An overnight copy on the last day ends in the week after, whose cap it also meets.
+  const windowEnd = weekEndFor(targetEnd, timeZone, weekStartsOn);
+
+  const supabase = await createServerSupabaseClient();
+  const { data: rows, error } = await supabase.from("shifts").select("id,job_id,starts_at,ends_at,notes").eq("user_id", profile.id)
+    .gte("starts_at", sourceStart.toISOString()).lt("starts_at", targetStart.toISOString()).order("starts_at").limit(COPY_WEEK_MAX_SHIFTS + 1);
+  if (error) return { error: "We couldn't read this week's shifts. Please try again." } as const;
+  if (!rows.length) return { error: "This week has no shifts to copy." } as const;
+  if (rows.length > COPY_WEEK_MAX_SHIFTS) return { error: `This week has more than ${COPY_WEEK_MAX_SHIFTS} shifts, too many to copy at once.` } as const;
+
+  const [jobsResult, existing, breaks] = await Promise.all([
+    supabase.from("jobs").select("id,name,color,archived_at,weekly_limit_minutes,hourly_rate_cents,tax_rate_basis_points,job_deductions(name,rate_basis_points)").eq("user_id", profile.id).in("id", [...new Set(rows.map((row) => row.job_id))]),
+    readCapShifts(supabase, profile.id, targetStart.toISOString(), windowEnd.toISOString()).catch(() => null),
+    supabase.from("break_periods").select("id,start_date,end_date,weekly_limit_minutes,label").eq("user_id", profile.id)
+      .gte("end_date", weekStartDateFor(targetStart, timeZone, weekStartsOn))
+      .lt("start_date", weekStartDateFor(windowEnd, timeZone, weekStartsOn)),
+  ]);
+  if (jobsResult.error || !existing || breaks.error) return { error: "We couldn't check next week. Please try again." } as const;
+
+  const jobs = new Map<string, CopyJobRow>((jobsResult.data ?? []).map((job) => [job.id, job]));
+  const sources: CopySource[] = rows.map((row) => {
+    const job = jobs.get(row.job_id);
+    return { id: row.id, jobId: row.job_id, startsAt: new Date(row.starts_at), endsAt: new Date(row.ends_at), notes: row.notes, job: { archived: !job || Boolean(job.archived_at), weeklyLimitMinutes: job?.weekly_limit_minutes ?? null } };
+  });
+  const plan = planWeekCopy({ sources, existing, timeZone, weekStartsOn, globalLimit: profile.global_weekly_limit_minutes, breakPeriods: breaks.data, now: new Date() });
+  const lastDay = new Date(targetEnd.getTime() - 60_000);
+  const sameMonth = formatInTimeZone(targetStart, timeZone, "yyyy-MM") === formatInTimeZone(lastDay, timeZone, "yyyy-MM");
+  const targetRange = `${formatInTimeZone(targetStart, timeZone, "MMM d")} – ${formatInTimeZone(lastDay, timeZone, sameMonth ? "d" : "MMM d")}`;
+  return { supabase, plan, jobs, targetRange };
+}
+
+/** What "Copy to next week" would do, without writing anything. */
+export async function previewWeekCopy(weekStart: string): Promise<CopyWeekPreview> {
+  const profile = await requireUser();
+  if (!allowCopyPreview(profile.id)) return { status: "error", message: "Too many requests. Wait a minute and try again." };
+  const planned = await planCopyOfWeek(profile, weekStart);
+  if ("error" in planned) return { status: "error", message: planned.error ?? "Something went wrong. Please try again." };
+  return { status: "ok", targetRange: planned.targetRange, items: planned.plan.map((item) => copyWeekItem(item, planned.jobs.get(item.source.jobId), profile.time_zone, item.skip)) };
+}
+
+/**
+ * Copies a week's shifts one week later. Each copy is validated by Zod, priced
+ * from its job's current pay (as a new shift is) and inserted on its own, so
+ * the triggers judge every one and a refusal skips that shift, never the rest.
+ */
+export async function copyWeekToNext(weekStart: string): Promise<CopyWeekOutcome> {
+  const profile = await requireUser();
+  if (!allowCopyWeek(profile.id)) return { status: "error", message: "Too many copies in a row. Wait a minute and try again." };
+  const planned = await planCopyOfWeek(profile, weekStart);
+  if ("error" in planned) return { status: "error", message: planned.error ?? "Something went wrong. Please try again." };
+  const { supabase, plan, jobs, targetRange } = planned;
+
+  let created = 0;
+  const items: CopyWeekItem[] = [];
+  for (const item of plan) {
+    const job = jobs.get(item.source.jobId);
+    let skip = item.skip;
+    if (!skip && job && item.startsAt && item.endsAt) {
+      const parsed = shiftSchema.safeParse({ jobId: item.source.jobId, startsAt: item.startsAt, endsAt: item.endsAt, notes: item.source.notes ?? "" });
+      if (!parsed.success) skip = "bad-span";
+      else {
+        const problem = await attempt(async () => {
+          const { error } = await supabase.from("shifts").insert({ user_id: profile.id, ...shiftPayload(parsed.data, paySnapshotFromJob(job)) });
+          if (error) fail(error.message);
+        });
+        if (problem) skip = copySkipFromDatabase(problem);
+        else created += 1;
+      }
+    } else if (!skip) skip = "not-saved";
+    items.push(copyWeekItem(item, job, profile.time_zone, skip));
+  }
+
+  if (created) { revalidatePath("/"); revalidatePath("/shifts"); revalidatePath("/calendar"); }
+  return { status: "ok", targetRange, created, items };
 }

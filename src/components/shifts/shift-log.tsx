@@ -17,6 +17,7 @@ import { ShiftClock } from "@/components/shifts/shift-clock";
 import { getRunningTimer } from "@/lib/shift-timer-server";
 import { suggestedClockJob, type RunningTimer } from "@/lib/shift-timer";
 import { WeekNote } from "@/components/shifts/week-note";
+import { CopyWeekButton } from "@/components/shifts/copy-week";
 import { formatCents } from "@/lib/earnings";
 import { addWeeksToLocalDateTime } from "@/lib/shift-date-time";
 import { weekStartFor } from "@/lib/time";
@@ -217,7 +218,7 @@ export function ShiftLogView({ groups, currentKey, timeZone, weeks, filters, not
         <p className="text-sm text-[var(--muted-foreground)]">No shifts match these filters{olderCount ? " in the weeks loaded" : ""}.</p>
         <Link href={shiftLogHref(weeks, { show: "all", job: "" })} className="mt-3 inline-block text-sm font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Clear filters</Link>
       </Card>
-      : <div className="shift-weeks">{groups.map((group) => <ShiftWeek key={group.key} group={group} current={group.key === currentKey} timeZone={timeZone} weeks={weeks} filters={filters} notes={notes} canAdd={jobs.length > 0} now={now} />)}</div>}
+      : <div className="shift-weeks">{groups.map((group) => <ShiftWeek key={group.key} group={group} current={group.key === currentKey} timeZone={timeZone} weeks={weeks} filters={filters} notes={notes} canAdd={jobs.length > 0} canCopy={!filtered && group.start.getTime() >= Date.parse(currentKey) - COPYABLE_SINCE_MS} now={now} />)}</div>}
 
     {olderCount ? <div className="older-wrap"><Link href={shiftLogHref(clampWeeks(weeks + WEEKS_PER_PAGE), filters)} scroll={false} className="shift-text-button">Load older weeks <span>({olderCount} older)</span><ChevronDown size={16} aria-hidden="true" /></Link></div> : null}
   </div>;
@@ -240,6 +241,13 @@ function dayName(date: string, pattern: string) {
 
 const NO_JOB_COLOR = "#98a2b3";
 
+/**
+ * "Copy to next week" is offered on last week and every week after it: copying
+ * any older week would land entirely in the past. Eight days rather than seven
+ * leaves room for a week an hour longer across a clock change.
+ */
+const COPYABLE_SINCE_MS = 8 * 86_400_000;
+
 function jobOf(shift: ShiftRow) {
   return Array.isArray(shift.jobs) ? shift.jobs[0] : shift.jobs;
 }
@@ -258,7 +266,7 @@ function groupByDay(shifts: ShiftRow[], timeZone: string) {
   return [...days.entries()];
 }
 
-export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, canAdd, now }: { group: WeekGroup; current: boolean; timeZone: string; weeks: number; filters: ShiftFilters; notes: WeekNoteRow[] | null; canAdd: boolean; now: Date }) {
+export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, canAdd, canCopy = false, now }: { group: WeekGroup; current: boolean; timeZone: string; weeks: number; filters: ShiftFilters; notes: WeekNoteRow[] | null; canAdd: boolean; canCopy?: boolean; now: Date }) {
   const range = weekRange(group.start, addDays(group.start, 6), timeZone);
   const weekStart = localDate(group.start, timeZone);
   const note = notes ? noteForWeek(notes, weekStart) : null;
@@ -286,6 +294,9 @@ export function ShiftWeek({ group, current, timeZone, weeks, filters, notes, can
         <ul className="day-shifts">{shifts.map((shift) => <ShiftListRow key={shift.id} shift={shift} timeZone={timeZone} weeks={weeks} filters={filters} upcoming={upcoming(shift)} />)}</ul>
       </li>)}
     </ol>
+      : null}
+    {count && canCopy ? <div className="week-actions"><CopyWeekButton weekStart={weekStart} label={current ? "this week" : `the week of ${range}`} /></div> : null}
+    {count ? null
       : <div className="shift-empty">
         <span>{current ? "Nothing logged this week yet." : "No shifts this week."}</span>
         {current && canAdd && <Link href="/shifts/new" className={buttonVariants({ variant: "outline", size: "sm" })}><CalendarPlus className="size-4" aria-hidden="true" />Add a shift</Link>}

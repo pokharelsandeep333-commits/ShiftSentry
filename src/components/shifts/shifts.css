@@ -83,6 +83,16 @@ details.shift-check { display: block; }
 
 .shift-empty { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:18px 22px; font-size:14px; color:var(--shift-copy); }
 
+/* Copy to next week: a button under the week's shifts, and its dialog's list. */
+.week-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; padding:2px 22px 14px; }
+.copy-week-list { list-style:none; margin:0; padding:0; display:grid; gap:2px; max-height:min(50vh,22rem); overflow-y:auto; }
+.copy-week-list > li { display:grid; gap:2px; padding:8px 10px; border-radius:10px; background:var(--surface-subtle); font-size:13px; }
+.copy-week-list > li[data-skipped] { background:transparent; border:1px dashed var(--border); }
+.copy-week-job { display:flex; align-items:center; gap:8px; min-width:0; font-weight:550; overflow-wrap:anywhere; }
+.copy-week-job > i { width:8px; height:8px; flex-shrink:0; border-radius:50%; background:var(--job); }
+.copy-week-time { padding-left:16px; color:var(--muted-foreground); font-variant-numeric:tabular-nums; }
+.copy-week-skip { padding-left:16px; font-size:12px; font-weight:600; color:var(--warning-ink); }
+
 .shift-icon-button { display:grid; place-items:center; width:36px; height:36px; border-radius:10px; color:var(--shift-copy); cursor:pointer; }
 .shift-icon-button:hover { color:var(--primary); background:var(--primary-soft); }
 .shift-menu { z-index:80; min-width:194px; padding:6px; background:var(--card); border:1px solid var(--border); border-radius:14px; color:var(--foreground); box-shadow:0 12px 30px -12px color-mix(in srgb,color-mix(in srgb,var(--primary) 45%,#000) 38%,transparent); }
@@ -116,6 +126,7 @@ details.shift-check { display: block; }
   .week-hours { font-size:17px; }
   .week-net { font-size:13px; }
   .week-note-line, .week-note-editor { padding-inline:16px; }
+  .week-actions { padding-inline:16px; }
   .shift-day { grid-template-columns:40px minmax(0,1fr); gap:10px; padding:8px 6px 8px 14px; }
   .day-tile { width:40px; height:46px; }
   .day-tile > span:last-child { font-size:17px; }
