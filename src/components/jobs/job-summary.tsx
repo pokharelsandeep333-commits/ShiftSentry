@@ -42,7 +42,7 @@ export function jobInitials(name: string) {
 export function JobAvatar({ name, color, size = "md", muted = false }: { name: string; color: string; size?: "md" | "lg"; muted?: boolean }) {
   return <span
     aria-hidden="true"
-    className={cn("grid shrink-0 place-items-center font-display font-semibold leading-none tracking-tight shadow-sm", size === "lg" ? "size-12 rounded-2xl text-base" : "size-10 rounded-xl text-sm", muted && "opacity-55 grayscale-[35%]")}
+    className={cn("grid shrink-0 place-items-center font-display font-semibold leading-none tracking-tight shadow-[inset_0_0_0_1px_rgb(0_0_0/0.08)]", size === "lg" ? "size-12 rounded-xl text-base" : "size-10 rounded-[0.625rem] text-sm", muted && "opacity-55 grayscale-[35%]")}
     style={{ backgroundColor: color, color: textOn(color) }}
   >
     {jobInitials(name)}

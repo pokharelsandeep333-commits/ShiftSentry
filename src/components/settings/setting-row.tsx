@@ -25,10 +25,10 @@ export function SettingRow({ label, labelFor, labelId, hint, hintId, error, erro
   wide?: boolean;
   children: ReactNode;
 }) {
-  return <div className={cn("grid gap-3 py-5 first:pt-0 last:pb-0 sm:items-center sm:gap-8", wide ? "sm:grid-cols-[minmax(0,1fr)_auto]" : "sm:grid-cols-[minmax(0,1fr)_16.5rem]")}>
+  return <div className={cn("grid gap-2.5 py-5 first:pt-0 last:pb-0 sm:items-center sm:gap-10", wide ? "sm:grid-cols-[minmax(0,1fr)_auto]" : "sm:grid-cols-[minmax(0,1fr)_18rem]")}>
     <div className="min-w-0">
-      {labelFor ? <label htmlFor={labelFor} className="text-sm font-semibold">{label}</label> : <p id={labelId} className="text-sm font-semibold">{label}</p>}
-      {hint && <p id={hintId} className="mt-1 text-[13px] leading-5 text-[var(--muted-foreground)]">{hint}</p>}
+      {labelFor ? <label htmlFor={labelFor} className="text-sm font-medium">{label}</label> : <p id={labelId} className="text-sm font-medium">{label}</p>}
+      {hint && <p id={hintId} className="mt-0.5 max-w-[46ch] text-[13px] leading-5 text-[var(--muted-foreground)]">{hint}</p>}
     </div>
     <div className="min-w-0">
       {children}
@@ -39,5 +39,5 @@ export function SettingRow({ label, labelFor, labelId, hint, hintId, error, erro
 
 /** A unit or currency mark inside a field, e.g. "hours" or "%". The input needs room for it (`pr-*` / `pl-*`). */
 export function FieldAffix({ side = "right", children }: { side?: "left" | "right"; children: ReactNode }) {
-  return <span aria-hidden="true" className={cn("pointer-events-none absolute inset-y-0 flex items-center text-sm text-[var(--muted-foreground)]", side === "right" ? "right-4" : "left-3.5")}>{children}</span>;
+  return <span aria-hidden="true" className={cn("pointer-events-none absolute inset-y-0 flex items-center text-sm text-[var(--muted-foreground)]", side === "right" ? "right-3.5" : "left-3.5")}>{children}</span>;
 }

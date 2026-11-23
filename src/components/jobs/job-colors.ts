@@ -10,6 +10,18 @@
  */
 export const JOB_COLORS = ["#6d5ce7", "#0ea5e9", "#12b76a", "#f79009", "#f04438", "#ec4899", "#8b5cf6", "#14b8a6"];
 
+/** What the picker announces for each palette colour, in `JOB_COLORS` order. */
+export const JOB_COLOR_NAMES: Record<string, string> = {
+  "#6d5ce7": "Indigo",
+  "#0ea5e9": "Sky",
+  "#12b76a": "Green",
+  "#f79009": "Amber",
+  "#f04438": "Red",
+  "#ec4899": "Pink",
+  "#8b5cf6": "Violet",
+  "#14b8a6": "Teal",
+};
+
 /** The first palette colour no active job uses, so a new job is told apart on the charts without anyone choosing. */
 export function nextJobColor(used: string[]) {
   const taken = new Set(used.map((color) => color.toLowerCase()));

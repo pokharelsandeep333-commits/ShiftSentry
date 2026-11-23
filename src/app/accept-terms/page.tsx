@@ -23,7 +23,7 @@ export default async function AcceptTermsPage({ searchParams }: { searchParams: 
   }
   return <main className="min-h-dvh bg-[var(--background)] px-4 py-8 sm:py-12">
     <div className="mx-auto max-w-xl space-y-6"><Link href="/" className="inline-flex min-h-11 items-center"><Brand /></Link>
-      <Card><CardHeader><p className="text-xs font-semibold uppercase tracking-wider text-[var(--primary)]">Agreement {LEGAL_VERSION}</p><h1 className="font-display text-3xl font-semibold tracking-tight">Before you continue</h1><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">Please review the Terms and Privacy Policy. ShiftSentry is free, and your work records stay private.</p></CardHeader>
+      <Card><CardHeader><h1 className="font-display text-3xl font-semibold tracking-tight">Before you continue</h1><p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">Please review the Terms and Privacy Policy. ShiftSentry is free, and your work records stay private.</p><p className="mt-1 text-xs tabular-nums text-[var(--muted-foreground)]">Agreement version {LEGAL_VERSION}</p></CardHeader>
         <CardContent>{demo && <p role="status" className="mb-4 text-sm text-[var(--muted-foreground)]">Preview only. Agreement recording requires a configured account service.</p>}<AcceptanceForm next={next} demo={demo} /></CardContent>
       </Card>
       <p className="text-sm leading-6 text-[var(--muted-foreground)]">You can decline and still <Link className="font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]" href="/account">export or delete your account</Link>.</p>

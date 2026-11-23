@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -10,9 +9,8 @@ import { cn } from "@/lib/utils";
  * heading is an h2 under the page's h1, which CardTitle (an h3) would skip.
  * `scroll-mt-6` leaves space above the section after an anchor jump.
  */
-export function SettingsSection({ id, icon: Icon, title, description, status, danger = false, plain = false, children }: {
+export function SettingsSection({ id, title, description, status, danger = false, plain = false, children }: {
   id: string;
-  icon: LucideIcon;
   title: string;
   description: string;
   /** A badge on the heading row, e.g. the Google connection state. */
@@ -35,21 +33,19 @@ export function SettingsSection({ id, icon: Icon, title, description, status, da
     </header>
     <div className="pt-6">{children}</div>
   </section>;
+  // The card version (job pages): a heading row over a hairline, no icon tile.
+  // A danger section gets a red-tinted outline instead of a tinted tile
+  // (inline, because the unlayered `.premium-card` rule beats a border utility).
   return <section id={id} tabIndex={-1} aria-labelledby={`${id}-title`} className="scroll-mt-6 rounded-[1.35rem] outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]">
-    <Card>
-      <div className="flex items-start gap-3.5 p-5 sm:p-6">
-        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", danger ? "bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] text-[var(--danger)]" : "bg-[var(--primary-soft)] text-[var(--primary)]")}>
-          <Icon className="size-[1.15rem]" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h2 id={`${id}-title`} className="font-display text-[1.05rem] font-semibold">{title}</h2>
-            {status}
-          </div>
-          <p className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">{description}</p>
+    <Card style={danger ? { borderColor: "color-mix(in srgb, var(--danger) 35%, var(--border))" } : undefined}>
+      <header className="mx-5 border-b py-5 sm:mx-6">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <h2 id={`${id}-title`} className="font-display text-[1.05rem] font-semibold">{title}</h2>
+          {status}
         </div>
-      </div>
-      <CardContent>{children}</CardContent>
+        <p className="mt-1 max-w-[62ch] text-sm leading-6 text-[var(--muted-foreground)]">{description}</p>
+      </header>
+      <CardContent className="pt-6 sm:pt-6">{children}</CardContent>
     </Card>
   </section>;
 }

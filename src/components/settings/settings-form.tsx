@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
+import { Lock } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { updateSettings } from "@/app/actions/work";
 import { emptyFormState } from "@/lib/form-state";
@@ -66,7 +67,7 @@ export function SettingsForm({ email, displayName, timeZone, timeZones, weekStar
         <input id="settings-display-name" name="displayName" value={fields.displayName} onChange={(event) => change("displayName", event.target.value)} maxLength={100} autoComplete="name" {...fieldA11y("settings-display-name-error", errors.displayName, "settings-display-name-hint")} className="field-control" />
       </SettingRow>
       {email && <SettingRow label="Email" hint="The account you sign in with.">
-        <p className="truncate text-sm font-medium sm:text-right" title={email}>{email}</p>
+        <p className="field-static gap-2 text-sm" title={email}><Lock className="size-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{email}</span></p>
       </SettingRow>}
       <SettingRow label="Time zone" labelId="time-zone-label" hint="Every total, limit and pay period is worked out here." error={errors.timeZone} errorId="settings-time-zone-error">
         <PremiumSelect key={timeZone} name="timeZone" defaultValue={timeZone} options={timeZones} labelledBy="time-zone-label" onValueChange={(value) => change("timeZone", value)} invalid={Boolean(errors.timeZone)} describedBy={errors.timeZone ? "settings-time-zone-error" : undefined} />

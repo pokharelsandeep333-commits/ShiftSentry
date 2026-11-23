@@ -1,14 +1,15 @@
 "use client";
 
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { addJobDeduction, createJob, updateJobDetails } from "@/app/actions/work";
 import { emptyFormState, type FieldErrors } from "@/lib/form-state";
 import { Button, PendingLabel } from "@/components/ui/button";
 import { FormError, fieldA11y } from "@/components/ui/field-error";
 import { useActionForm } from "@/components/ui/use-action-form";
-import { JOB_COLORS } from "@/components/jobs/job-colors";
+import { textOn } from "@/components/calendar/item-style";
+import { JOB_COLORS, JOB_COLOR_NAMES } from "@/components/jobs/job-colors";
 import { PayScheduleFields } from "@/components/jobs/pay-schedule-fields";
 import { FieldAffix, SettingRow } from "@/components/settings/setting-row";
 import type { PaySchedule } from "@/lib/pay-period";
@@ -24,32 +25,46 @@ export function FormFooter({ note, children }: { note?: React.ReactNode; childre
   </div>;
 }
 
+/** The chosen swatch's ring: its own colour, pulled toward the text colour so a pale custom colour still shows a ring. */
+const ringFor = (color: string) => `color-mix(in srgb, ${color} 72%, var(--foreground))`;
+
 function ColorField({ defaultValue, error, errorId }: { defaultValue: string; error?: string; errorId: string }) {
   const [color, setColor] = useState(defaultValue);
   // One per form: a fixed id here was shared by every job on the old list page,
   // so each group announced the first one's label.
   const labelId = useId();
 
+  const custom = !JOB_COLORS.some((swatch) => swatch.toLowerCase() === color.toLowerCase());
+  const radioName = `${labelId}-swatch`;
+
+  // Circles, as in most colour-label pickers: a native radio group (arrows move
+  // the choice, one tab stop), each swatch ringed in its own colour when chosen.
+  // The last circle opens the native colour well; it shows the custom colour
+  // once one is picked, and the conic wheel until then.
+  const swatchClass = "relative grid size-11 cursor-pointer place-items-center rounded-full sm:size-9";
+  const dotClass = "grid size-7 place-items-center rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)] transition-[transform,box-shadow] duration-150 sm:size-6";
+  const ringClass = "ring-2 ring-offset-2 ring-offset-[var(--card)]";
+  const focusClass = "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-[var(--primary)]";
+
   return <SettingRow label="Colour" labelId={labelId} hint="Marks this job on charts and the calendar." wide error={error} errorId={errorId}>
     <input type="hidden" name="color" value={color} />
-    <div className="flex flex-wrap items-center gap-2 sm:justify-end" role="group" aria-labelledby={labelId} aria-describedby={error ? errorId : undefined}>
+    <div className="flex flex-wrap items-center gap-0.5 sm:justify-end" role="radiogroup" aria-labelledby={labelId} aria-describedby={error ? errorId : undefined}>
       {JOB_COLORS.map((swatch) => {
         const selected = swatch.toLowerCase() === color.toLowerCase();
-        return <button
-          key={swatch}
-          type="button"
-          aria-label={`Use colour ${swatch}`}
-          aria-pressed={selected}
-          onClick={() => setColor(swatch)}
-          className={cn("grid size-11 place-items-center rounded-xl transition-transform hover:scale-110 sm:size-8 focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]", selected && "ring-2 ring-[var(--foreground)] ring-offset-2 ring-offset-[var(--card)]")}
-          style={{ background: swatch }}
-        >
-          {selected && <Check className="size-4 text-white" strokeWidth={3} />}
-        </button>;
+        const name = JOB_COLOR_NAMES[swatch] ?? swatch;
+        return <label key={swatch} title={name} className={cn(swatchClass, focusClass, "group")}>
+          <input type="radio" name={radioName} value={swatch} checked={selected} onChange={() => setColor(swatch)} aria-label={name} className="sr-only" />
+          <span aria-hidden="true" className={cn(dotClass, selected ? ringClass : "group-hover:scale-110")} style={{ background: swatch, ...(selected ? { "--tw-ring-color": ringFor(swatch) } : {}) } as CSSProperties}>
+            {selected && <Check className="size-3.5" style={{ color: textOn(swatch) }} strokeWidth={3} />}
+          </span>
+        </label>;
       })}
-      <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs font-semibold sm:ml-1 sm:min-h-0 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-subtle)]">
-        <input type="color" value={color} onChange={(event) => setColor(event.target.value)} className="size-5 cursor-pointer rounded border-0 bg-transparent p-0" />
-        Custom
+      <span aria-hidden="true" className="mx-1.5 h-5 w-px bg-[var(--border)]" />
+      <label title={custom ? `Custom colour ${color}` : "Pick a custom colour"} className={cn(swatchClass, focusClass, "group")}>
+        <input type="color" value={color} onChange={(event) => setColor(event.target.value)} aria-label="Custom colour" className="absolute inset-0 size-full cursor-pointer opacity-0" />
+        <span aria-hidden="true" className={cn(dotClass, "pointer-events-none", custom ? ringClass : "group-hover:scale-110")} style={custom ? { background: color, "--tw-ring-color": ringFor(color) } as CSSProperties : { background: "conic-gradient(from 90deg, #f04438, #f79009, #facc15, #12b76a, #0ea5e9, #6d5ce7, #ec4899, #f04438)" }}>
+          {custom ? <Check className="size-3.5" style={{ color: textOn(color) }} strokeWidth={3} /> : <Plus className="size-3.5 text-white drop-shadow-[0_0_1.5px_rgb(0_0_0/0.6)]" strokeWidth={3} />}
+        </span>
       </label>
     </div>
   </SettingRow>;

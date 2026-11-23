@@ -10,6 +10,8 @@ import { SignInLink } from "@/components/welcome/sign-in-link";
 import { faqItems, WelcomeFaq } from "@/components/welcome/welcome-faq";
 import { WelcomeJsonLd } from "@/components/welcome/welcome-json-ld";
 import { WelcomeNav } from "@/components/welcome/welcome-nav";
+import { ThemeSwipe } from "@/components/welcome/theme-swipe";
+import { DESKTOP_SHOT_SIZES } from "@/components/welcome/shot-sizes";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { cn } from "@/lib/utils";
 import { ACCENTS, captureName, SMALL_CAPTURE_SUFFIX, SMALL_CAPTURE_WIDTH } from "@/lib/accent";
@@ -110,14 +112,15 @@ export function WelcomeLanding() {
               page itself, not in a panel, in the light glass frame. */}
           <section aria-label="The ShiftSentry dashboard" className="relative px-3 pb-16 sm:px-6 sm:pb-20 lg:pb-24">
             <div className="welcome-container mx-auto">
-              <figure className="welcome-showcase relative pb-12 lg:pb-14">
-                <div className="showcase-tilt welcome-frame rounded-[1.25rem] p-1.5 sm:rounded-[1.5rem] sm:p-2">
+              {/* Swipe the shot sideways and the next colour theme slides in and takes over the page (theme-swipe.tsx). */}
+              <ThemeSwipe className="welcome-showcase relative pb-12 lg:pb-14">
+                <div data-swipe-frame className="showcase-tilt welcome-frame rounded-[1.25rem] p-1.5 sm:rounded-[1.5rem] sm:p-2">
                   <Screenshot size="desktop" width={1440} height={952} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax." className="rounded-[0.9rem] sm:rounded-[1.1rem]" />
                 </div>
-                <div className="welcome-phone absolute bottom-0 right-[2%] w-[24%] min-w-28 rounded-[1.5rem] sm:right-[3%] lg:w-[19%]">
+                <div data-swipe-phone className="welcome-phone absolute bottom-0 right-[2%] z-10 w-[24%] min-w-28 rounded-[1.5rem] sm:right-[3%] lg:w-[19%]">
                   <Screenshot size="mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" />
                 </div>
-              </figure>
+              </ThemeSwipe>
             </div>
           </section>
 
@@ -182,8 +185,6 @@ function HeadlineGlyph({ icon: Icon, order }: { icon: ComponentType<LucideProps>
  * the ~350px it shows there); wider screens pick by `sizes`, which follows
  * the `.welcome-container` widths in globals.css.
  */
-const DESKTOP_SHOT_SIZES = "(min-width: 1760px) 86rem, (min-width: 1440px) 78rem, (min-width: 1152px) 72rem, calc(100vw - 2rem)";
-
 function Screenshot({ size, width, height, alt, className }: { size: "desktop" | "mobile"; width: number; height: number; alt: string; className?: string }) {
   return <>
     {ACCENTS.flatMap((accent) => (["light", "dark"] as const).map((mode) => {

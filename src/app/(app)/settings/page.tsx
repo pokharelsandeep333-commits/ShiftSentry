@@ -1,5 +1,4 @@
 import { Suspense, type ReactNode } from "react";
-import { CalendarClock, CalendarRange, Palette, ShieldCheck } from "lucide-react";
 import { SavedToast } from "@/components/saved-toast";
 import { AccountLinks } from "@/components/settings/account-links";
 import { BreakPeriodsForm } from "@/components/settings/break-periods-form";
@@ -52,7 +51,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const initial: SettingsSectionId = googleOn && (googleProblem || (typeof saved === "string" && saved.startsWith("google"))) ? "google-calendar" : "week";
 
   const content: Record<SettingsSectionId, ReactNode> = {
-    week: <SettingsSection plain id="week" icon={CalendarClock} title="Profile and week" description="Your name, and how your week and its limit are counted.">
+    week: <SettingsSection plain id="week" title="Profile and week" description="Your name, and how your week and its limit are counted.">
       <SettingsForm
         email={profile.email}
         displayName={profile.display_name ?? ""}
@@ -63,15 +62,15 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         profileSaved={saved === "1"}
       />
     </SettingsSection>,
-    "break-periods": <SettingsSection plain id="break-periods" icon={CalendarRange} title="Break periods" description="When the first day of your workweek falls within these dates, the break cap applies for the whole week. Both dates count. Per-job limits still apply.">
+    "break-periods": <SettingsSection plain id="break-periods" title="Break periods" description="When the first day of your workweek falls within these dates, the break cap applies for the whole week. Both dates count. Per-job limits still apply.">
       {periods ? <BreakPeriodsForm periods={periods} bare /> : <p role="alert" className="text-sm text-[var(--danger)]">Couldn&apos;t load break periods. Refresh to try again.</p>}
     </SettingsSection>,
     "google-calendar": <Suspense fallback={<GoogleCalendarCardSkeleton plain />}><GoogleCalendarCard userId={profile.id} plain /></Suspense>,
-    appearance: <SettingsSection plain id="appearance" icon={Palette} title="Appearance" description="How ShiftSentry looks on this device. The moon and sun in the header switch light and dark too.">
+    appearance: <SettingsSection plain id="appearance" title="Appearance" description="How ShiftSentry looks on this device. The moon and sun in the header switch light and dark too.">
       <ThemeChoice />
       <AccentChoice />
     </SettingsSection>,
-    account: <SettingsSection plain id="account" icon={ShieldCheck} title="Account and privacy" description="These tools open on their own page and work even when the workspace is locked.">
+    account: <SettingsSection plain id="account" title="Account and privacy" description="These tools open on their own page and work even when the workspace is locked.">
       <AccountLinks />
     </SettingsSection>,
   };

@@ -56,12 +56,14 @@ export function WelcomeNav({ base = "" }: { base?: "" | "/" }) {
           <BrandMark size="default" className="size-9 rounded-xl" />
           <span className="welcome-nav-word font-display text-[1.0625rem] font-semibold text-[var(--foreground)]">ShiftSentry</span>
         </Link>
-        {/* From lg only: at tablet widths four links collide with the buttons. Privacy is in the footer. */}
+        {/* From lg only: at tablet widths four links collide with the buttons. Sandeep's pick
+            (2026-11-23, after trying product-only and section-only sets): How it works, About,
+            Privacy, Guides. */}
         <nav aria-label="Page" className="hidden items-center gap-1 lg:flex">
           <a href={`${base}#how`} className={navLink}>How it works</a>
-          <a href={`${base}#week`} className={navLink}>Example week</a>
           <Link href="/about" className={navLink}>About</Link>
           <Link href="/privacy" className={navLink}>Privacy</Link>
+          <Link href="/guides" className={navLink}>Guides</Link>
         </nav>
         <div className="flex items-center gap-1.5 justify-self-end sm:gap-2">
           <ThemeSwitch />
