@@ -173,7 +173,7 @@ begin
   execute 'set local role postgres';
   perform set_config('request.jwt.claim.sub', '', true);
   insert into auth.users (id, email) values (jade, 'jade.timer@example.com');
-  insert into public.legal_acceptances (user_id, version) values (jade, '2026-11-02.1');
+  insert into public.legal_acceptances (user_id, version) values (jade, '2026-11-23.1');
   insert into public.jobs (user_id, name) values (jade, 'Jade job') returning id into jade_job;
   insert into public.shift_timers (user_id, job_id) values (jade, jade_job);
   update public.profiles set disabled_at = now() where id = jade;

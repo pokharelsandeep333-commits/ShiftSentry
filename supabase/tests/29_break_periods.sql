@@ -30,7 +30,7 @@ begin
   exception when insufficient_privilege then null;
   end;
 
-  perform public.accept_legal_terms('2026-11-17.1', true, true);
+  perform public.accept_legal_terms('2026-11-23.1', true, true);
   insert into public.jobs (user_id, name) values (owner_id, 'Desk') returning id into desk_id;
   insert into public.jobs (user_id, name, weekly_limit_minutes) values (owner_id, 'Shop', 120) returning id into shop_id;
   insert into public.break_periods (user_id, start_date, end_date, weekly_limit_minutes, label)
@@ -124,7 +124,7 @@ begin
     values (owner_id, desk_id, '2026-03-08 04:30+00', '2026-03-08 05:30+00');
 
   perform set_config('request.jwt.claim.sub', other_id::text, true);
-  perform public.accept_legal_terms('2026-11-17.1', true, true);
+  perform public.accept_legal_terms('2026-11-23.1', true, true);
   if exists(select 1 from public.break_periods where id = winter_id) then raise exception 'another user read a private break'; end if;
   update public.break_periods set label = 'changed' where id = winter_id;
   get diagnostics touched = row_count;

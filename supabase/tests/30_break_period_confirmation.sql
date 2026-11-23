@@ -24,7 +24,7 @@ begin
     then raise exception 'anonymous callers can invoke break confirmation'; end if;
   set local role authenticated;
   perform set_config('request.jwt.claim.sub', owner_id::text, true);
-  perform public.accept_legal_terms('2026-11-17.1', true, true);
+  perform public.accept_legal_terms('2026-11-23.1', true, true);
   insert into public.jobs (user_id, name) values (owner_id, 'Desk') returning id into job_id;
   insert into public.jobs (user_id, name, archived_at) values (owner_id, 'Archive', now()) returning id into archived_job_id;
   insert into public.break_periods (user_id, start_date, end_date, weekly_limit_minutes)
@@ -69,7 +69,7 @@ begin
     then raise exception 'a label-only edit required confirmation'; end if;
 
   perform set_config('request.jwt.claim.sub', other_id::text, true);
-  perform public.accept_legal_terms('2026-11-17.1', true, true);
+  perform public.accept_legal_terms('2026-11-23.1', true, true);
   begin
     perform public.change_break_period(period_id);
     raise exception 'another user accessed a private break';
