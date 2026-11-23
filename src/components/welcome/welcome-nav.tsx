@@ -60,8 +60,8 @@ export function WelcomeNav({ base = "" }: { base?: "" | "/" }) {
         <nav aria-label="Page" className="hidden items-center gap-1 lg:flex">
           <a href={`${base}#how`} className={navLink}>How it works</a>
           <a href={`${base}#week`} className={navLink}>Example week</a>
-          <Link href="/guides" className={navLink}>Guides</Link>
-          <a href={`${base}#faq`} className={navLink}>FAQ</a>
+          <Link href="/about" className={navLink}>About</Link>
+          <Link href="/privacy" className={navLink}>Privacy</Link>
         </nav>
         <div className="flex items-center gap-1.5 justify-self-end sm:gap-2">
           <ThemeSwitch />
