@@ -10,11 +10,9 @@ import { SignInLink } from "@/components/welcome/sign-in-link";
 import { faqItems, WelcomeFaq } from "@/components/welcome/welcome-faq";
 import { WelcomeJsonLd } from "@/components/welcome/welcome-json-ld";
 import { WelcomeNav } from "@/components/welcome/welcome-nav";
-import { ThemeSwipe } from "@/components/welcome/theme-swipe";
-import { DESKTOP_SHOT_SIZES } from "@/components/welcome/shot-sizes";
+import { ThemeShowcase } from "@/components/welcome/theme-showcase";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { cn } from "@/lib/utils";
-import { ACCENTS, captureName, SMALL_CAPTURE_SUFFIX, SMALL_CAPTURE_WIDTH } from "@/lib/accent";
 
 /**
  * The public landing page, rendered by `/welcome`, which `src/proxy.ts` serves
@@ -42,8 +40,9 @@ import { ACCENTS, captureName, SMALL_CAPTURE_SUFFIX, SMALL_CAPTURE_WIDTH } from 
  *   `scripts/render-welcome-3d.mjs` from `scripts/welcome-3d/scene.html`.
  *   Re-render there, never edit the webp.
  * - `dashboard-*.webp`: the demo dashboard (what `demoDashboardFor` renders with no
- *   Supabase configured) captured in every colour theme and mode, shown through
- *   `.welcome-shot` (see `Screenshot`). Recapture when its look changes.
+ *   Supabase configured) captured in every colour theme and mode, desktop and
+ *   phone, shown one theme per slide by the theme strip (`theme-showcase.tsx`).
+ *   Recapture when its look changes.
  * All are pre-compressed at display size and each has an `.avif` sibling, so
  * they are served as plain `<picture>`s (AVIF first, webp fallback) and
  * nothing depends on the image optimizer in the container.
@@ -112,15 +111,15 @@ export function WelcomeLanding() {
               page itself, not in a panel, in the light glass frame. */}
           <section aria-label="The ShiftSentry dashboard" className="relative px-3 pb-16 sm:px-6 sm:pb-20 lg:pb-24">
             <div className="welcome-container mx-auto">
-              {/* Swipe the shot sideways and the next colour theme slides in and takes over the page (theme-swipe.tsx). */}
-              <ThemeSwipe className="welcome-showcase relative pb-12 lg:pb-14">
-                <div data-swipe-frame className="showcase-tilt welcome-frame rounded-[1.25rem] p-1.5 sm:rounded-[1.5rem] sm:p-2">
-                  <Screenshot size="desktop" width={1440} height={952} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax." className="rounded-[0.9rem] sm:rounded-[1.1rem]" />
+              {/* One slide per colour theme; settling on one recolours the page (theme-showcase.tsx). */}
+              <figure className="welcome-showcase relative">
+                <div className="showcase-tilt">
+                  <ThemeShowcase
+                    alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax."
+                    phoneAlt="The same dashboard on a phone."
+                  />
                 </div>
-                <div data-swipe-phone className="welcome-phone absolute bottom-0 right-[2%] z-10 w-[24%] min-w-28 rounded-[1.5rem] sm:right-[3%] lg:w-[19%]">
-                  <Screenshot size="mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" />
-                </div>
-              </ThemeSwipe>
+              </figure>
             </div>
           </section>
 
@@ -170,34 +169,4 @@ function Pill({ children, prefetch }: { children: ReactNode; prefetch?: boolean 
  */
 function HeadlineGlyph({ icon: Icon, order }: { icon: ComponentType<LucideProps>; order: number }) {
   return <span aria-hidden="true" className="hero-glyph" style={{ "--glyph-order": order } as CSSProperties}><Icon strokeWidth={2.6} /></span>;
-}
-
-/**
- * One screenshot, captured once per colour theme and mode (`captureName` in
- * `src/lib/accent.ts`); the generated `.welcome-shot` rules (`ACCENT_CSS`)
- * show only the one matching `<html data-accent>` and `.dark`. Each is a
- * `<picture>`, AVIF first and the webp as the fallback. All are lazy: a
- * browser never fetches a lazy image that is `display: none`, so a visitor
- * downloads only the pair for their own theme and mode.
- *
- * The desktop shot also comes 720px wide (`SMALL_CAPTURE_SUFFIX`). Phones
- * always take that one, whatever their pixel ratio (it is still about 2x at
- * the ~350px it shows there); wider screens pick by `sizes`, which follows
- * the `.welcome-container` widths in globals.css.
- */
-function Screenshot({ size, width, height, alt, className }: { size: "desktop" | "mobile"; width: number; height: number; alt: string; className?: string }) {
-  return <>
-    {ACCENTS.flatMap((accent) => (["light", "dark"] as const).map((mode) => {
-      const stem = captureName(size, accent.id, mode);
-      const small = `/welcome/${stem}${SMALL_CAPTURE_SUFFIX}`;
-      const both = (format: string) => `${small}.${format} ${SMALL_CAPTURE_WIDTH}w, /welcome/${stem}.${format} ${width}w`;
-      return <picture key={stem}>
-        {size === "desktop" ? <>
-          <source media="(max-width: 639px)" type="image/avif" srcSet={`${small}.avif`} />
-          <source type="image/avif" srcSet={both("avif")} sizes={DESKTOP_SHOT_SIZES} />
-        </> : <source type="image/avif" srcSet={`/welcome/${stem}.avif`} />}
-        <img src={`/welcome/${stem}.webp`} srcSet={size === "desktop" ? both("webp") : undefined} sizes={size === "desktop" ? DESKTOP_SHOT_SIZES : undefined} data-shot={`${accent.id}-${mode}`} width={width} height={height} alt={alt} loading="lazy" decoding="async" className={cn("welcome-shot h-auto w-full", className)} />
-      </picture>;
-    }))}
-  </>;
 }
