@@ -17,10 +17,10 @@
 // only those from the webp already on disk, with no browser and no network.
 //
 // Every image the landing shows also gets an AVIF sibling, served first
-// through `<picture>` with the webp as the fallback: the hero and its copies,
-// and the `dashboard-*` captures (which are screenshots, not renders, so they
-// only ever get the offline step). Qualities were picked by eye against the
-// webp on 2026-11-18: the hero at 65, because 55 and 60 put faint block edges
+// through `<picture>` with the webp as the fallback: here, the hero and its
+// copies. The `dashboard-*` captures are screenshots, not renders, and
+// scripts/capture-dashboard.mjs writes their webp and AVIF together.
+// Qualities were picked by eye against the webp on 2026-11-18: the hero at 65, because 55 and 60 put faint block edges
 // into the lavender floor shadow; the captures at 70, because 60 softened the
 // grey text on the dark phone capture. Each AVIF is encoded from its own webp
 // sibling, after the full render too: the webp's encode smooths the render's
@@ -44,10 +44,8 @@ const outDir = join(root, "..", "public", "welcome");
 const SCENES = [
   { name: "hero-3d", scene: "hero", width: 1400, height: 1400, variants: [720, 1080] },
 ];
-const CAPTURES = ["dashboard-desktop-light", "dashboard-desktop-dark", "dashboard-mobile-light", "dashboard-mobile-dark"];
 const WEBP = { quality: 86, alphaQuality: 90, effort: 6 };
 const AVIF_ART = { quality: 65, effort: 6, chromaSubsampling: "4:4:4" };
-const AVIF_CAPTURE = { quality: 70, effort: 6, chromaSubsampling: "4:4:4" };
 
 if (process.argv.includes("--variants")) {
   for (const scene of SCENES) await writeVariants(scene);
@@ -55,7 +53,6 @@ if (process.argv.includes("--variants")) {
 }
 if (process.argv.includes("--avif")) {
   for (const scene of SCENES) await writeSceneAvifs(scene);
-  for (const name of CAPTURES) await writeAvif(name, AVIF_CAPTURE);
   process.exit(0);
 }
 const SUPERSAMPLE = 2;
