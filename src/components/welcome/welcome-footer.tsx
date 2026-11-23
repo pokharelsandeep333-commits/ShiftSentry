@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Mail } from "lucide-react";
 import { Brand } from "@/components/brand";
-import { LEGAL_CONTACT_EMAIL } from "@/components/legal-page";
 import { SignInLink } from "@/components/welcome/sign-in-link";
+import { LEGAL_CONTACT_EMAIL } from "@/lib/contact";
 import { GUIDES } from "@/lib/guides";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,8 @@ const SOCIAL_LINKS: { label: string; href: string; icon: ReactNode; external: bo
 /* `py-1` lifts each link past the 24px minimum touch target without spreading the columns. */
 const footerLink = "inline-flex min-h-11 items-center py-1 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)] sm:min-h-0";
 
-export function WelcomeFooter({ className }: { className: string }) {
+/* `base` as in `WelcomeNav`: "/" off the landing, so the section links reach it. */
+export function WelcomeFooter({ className, base = "" }: { className: string; base?: "" | "/" }) {
   return <footer className="px-3 pb-3 pt-4 sm:px-6 sm:pb-6 sm:pt-5">
     <div className={cn(className, "px-6 sm:px-10 lg:px-12")}>
       <div className="grid gap-10 pb-10 pt-11 sm:pt-12 lg:grid-cols-12 lg:gap-8">
@@ -45,9 +46,9 @@ export function WelcomeFooter({ className }: { className: string }) {
 
         <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-9 sm:grid-cols-[1fr_1.4fr_0.9fr_1.1fr] lg:col-span-8">
           <FooterColumn title="Product">
-            <li><a href="#how" className={footerLink}>How it works</a></li>
-            <li><a href="#week" className={footerLink}>Example week</a></li>
-            <li><a href="#faq" className={footerLink}>Questions</a></li>
+            <li><a href={`${base}#how`} className={footerLink}>How it works</a></li>
+            <li><a href={`${base}#week`} className={footerLink}>Example week</a></li>
+            <li><a href={`${base}#faq`} className={footerLink}>Questions</a></li>
             <li><Link href="/about" className={footerLink}>About</Link></li>
           </FooterColumn>
           <FooterColumn title="Guides">
