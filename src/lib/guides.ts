@@ -4,7 +4,7 @@
  * the landing's footer, the sitemap and `/llms.txt` list them from here.
  *
  * The landing's rule holds here too: every behaviour a guide describes is one
- * the app or the database enforces (the 80/90/100 ladder, the per-job cap, the
+ * the app or the database enforces (the 80% warning and the refusal at 100%, `week-meter.ts`; the per-job cap, the
  * midnight split and 24 hour limit, the overlap constraint, the pay snapshot,
  * percentage tax and deductions, pay schedules). Change a guide in the same
  * change as its rule. Nothing here may read as legal, immigration or tax
@@ -77,11 +77,11 @@ export const GUIDES: Guide[] = [
     slug: "stay-under-weekly-hour-limit",
     navLabel: "Staying under a weekly limit",
     title: "How to stay under a weekly work-hour limit",
-    description: "Count logged and planned shifts against a weekly hour limit, get warned at 80% and 90%, and have any shift that would push you over refused.",
+    description: "Count logged and planned shifts against a weekly hour limit, get warned at 80%, and have any shift that would push you over refused.",
     heading: "Staying under a weekly work-hour limit",
     lede: "Going over a weekly limit usually happens one extra shift at a time, and you only find out once the week is over. The fix is to count the week as you plan it, not after you have worked it.",
     published: "2026-11-02",
-    updated: "2026-11-02",
+    updated: "2026-11-23",
     sections: [
       {
         heading: "What counts toward the week",
@@ -92,7 +92,7 @@ export const GUIDES: Guide[] = [
       {
         heading: "Warnings before the limit",
         paragraphs: [
-          "ShiftSentry warns you when the week reaches 80% of your limit and again at 90%. On a 20 hour limit, that's at 16 hours and at 18 hours, early enough to say no to the next extra shift.",
+          "ShiftSentry warns you when the week reaches 80% of your limit: the hours meter at the top of every page and the weekly limit card on your dashboard turn amber. On a 20 hour limit, that's at 16 hours, early enough to say no to the next extra shift. At 100% they turn red.",
           "The shift form checks the limit as you fill it in, so you see whether a shift fits before you save it.",
         ],
       },
