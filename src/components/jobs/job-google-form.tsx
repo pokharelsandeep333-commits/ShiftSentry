@@ -40,7 +40,7 @@ export function JobGoogleForm({ jobId, jobName, keyword, calendarId, sync, calen
   return <form action={formAction} onSubmit={(event) => { const box = event.currentTarget.elements.namedItem("sync"); syncOnSave.current = box instanceof HTMLInputElement && box.checked; onSubmit(event); }} className="grid gap-5">
     <input type="hidden" name="jobId" value={jobId} />
     <div className="divide-y">
-      <SettingRow label="Title keyword" labelFor={`${prefix}-keyword`} hint="Events with it as whole words in the title. Blank uses the job name." hintId={`${prefix}-keyword-hint`} error={errors.keyword} errorId={`${prefix}-keyword-error`}>
+      <SettingRow label="Title keyword" labelFor={`${prefix}-keyword`} hint="Events with it as whole words in the title (2 characters or more). Blank uses the job name." hintId={`${prefix}-keyword-hint`} error={errors.keyword} errorId={`${prefix}-keyword-error`}>
         <input id={`${prefix}-keyword`} name="keyword" defaultValue={keyword ?? ""} maxLength={80} placeholder={jobName} className="field-control" {...fieldA11y(`${prefix}-keyword-error`, errors.keyword, `${prefix}-keyword-hint`)} />
       </SettingRow>
       <SettingRow label="Calendar" labelId={`${prefix}-calendar`} hint="Where to look for them." error={errors.calendarId} errorId={`${prefix}-calendar-error`}>
