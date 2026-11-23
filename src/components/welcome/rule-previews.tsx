@@ -15,8 +15,10 @@ import { EXAMPLE_DAY, EXAMPLE_OVERNIGHT, EXAMPLE_RECEIPT, EXAMPLE_WEEK, spansOve
  * The bento sits inside the section's frosted panel, so its cards are tiles
  * in three tones: white glass (`glass`, the panel's own inner tile), the
  * dashboard weekly-cap card's violet wash (`tint`), and the same wash in the
- * success green (`mint`, for money). Server components throughout; the only
- * motion is the CSS scroll reveal.
+ * success green (`mint`, for money). Server components throughout. The cards
+ * themselves do not fade in; the only motion is a CSS scroll reveal on a few
+ * pieces inside the examples (the café shift sliding in, the clash dropping,
+ * the overnight halves growing).
  */
 const [desk, cafe] = EXAMPLE_WEEK.jobs;
 
@@ -40,7 +42,7 @@ export function RulesBento() {
 }
 
 function BentoCard({ tone, className, title, body, children }: { tone: Tone; className?: string; title: string; body: ReactNode; children: ReactNode }) {
-  return <article className={cn("rv rv-rise flex flex-col rounded-[1.25rem] p-5 sm:p-7", tone === "glass" && "welcome-tile", tone !== "glass" && "welcome-tint", tone === "mint" && "welcome-tint--mint", className)}>
+  return <article className={cn("flex flex-col rounded-[1.25rem] p-5 sm:p-7", tone === "glass" && "welcome-tile", tone !== "glass" && "welcome-tint", tone === "mint" && "welcome-tint--mint", className)}>
     <div className="flex flex-1 flex-col justify-center" aria-hidden="true">{children}</div>
     <h3 className="mt-7 font-display text-lg font-semibold">{title}</h3>
     <p className="mt-1.5 max-w-[46ch] text-[15px] leading-6 text-[var(--muted-foreground)]">{body}</p>

@@ -114,11 +114,9 @@ export function WelcomeLanding() {
                 <div className="showcase-tilt welcome-frame rounded-[1.25rem] p-1.5 sm:rounded-[1.5rem] sm:p-2">
                   <Screenshot size="desktop" width={1440} height={952} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax." className="rounded-[0.9rem] sm:rounded-[1.1rem]" />
                 </div>
-                <div className="rv welcome-phone absolute bottom-0 right-[2%] w-[24%] min-w-28 rounded-[1.5rem] sm:right-[3%] lg:w-[19%]">
+                <div className="welcome-phone absolute bottom-0 right-[2%] w-[24%] min-w-28 rounded-[1.5rem] sm:right-[3%] lg:w-[19%]">
                   <Screenshot size="mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" />
                 </div>
-                {/* Kept clear of the phone, which overhangs the frame. */}
-                <figcaption className="mt-4 max-w-[calc(100%-9rem)] px-1 text-[13px] text-[var(--muted-foreground)]">Dashboard shown with sample data.</figcaption>
               </figure>
             </div>
           </section>
