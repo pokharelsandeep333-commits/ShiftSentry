@@ -22,7 +22,7 @@ import { ACCENTS, captureName, SMALL_CAPTURE_SUFFIX, SMALL_CAPTURE_WIDTH } from 
  * /login?mode=signup, which opens the same form on "Create account".
  *
  * Every rule and number stated below is enforced by the app or the database:
- * the 80/90/100 warning ladder (`dashboard.ts`), the 24 hour shift limit
+ * the 80% warning and 100% limit (`week-meter.ts` and the weekly-limit trigger), the 24 hour shift limit
  * (`validation.ts` and the `shifts_valid_interval` check), the overlap
  * exclusion constraint, and `week_starts_on` 0 to 6. Change the copy in the same
  * change as the rule.

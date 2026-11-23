@@ -27,11 +27,11 @@
 | | |
 |---|---|
 | 🎯 **Problem** | Students and part-time workers juggle several jobs under a weekly hour limit. Going over is easy to miss until it has already happened, and net pay takes arithmetic nobody wants to do |
-| 🧮 **What it does** | Shows logged plus scheduled hours against every cap, warns at 80%, 90% and 100%, and forecasts this week's pay before the week is over |
+| 🧮 **What it does** | Shows logged plus scheduled hours against every cap, warns at 80%, turns red at 100%, refuses a shift that would go over, and forecasts this week's pay before the week is over |
 | 🔁 **Rules enforced twice** | Weekly caps, the pay snapshot, the tax-and-deductions ceiling and the no-overlap rule live in a TypeScript helper **and** a Postgres trigger or constraint. A direct authenticated write through the API hits the same wall |
 | 🕰️ **Your time, your week** | Hours count in the user's time zone and chosen week start. An overnight shift is split at local midnight, and every total (week, month, all time) is built the same way, so one shift is never worth two amounts |
 | 💵 **Money without floats** | Cents and basis points as integers end to end. Input is parsed with dedicated helpers, never `parseFloat` |
-| 🧪 **Tested at both layers** | 37 TypeScript test files, plus 28 SQL suites that apply all 37 migrations to a throwaway Postgres and attack the triggers, policies and grants directly |
+| 🧪 **Tested at both layers** | 48 TypeScript test files and 3 script tests, plus 33 SQL suites that apply all 43 migrations to a throwaway Postgres and attack the triggers, policies and grants directly |
 | 🚀 **Merge is deploy** | Six required checks gate `main`. A merge builds an immutable image, applies migrations, promotes it to `stable`, and the server pulls it within five minutes |
 
 ## 📸 Screens
@@ -69,15 +69,17 @@
 | ⚠️ | **Weekly limits** | A default cap across all jobs, optional break-period caps, and per-job caps. Archived-job shifts still count toward the global cap. For a weekly repeat, the editor shows how many shifts fit, their estimated net and why any dates would be skipped |
 | 💰 | **Earnings** | Gross, tax, deductions and net for this week, this month, the last 3 or 6 months, year to date, all time or a custom span. Open **Pay periods** from the sidebar or phone drawer to see estimated net and the scheduled payday, when set |
 | 🧾 | **Honest history** | A shift remembers the rate it was worked at, so a later raise never reprices past work |
-| 🗓️ | **Calendar** | Week and month views show overnight shifts on both days and mark clashes. On a phone, select an empty date to start a shift on that day |
+| ⏱️ | **Clock in / out** | Start a timer when the shift starts and stop it on any device. Clocking in during a planned shift adopts it, and stopping logs the real times through the same rules as a typed-in shift |
+| 🗓️ | **Calendar** | Week and month views show overnight shifts on both days and mark clashes. Click an empty half hour (or a day on a phone) to start a shift at that time |
 | 🔗 | **Google Calendar** *(optional)* | Read-only. Shows your events beside your shifts, warns when a new shift clashes, and can turn matching events into shifts for jobs that opt in. Nothing is ever written to Google |
-| 📝 | **Shift log** | Paged by week, filterable by job and by worked or upcoming, with a note per week |
+| 📝 | **Shift log** | Paged by week, filterable by job and by worked or upcoming, with a note per week. **Copy to next week** previews which shifts fit before copying them |
+| 📋 | **Timesheets** | One pay period day by day, with per-job totals, a weekly-cap check and a CSV download |
 | 🔒 | **Account rights** | Versioned Terms with a 16+ confirmation, a JSON export of everything stored, and confirmed permanent deletion from `/account` |
 | 🛠️ | **Admin area** | Users, audit log, health, integrations, announcements and game moderation. It never shows job names, shift times or note contents |
-| 📱 | **Installable** | Responsive layout, light and dark themes, keyboard-accessible controls, and an installable app with an offline page |
+| 📱 | **Installable** | Responsive layout, light and dark modes, eight colour themes, keyboard-accessible controls, and an installable app with an offline page |
 | 🎭 | **Imposter** | A small party word game for friends, with QR-code and link invites, built on Supabase Realtime |
 
-In **Settings → Profile and week → Break periods**, enter inclusive local dates and a cap across all jobs. A workweek uses the break cap when its first day falls in that range. For a Monday-start week and a break from Wednesday, December 16 through Monday, January 4, the week starting December 14 uses the default cap and the week starting January 4 uses the break cap. Individual job caps still apply. If editing or deleting a break would leave any weeks over their new cap, Settings lists the affected weeks and asks for confirmation. Existing shifts stay on the schedule.
+In **Settings → Break periods**, enter inclusive local dates and a cap across all jobs. A workweek uses the break cap when its first day falls in that range. For a Monday-start week and a break from Wednesday, December 16 through Monday, January 4, the week starting December 14 uses the default cap and the week starting January 4 uses the break cap. Individual job caps still apply. If editing or deleting a break would leave any weeks over their new cap, Settings lists the affected weeks and asks for confirmation. Existing shifts stay on the schedule.
 
 ## 🗺️ Architecture
 
@@ -124,8 +126,8 @@ flowchart LR
 | Path | Key | Used for |
 |---|---|---|
 | `createServerSupabaseClient()` | publishable, bound to the user's cookie | **Every user-facing read and write.** Row Level Security scopes each row to its owner |
-| `createAdminSupabaseClient()` | `SUPABASE_SECRET_KEY` | Admin only: role changes, ban and unban, password-reset mail |
-| `prisma` | `DATABASE_URL` | Admin only: audit events and user lookups |
+| `createAdminSupabaseClient()` | `SUPABASE_SECRET_KEY` | Auth admin calls (ban, sign out, password reset, delete user), account deletion, admin-role sync |
+| `prisma` | `DATABASE_URL` | Admin area: audit events, user lookups and counts, support notes, announcements, platform stats |
 
 The last two bypass RLS, so they are server-only and never imported into a client component. When an RLS query is awkward, the policy gets fixed instead.
 
@@ -142,7 +144,7 @@ flowchart LR
 
 | Rule | In the app | In Postgres |
 |---|---|---|
-| Weekly hour caps (global and per job) | `src/lib/limit-check.ts`, `src/app/actions/work.ts` | `enforce_shift_weekly_limits` trigger |
+| Weekly hour caps (global, break period and per job) | `src/lib/limit-check.ts`, `src/app/actions/work.ts` | `enforce_shift_weekly_limits` trigger |
 | Pay rate frozen onto the shift | `src/lib/earnings.ts` | `shifts_sync_earnings_snapshot` trigger |
 | Tax plus deductions can't exceed 100% | `checkCombinedRate` in `work.ts` | `enforce_job_compensation_rate` trigger on jobs and deductions |
 | No overlapping shifts | `src/lib/limit-check.ts` | `shifts_no_overlap` exclusion constraint |
@@ -198,7 +200,7 @@ flowchart LR
 | 🧾 Nonce-based CSP with `'strict-dynamic'`, **no `'unsafe-inline'` for scripts**, no external script, style, image or font hosts | `src/lib/content-security-policy.ts`, `src/proxy.ts` |
 | 🔗 `connect-src` names this project's own Supabase origin, not `*.supabase.co`, so a stolen token can't be posted to another project | same |
 | 🔐 Google tokens encrypted with AES-256-GCM. Event titles are never stored | `src/lib/google/token-crypto.ts` |
-| 🚦 Per-user rate limits on account export and deletion, terms acceptance, the Google routes and the limit check | `src/lib/rate-limit.ts` |
+| 🚦 Per-user rate limits on account export and deletion, terms acceptance, the Google routes, the limit and day-shift checks, and the CSV exports. Account export is also capped in the database, and every Google read goes through a per-user and app-wide budget | `src/lib/rate-limit.ts`, `src/lib/google/read-budget.ts` |
 | ✅ Every Server Action input validated with Zod on the server | `src/lib/validation.ts`, `src/app/actions/` |
 | 🎲 Every game write goes through a security-definer RPC. The game's Server Actions never call `.insert()` or `.update()` | `src/app/actions/game.ts`, `supabase/migrations/` |
 | 🗑️ Deletion locks the account first, revokes sessions, then deletes. A failed step never unlocks automatically | `src/app/actions/account.ts` |
@@ -212,10 +214,10 @@ flowchart LR
 ├── 🧭 src/app/                  App Router pages, Server Actions, auth and OAuth callbacks, /api/health
 ├── 🧩 src/components/           Dashboard, calendar, shifts, game, admin, and the UI primitives
 ├── 🧮 src/lib/                  Money, time, limits, period totals, Supabase clients, Google, CSP (+ unit tests)
-├── 🗄️ supabase/migrations/      37 immutable, timestamped migrations: schema, RLS, triggers, RPCs
-├── 🧪 supabase/tests/           28 SQL suites and the harness they run in
+├── 🗄️ supabase/migrations/      43 immutable, timestamped migrations: schema, RLS, triggers, RPCs
+├── 🧪 supabase/tests/           33 SQL suites and the harness they run in
 ├── 🔷 prisma/                   Typed mirror of the schema for the admin client (the SQL is the source of truth)
-├── 🛠️ scripts/                  SQL test runner, audit gate, retention purge, legal snapshot, license notices, landing-art renderer
+├── 🛠️ scripts/                  SQL test runner, audit gate, retention purge, legal snapshot, license notices, landing-art renderer, dashboard capture
 ├── 🎨 public/                   Service worker and the pre-rendered landing art
 ├── 📖 docs/                     Screenshots, privacy operations, and third-party license texts
 └── ⚙️ .github/                  CI/CD, CodeQL, dependency audit, image scan, data retention, Dependabot

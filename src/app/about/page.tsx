@@ -25,7 +25,7 @@ export default function Page() {
   return <ArticlePage title="About ShiftSentry" lede="ShiftSentry is a free work hours tracker for students and anyone with more than one job. It is built and run by Sandeep Pokharel, in South Dakota.">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PERSON).replace(/</g, "\\u003c") }} />
     <ArticleSection heading="What it's for">
-      <p>Each employer sees only its own hours, but a weekly limit usually applies to all of them together. ShiftSentry keeps that total: you add your jobs and a weekly limit, log the shifts you&apos;ve worked and the ones you&apos;ve planned, and it warns you at 80% and 90% and refuses a shift that would take you over.</p>
+      <p>Each employer sees only its own hours, but a weekly limit usually applies to all of them together. ShiftSentry keeps that total: you add your jobs and a weekly limit, log the shifts you&apos;ve worked and the ones you&apos;ve planned, and it warns you at 80% and refuses a shift that would take you over.</p>
       <p>It also estimates what each shift pays after tax and deductions, from the rates you enter. The <Link href="/#faq" className={legalLink}>questions on the home page</Link> cover the rules in more detail.</p>
     </ArticleSection>
     <ArticleSection heading="Who makes it">
