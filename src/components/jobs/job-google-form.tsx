@@ -3,8 +3,12 @@
 import { useActionState, useEffect, useRef } from "react";
 import { saveJobGoogleSettings } from "@/app/actions/calendar";
 import { runSync } from "@/components/google-sync-trigger";
+import { FormFooter } from "@/components/jobs/job-forms";
+import { SettingRow } from "@/components/settings/setting-row";
 import { Button, PendingLabel } from "@/components/ui/button";
+import { FormError, fieldA11y } from "@/components/ui/field-error";
 import { PremiumSelect } from "@/components/ui/premium-select";
+import { useActionForm } from "@/components/ui/use-action-form";
 import { emptySavedFormState } from "@/lib/form-state";
 
 type Props = {
@@ -19,9 +23,12 @@ type Props = {
 /** Which Google events are this job's, and whether they become shifts on their own. */
 export function JobGoogleForm({ jobId, jobName, keyword, calendarId, sync, calendars }: Props) {
   const [state, formAction, pending] = useActionState(saveJobGoogleSettings, emptySavedFormState);
+  const onSubmit = useActionForm(formAction, state);
+  const errors = state.fieldErrors ?? {};
+  const prefix = `google-${jobId}`;
   // Saved with sync on: pull this job's events in now rather than on the next
   // page visit, which could fall inside the five-minute throttle. Read at
-  // submit, because React resets the form's fields once the action returns.
+  // submit, from the checkbox as it was sent.
   const syncOnSave = useRef(false);
   useEffect(() => {
     if (state.savedAt && !state.message && syncOnSave.current) runSync(true).catch(() => {});
@@ -30,19 +37,23 @@ export function JobGoogleForm({ jobId, jobName, keyword, calendarId, sync, calen
   // Google may be unreachable: keep the saved choice selectable rather than silently dropping it.
   if (calendarId && !options.some((option) => option.value === calendarId)) options.push({ value: calendarId, label: calendarId === "primary" ? "Primary calendar" : "Saved calendar" });
 
-  return <form action={formAction} onSubmit={(event) => { const box = event.currentTarget.elements.namedItem("sync"); syncOnSave.current = box instanceof HTMLInputElement && box.checked; }} className="grid gap-4">
+  return <form action={formAction} onSubmit={(event) => { const box = event.currentTarget.elements.namedItem("sync"); syncOnSave.current = box instanceof HTMLInputElement && box.checked; onSubmit(event); }} className="grid gap-5">
     <input type="hidden" name="jobId" value={jobId} />
-    <div className="grid gap-3 sm:grid-cols-2">
-      <label className="field-label"><span>Title keyword</span><input name="keyword" defaultValue={keyword ?? ""} maxLength={80} placeholder={jobName} className="field-control" /></label>
-      <div className="field-label"><span id={`google-calendar-${jobId}`}>Calendar</span><PremiumSelect name="calendarId" defaultValue={calendarId ?? ""} options={options} labelledBy={`google-calendar-${jobId}`} /></div>
+    <div className="divide-y">
+      <SettingRow label="Title keyword" labelFor={`${prefix}-keyword`} hint="Events with it as whole words in the title (2 characters or more). Blank uses the job name." hintId={`${prefix}-keyword-hint`} error={errors.keyword} errorId={`${prefix}-keyword-error`}>
+        <input id={`${prefix}-keyword`} name="keyword" defaultValue={keyword ?? ""} maxLength={80} placeholder={jobName} className="field-control" {...fieldA11y(`${prefix}-keyword-error`, errors.keyword, `${prefix}-keyword-hint`)} />
+      </SettingRow>
+      <SettingRow label="Calendar" labelId={`${prefix}-calendar`} hint="Where to look for them." error={errors.calendarId} errorId={`${prefix}-calendar-error`}>
+        <PremiumSelect name="calendarId" defaultValue={calendarId ?? ""} options={options} labelledBy={`${prefix}-calendar`} invalid={Boolean(errors.calendarId)} describedBy={errors.calendarId ? `${prefix}-calendar-error` : undefined} />
+      </SettingRow>
+      <SettingRow label="Add shifts automatically" labelFor={`${prefix}-sync`} hint="Matching events become shifts and follow changes in Google. Worked shifts and ones you typed never change." hintId={`${prefix}-sync-hint`} wide>
+        <input id={`${prefix}-sync`} type="checkbox" name="sync" defaultChecked={sync} aria-describedby={`${prefix}-sync-hint`} className="size-5 accent-[var(--primary)]" />
+      </SettingRow>
     </div>
-    <p className="text-xs leading-5 text-[var(--muted-foreground)]">Google events with the keyword as whole words in the title are this job&apos;s shifts (at least 2 characters). Leave it blank to use the job name. Changing the keyword or calendar stops matching old events; their shifts are kept.</p>
-    <label className="flex min-h-11 items-start gap-3 rounded-xl px-1 text-sm">
-      <input type="checkbox" name="sync" defaultChecked={sync} className="mt-1 size-4 accent-[var(--primary)]" />
-      <span><span className="font-semibold">Add shifts from Google Calendar automatically</span><span className="block text-xs leading-5 text-[var(--muted-foreground)]">Matching events become shifts, and upcoming ones follow changes in Google. Shifts you have already worked never change, and shifts you typed in yourself are never deleted by sync.</span></span>
-    </label>
-    {state.message && <p role="alert" className="text-sm font-medium text-[var(--danger)]">{state.message}</p>}
+    <FormError message={state.message} />
     {state.savedAt && !state.message && <p role="status" className="text-sm text-[var(--success)]">Saved.</p>}
-    <div className="flex justify-end border-t pt-5"><Button variant="outline" type="submit" disabled={pending}><PendingLabel pending={pending} label="Save calendar settings" pendingLabel="Saving…" /></Button></div>
+    <FormFooter note="Changing the keyword or calendar stops matching old events; their shifts are kept.">
+      <Button type="submit" disabled={pending}><PendingLabel pending={pending} label="Save calendar settings" pendingLabel="Saving…" /></Button>
+    </FormFooter>
   </form>;
 }

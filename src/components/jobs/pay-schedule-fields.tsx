@@ -1,9 +1,11 @@
 "use client";
 
 import { useId, useState } from "react";
+import { FieldAffix, SettingRow } from "@/components/settings/setting-row";
+import { fieldA11y } from "@/components/ui/field-error";
 import { PremiumSelect } from "@/components/ui/premium-select";
+import type { FieldErrors } from "@/lib/form-state";
 import { PAY_FREQUENCY_OPTIONS, formatPayPeriod, isCalendarDate, payFrequencyOf, payPeriodFor, type PayFrequency, type PaySchedule } from "@/lib/pay-period";
-import { cn } from "@/lib/utils";
 
 const MONTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, index) => {
   const day = index + 1;
@@ -19,13 +21,15 @@ function draftSchedule(frequency: PayFrequency, anchorDate: string, monthDay: st
 }
 
 /**
- * The pay schedule part of the job forms. The fields follow the frequency, and
- * a preview names the current and next period as you type, because a biweekly
- * anchor one week off is otherwise invisible until the dashboard is wrong.
- * `today` is the viewer's local date from the server, so the preview cannot
- * disagree with the page about which day it is.
+ * The pay schedule part of the job forms, as setting rows for a `divide-y`
+ * parent. The rows follow the frequency, and the frequency row's hint names
+ * the current and next period as you type, because a biweekly anchor one week
+ * off is otherwise invisible until the dashboard is wrong. `today` is the
+ * viewer's local date from the server, so the preview cannot disagree with the
+ * page about which day it is. The input names are `createJob` and
+ * `updateJobDetails`'s contract.
  */
-export function PayScheduleFields({ schedule, today, compact = false, framed = true }: { schedule: PaySchedule | null; today: string; compact?: boolean; framed?: boolean }) {
+export function PayScheduleFields({ schedule, today, errors = {} }: { schedule: PaySchedule | null; today: string; errors?: FieldErrors }) {
   const id = useId();
   const [frequency, setFrequency] = useState<PayFrequency>(payFrequencyOf(schedule));
   const [anchorDate, setAnchorDate] = useState(schedule?.kind === "every_n_weeks" ? schedule.anchorDate : "");
@@ -33,35 +37,37 @@ export function PayScheduleFields({ schedule, today, compact = false, framed = t
   const draft = draftSchedule(frequency, anchorDate, monthDay);
   const current = draft ? payPeriodFor(today, draft) : null;
   const next = draft && current ? payPeriodFor(current.end, draft) : null;
-  const labelClass = cn("field-label", compact && "text-xs");
-  const controlClass = cn("field-control", compact && "h-10 text-sm");
+  const errorId = (field: string) => `${id}-${field}-error`;
 
-  // Unframed inside a page section, which supplies its own "Pay period" heading.
-  const Frame = framed ? "fieldset" : "div";
-  return <Frame className={cn("grid gap-3", framed && "rounded-2xl border border-dashed p-3.5")}>
-    {framed && <legend className="px-1 text-sm font-semibold">Pay period</legend>}
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className={labelClass}>
-        <span id={`${id}-frequency`}>How often you are paid</span>
-        <PremiumSelect name="payFrequency" labelledBy={`${id}-frequency`} defaultValue={frequency} options={PAY_FREQUENCY_OPTIONS} onValueChange={(value) => setFrequency(value as PayFrequency)} />
+  return <>
+    <SettingRow
+      label="Pay period"
+      labelId={`${id}-frequency`}
+      hintId={`${id}-preview`}
+      hint={<span aria-live="polite">
+        {frequency === "none" ? "Optional. Shows each pay period's hours and pay on your dashboard."
+          : current && next ? <>This period: <span className="font-semibold text-[var(--foreground)]">{formatPayPeriod(current)}</span> · Next: {formatPayPeriod(next)}</>
+          : "Then pick a day a period started."}
+      </span>}
+      error={errors.payFrequency}
+      errorId={errorId("frequency")}
+    >
+      <PremiumSelect name="payFrequency" labelledBy={`${id}-frequency`} defaultValue={frequency} options={PAY_FREQUENCY_OPTIONS} onValueChange={(value) => setFrequency(value as PayFrequency)} invalid={Boolean(errors.payFrequency)} describedBy={fieldA11y(errorId("frequency"), errors.payFrequency, `${id}-preview`)["aria-describedby"]} />
+    </SettingRow>
+
+    {frequency === "monthly" && <SettingRow label="Each period starts on" labelId={`${id}-month-day`} hint="Shorter months start on their last day." error={errors.payMonthDay} errorId={errorId("month-day")}>
+      <PremiumSelect name="payMonthDay" labelledBy={`${id}-month-day`} defaultValue={monthDay} options={MONTH_DAY_OPTIONS} onValueChange={setMonthDay} invalid={Boolean(errors.payMonthDay)} describedBy={errors.payMonthDay ? errorId("month-day") : undefined} />
+    </SettingRow>}
+
+    {frequency !== "none" && frequency !== "monthly" && <SettingRow label="A day a period started" labelFor={`${id}-anchor`} hint="Any one works, like the first day on a paystub." hintId={`${id}-anchor-hint`} error={errors.payAnchorDate} errorId={errorId("anchor")}>
+      <input id={`${id}-anchor`} name="payAnchorDate" type="date" required value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} {...fieldA11y(errorId("anchor"), errors.payAnchorDate, `${id}-anchor-hint`)} className="field-control" />
+    </SettingRow>}
+
+    {frequency !== "none" && <SettingRow label="Payday" labelFor={`${id}-payday`} hint="Days after a period ends. Optional." hintId={`${id}-payday-hint`} error={errors.paydayOffsetDays} errorId={errorId("payday")}>
+      <div className="relative">
+        <input id={`${id}-payday`} name="paydayOffsetDays" type="number" min={0} max={31} step={1} defaultValue={schedule?.paydayOffsetDays ?? ""} placeholder="e.g. 7" {...fieldA11y(errorId("payday"), errors.paydayOffsetDays, `${id}-payday-hint`)} className="field-control !pr-24" />
+        <FieldAffix>days after</FieldAffix>
       </div>
-      {frequency === "monthly" && <div className={labelClass}>
-        <span id={`${id}-month-day`}>Each period starts on</span>
-        <PremiumSelect name="payMonthDay" labelledBy={`${id}-month-day`} defaultValue={monthDay} options={MONTH_DAY_OPTIONS} onValueChange={setMonthDay} />
-      </div>}
-      {frequency !== "none" && frequency !== "monthly" && <label className={labelClass}>
-        <span>A day a period started</span>
-        <input name="payAnchorDate" type="date" required value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} className={controlClass} />
-      </label>}
-    </div>
-    {frequency !== "none" && <label className={labelClass}>
-      <span>Payday, in days after a period ends <span className="font-normal text-[var(--muted-foreground)]">(optional)</span></span>
-      <input name="paydayOffsetDays" type="number" min={0} max={31} step={1} defaultValue={schedule?.paydayOffsetDays ?? ""} placeholder="e.g. 7" className={controlClass} />
-    </label>}
-    <p className="text-xs leading-5 text-[var(--muted-foreground)]" aria-live="polite">
-      {frequency === "none" ? "Set this to see each pay period's hours and pay on your dashboard."
-        : current && next ? <>This period: <span className="font-semibold text-[var(--foreground)]">{formatPayPeriod(current)}</span> · Next: {formatPayPeriod(next)}</>
-        : "Pick any day a pay period started. The first day on a paystub works."}
-    </p>
-  </Frame>;
+    </SettingRow>}
+  </>;
 }
