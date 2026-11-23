@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { CalendarDays } from "lucide-react";
 import { disconnectGoogleCalendar } from "@/app/actions/calendar";
 import { CalendarPickerForm } from "@/components/settings/calendar-picker-form";
 import { SettingsSection } from "@/components/settings/settings-section";
@@ -18,7 +17,7 @@ function ConnectLink({ label }: { label: string }) {
 
 /** Streams in under Suspense: listing calendars waits on Google, and the rest of Settings -- and its Save -- must not. */
 export function GoogleCalendarCardSkeleton({ plain = false }: { plain?: boolean }) {
-  return <SettingsSection id="google-calendar" icon={CalendarDays} title="Google Calendar" description={DESCRIPTION} plain={plain}>
+  return <SettingsSection id="google-calendar" title="Google Calendar" description={DESCRIPTION} plain={plain}>
     <div className="grid gap-3"><div className="skeleton h-5 w-56" /><div className="skeleton h-11" /><div className="skeleton h-11" /></div>
   </SettingsSection>;
 }
@@ -33,7 +32,7 @@ export async function GoogleCalendarCard({ userId, plain = false }: { userId: st
     : calendars?.status === "unavailable" ? <Badge variant="muted">Unreachable</Badge>
     : <Badge variant="success">Connected</Badge>;
 
-  return <SettingsSection id="google-calendar" icon={CalendarDays} title="Google Calendar" description={DESCRIPTION} status={status} plain={plain}>
+  return <SettingsSection id="google-calendar" title="Google Calendar" description={DESCRIPTION} status={status} plain={plain}>
     {!summary ? <div className="grid gap-4">
       <ul className="grid gap-2 text-sm leading-6 text-[var(--muted-foreground)]">
         <li>See your events next to your shifts on the Calendar page.</li>

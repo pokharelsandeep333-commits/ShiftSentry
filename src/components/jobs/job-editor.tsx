@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Archive, CalendarDays, Percent, SlidersHorizontal } from "lucide-react";
 import { archiveJob, deleteJob, deleteJobDeduction, unarchiveJob } from "@/app/actions/work";
 import { BackToJobs } from "@/components/jobs/back-to-jobs";
 import { AddDeductionForm, JobDetailsForm } from "@/components/jobs/job-forms";
@@ -18,9 +17,9 @@ import { payScheduleFromColumns, type JobPayColumns } from "@/lib/pay-period";
 const linkClass = "font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]";
 
 function Stat({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0 px-4 py-3 first:pl-0 sm:px-5 sm:first:pl-0">
-    <dt className="text-xs text-[var(--muted-foreground)]">{label}</dt>
-    <dd className="mt-0.5 truncate font-display text-lg font-semibold">{value}</dd>
+  return <div className="min-w-0 px-4 py-3.5 sm:px-5">
+    <dt className="truncate text-xs text-[var(--muted-foreground)]">{label}</dt>
+    <dd className="mt-1 truncate text-lg font-semibold tabular-nums tracking-tight">{value}</dd>
   </div>;
 }
 
@@ -54,18 +53,21 @@ export function JobEditor({ job, googleOn, googleCalendars, today, savedMessage 
   const shifts = job.shifts[0]?.count ?? 0;
   const deductionTotal = job.job_deductions.reduce((total, deduction) => total + deduction.rate_basis_points, 0);
 
-  const header = <>
+  // A compact title row, sized like a record's page rather than a hero: the
+  // job's colour tile, its name, and (until it has shifts) the one next step.
+  const header = <div className="max-w-3xl">
     <BackToJobs />
-    <div className="mb-6 flex items-center gap-4">
-      <JobAvatar name={job.name} color={job.color} size="lg" muted={Boolean(job.archived_at)} />
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="break-words font-display text-3xl font-semibold sm:text-4xl">{job.name}</h1>
+    <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3.5">
+        <JobAvatar name={job.name} color={job.color} muted={Boolean(job.archived_at)} />
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 className="break-words font-display text-2xl font-semibold tracking-tight sm:text-[1.75rem]">{job.name}</h1>
           {job.archived_at && <Badge variant="muted">Archived</Badge>}
         </div>
       </div>
+      {!job.archived_at && shifts === 0 && <Link href={`/shifts/new?jobId=${encodeURIComponent(job.id)}`} className={buttonVariants()}>Plan your first shift</Link>}
     </div>
-  </>;
+  </div>;
 
   if (job.archived_at) return <>
     {savedMessage && <SavedToast message={savedMessage} />}
@@ -84,20 +86,18 @@ export function JobEditor({ job, googleOn, googleCalendars, today, savedMessage 
     {savedMessage && <SavedToast message={savedMessage} />}
     {header}
 
-    {shifts === 0 && <Link href={`/shifts/new?jobId=${encodeURIComponent(job.id)}`} className={buttonVariants({ className: "mb-5" })}>Plan your first shift</Link>}
-
-    <dl className="mb-6 grid max-w-3xl grid-cols-3 divide-x rounded-2xl">
+    <dl className="mb-6 grid max-w-3xl grid-cols-3 divide-x rounded-2xl border bg-[var(--card)]">
       <Stat label="Hourly rate" value={formatCents(job.hourly_rate_cents)} />
       <Stat label="Take-home/hr" value={`≈ ${formatCents(takeHomePerHourCents(job))}`} />
       <Stat label="Shifts logged" value={String(shifts)} />
     </dl>
 
     <div className="grid max-w-3xl gap-6">
-      <SettingsSection id="details" icon={SlidersHorizontal} title="Details and pay" description="Name, colour, pay, weekly limit and pay period. Pay changes apply to shifts you add from now on.">
+      <SettingsSection id="details" title="Details and pay" description="Name, colour, pay, weekly limit and pay period. Pay changes apply to shifts you add from now on.">
         <JobDetailsForm id={job.id} name={job.name} hourlyRateCents={job.hourly_rate_cents} taxRateBasisPoints={job.tax_rate_basis_points} color={job.color} weeklyLimitMinutes={job.weekly_limit_minutes} paySchedule={payScheduleFromColumns(job)} today={today} />
       </SettingsSection>
 
-      <SettingsSection id="deductions" icon={Percent} title="Deductions" description="Percentages taken from gross pay, like retirement or union dues. Like the rate, they apply to shifts you add from now on.">
+      <SettingsSection id="deductions" title="Deductions" description="Percentages taken from gross pay, like retirement or union dues. Like the rate, they apply to shifts you add from now on.">
         <div className="grid gap-5">
           <div className="divide-y">
             {job.job_deductions.map((deduction) => <SettingRow key={deduction.id} label={deduction.name} hint={`${formatPercent(deduction.rate_basis_points)} of gross pay`} wide>
@@ -111,12 +111,12 @@ export function JobEditor({ job, googleOn, googleCalendars, today, savedMessage 
         </div>
       </SettingsSection>
 
-      {googleOn && <SettingsSection id="google-calendar" icon={CalendarDays} title="Google Calendar" description="Which of your calendar events are this job's shifts, and whether they become shifts on their own.">
+      {googleOn && <SettingsSection id="google-calendar" title="Google Calendar" description="Which of your calendar events are this job's shifts, and whether they become shifts on their own.">
         {googleCalendars ? <JobGoogleForm jobId={job.id} jobName={job.name} keyword={job.google_keyword} calendarId={job.google_calendar_id} sync={job.google_sync} calendars={googleCalendars} />
           : <p className="text-sm leading-6 text-[var(--muted-foreground)]">Connect Google Calendar in <Link href="/settings#google-calendar" className={linkClass}>Settings</Link> first. Then you can have this job&apos;s events added as shifts automatically.</p>}
       </SettingsSection>}
 
-      <SettingsSection id="archive" icon={Archive} title="Archive this job" description="Saved shifts still count toward your global weekly cap. Archiving hides this job from earnings reports and new shifts. You can restore it from Jobs." danger>
+      <SettingsSection id="archive" title="Archive this job" description="Saved shifts still count toward your global weekly cap. Archiving hides this job from earnings reports and new shifts. You can restore it from Jobs." danger>
         <SettingRow label="Archive" hint="To delete a job, archive it first. It can be deleted once it has no shifts." wide>
           <form action={archiveJob}><input type="hidden" name="id" value={job.id} /><ConfirmSubmit label="Archive" confirmLabel="Archive job?" variant="outline" size="sm" /></form>
         </SettingRow>

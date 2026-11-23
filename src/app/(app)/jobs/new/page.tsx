@@ -1,6 +1,5 @@
 export const metadata = { title: "Add a job | ShiftSentry" };
 
-import { BriefcaseBusiness } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { PageHeader } from "@/components/page-header";
 import { BackToJobs } from "@/components/jobs/back-to-jobs";
@@ -27,7 +26,7 @@ export default async function NewJobPage() {
     <BackToJobs />
     <PageHeader title="Add a job" description="Set what the job pays and how many hours you can work there. You can change any of it later." />
     <div className="max-w-3xl">
-      <SettingsSection id="new-job" icon={BriefcaseBusiness} title="Job details" description="What the job is called, what it pays, and how much you can work there.">
+      <SettingsSection id="new-job" title="Job details" description="What the job is called, what it pays, and how much you can work there.">
         <CreateJobForm today={today} defaultColor={nextJobColor((jobs ?? []).map((job) => job.color))} />
       </SettingsSection>
     </div>

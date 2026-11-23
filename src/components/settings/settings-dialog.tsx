@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CalendarClock, CalendarDays, CalendarRange, Palette, ShieldCheck, X, type LucideIcon } from "lucide-react";
 import type { SettingsSectionId } from "@/components/settings/sections";
 import { cn } from "@/lib/utils";
+import { SETTINGS_PANE_CLASS, SETTINGS_WINDOW_CLASS } from "@/components/settings/window-frame";
 
 const ICONS: Record<SettingsSectionId, LucideIcon> = {
   week: CalendarClock,
@@ -90,10 +91,10 @@ export function SettingsDialog({ panes, initial }: { panes: SettingsPane[]; init
     open
     aria-labelledby="settings-title"
     onCancel={(event) => { event.preventDefault(); close(); }}
-    className="settings-dialog fixed inset-0 z-[60] m-0 h-dvh max-h-none w-screen max-w-none bg-transparent p-0 text-[var(--foreground)]"
+    className="settings-dialog fixed inset-0 z-[60] m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 text-[var(--foreground)] sm:open:flex sm:open:items-center sm:open:justify-center"
   >
     <div className="settings-backdrop absolute inset-0" onClick={close} aria-hidden="true" />
-    <div className="settings-window relative mx-auto flex h-full w-full flex-col overflow-hidden bg-[var(--card)] sm:mt-[max(1.5rem,6dvh)] sm:h-[min(46rem,calc(100dvh-3rem))] sm:w-[min(62rem,calc(100vw-3rem))] sm:rounded-[1.25rem] sm:border">
+    <div className={SETTINGS_WINDOW_CLASS}>
       <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-5 sm:px-6">
         <h1 id="settings-title" className="font-display text-lg font-semibold">Settings</h1>
         <button type="button" onClick={close} aria-label="Close settings" className="press grid size-10 place-items-center rounded-full text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
@@ -127,7 +128,7 @@ export function SettingsDialog({ panes, initial }: { panes: SettingsPane[]; init
           </ul>
         </nav>
         <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6 sm:px-8 sm:py-7">
-          {panes.map((pane) => <div key={pane.id} hidden={pane.id !== active} className="mx-auto max-w-2xl">{pane.content}</div>)}
+          {panes.map((pane) => <div key={pane.id} hidden={pane.id !== active} className={SETTINGS_PANE_CLASS}>{pane.content}</div>)}
         </div>
       </div>
     </div>
