@@ -50,7 +50,7 @@ export function ShiftLogHeader({ weeks, filters, jobs, openableWeeks, clock }: {
         </Chip>)}
       </>}
       <span className="ml-auto flex shrink-0 items-center gap-1">
-        {isFiltered(filters) && <Link href={shiftLogHref(weeks, { show: "all", job: "" })} scroll={false} className="inline-flex min-h-9 items-center rounded-full px-3 text-xs font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Clear filters</Link>}
+        {isFiltered(filters) && <Link href={shiftLogHref(weeks, { show: "all", job: "" })} scroll={false} className="inline-flex min-h-9 items-center rounded-full px-3 text-xs font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Clear filters</Link>}
         <ExpandAllWeeks weeks={openableWeeks} />
       </span>
     </nav>}

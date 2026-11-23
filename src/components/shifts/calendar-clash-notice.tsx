@@ -38,7 +38,7 @@ export function CalendarClashNotice({ startsAt, endsAt, jobId, timeZone, repeatW
   }, [startsAt, endsAt, jobId, span]);
 
   if (!startsAt || !endsAt || state.span !== span || state.status === "idle") return null;
-  if (state.status === "needs_reconnect") return <p className="text-sm text-[var(--muted-foreground)]">Google Calendar needs reconnecting. Clash check is off. <Link href="/settings#google-calendar" className="font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Settings</Link></p>;
+  if (state.status === "needs_reconnect") return <p className="text-sm text-[var(--muted-foreground)]">Google Calendar needs reconnecting. Clash check is off. <Link href="/settings#google-calendar" className="font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Settings</Link></p>;
   if (state.status === "unavailable") return <p className="text-sm text-[var(--muted-foreground)]">Couldn&apos;t check Google Calendar right now.</p>;
   const matchNote = state.matches.length > 0 && <p className="shift-check shift-check-quiet"><CalendarCheck2 aria-hidden="true" /><span className="min-w-0">Matches <b className="font-semibold text-[var(--foreground)]">{state.matches[0].title}</b> in your Google Calendar.</span></p>;
   if (state.clashes.length === 0) return matchNote || null;

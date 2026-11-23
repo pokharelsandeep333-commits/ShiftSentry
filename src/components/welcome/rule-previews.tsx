@@ -27,7 +27,7 @@ export function RulesBento() {
     <BentoCard tone="tint" className="lg:col-span-6" title="No double-booking." body="Two shifts can't overlap, even at different jobs. Back-to-back is fine.">
       <OverlapPreview />
     </BentoCard>
-    <BentoCard tone="tint" className="lg:col-span-6" title="Your schedule is yours." body={<>Other ShiftSentry users can&apos;t see your jobs or shifts. <Link href="/privacy" className="font-semibold text-[var(--primary)] underline decoration-[color-mix(in_srgb,var(--primary)_40%,transparent)] underline-offset-4 transition-colors hover:decoration-[var(--primary)]">Read the privacy policy</Link>.</>}>
+    <BentoCard tone="tint" className="lg:col-span-6" title="Your schedule is yours." body={<>Other ShiftSentry users can&apos;t see your jobs or shifts. <Link href="/privacy" className="font-semibold text-[color-mix(in_srgb,var(--primary)_82%,var(--foreground))] transition-colors hover:text-[var(--foreground)]">Read the privacy policy</Link>.</>}>
       <PrivacyPreview />
     </BentoCard>
     <BentoCard tone="glass" className="lg:col-span-6" title="Midnight splits the shift." body="An overnight shift counts toward both days it touches, in your own time zone. Shifts can run up to 24 hours, and your week can start on any day.">

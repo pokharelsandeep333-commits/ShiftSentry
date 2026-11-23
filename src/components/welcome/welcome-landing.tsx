@@ -1,19 +1,18 @@
 import { Suspense, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { ArrowUpRight, BriefcaseBusiness, Clock3, ShieldCheck, type LucideProps } from "lucide-react";
-import { Brand } from "@/components/brand";
-import { LEGAL_CONTACT_EMAIL } from "@/components/legal-page";
 import { HeroArt } from "@/components/welcome/hero-art";
 import { HeroChips } from "@/components/welcome/hero-chips";
+import { HowItWorks } from "@/components/welcome/how-it-works";
+import { WelcomeFooter } from "@/components/welcome/welcome-footer";
 import { RulesBento } from "@/components/welcome/rule-previews";
 import { SignInLink } from "@/components/welcome/sign-in-link";
 import { faqItems, WelcomeFaq } from "@/components/welcome/welcome-faq";
 import { WelcomeJsonLd } from "@/components/welcome/welcome-json-ld";
 import { WelcomeNav } from "@/components/welcome/welcome-nav";
-import { GUIDES } from "@/lib/guides";
 import { isGoogleCalendarEnabled } from "@/lib/google/config";
 import { cn } from "@/lib/utils";
+import { ACCENTS, captureName } from "@/lib/accent";
 
 /**
  * The public landing page, rendered by `/welcome`, which `src/proxy.ts` serves
@@ -29,17 +28,20 @@ import { cn } from "@/lib/utils";
  * change as the rule.
  *
  * Layout: a fixed nav that turns into a card once the page scrolls
- * (`WelcomeNav`), the hero straight on the page's lavender ground, then every
- * other section on its own frosted white panel, stacked with small gaps (the
- * surfaces are described in the welcome block of globals.css).
+ * (`WelcomeNav`), the hero straight on the page's lavender ground, then the
+ * dashboard screenshots, also straight on the ground as the hero's product
+ * shot (`.welcome-showcase`), then every other section on its own frosted
+ * white panel, stacked with small gaps: the example week, how it works, the
+ * rules, the questions (the surfaces are described in the welcome block of
+ * globals.css).
  *
  * Images in `public/welcome/`:
  * - `hero-3d.webp` and its `hero-3d-<width>.webp` variants: rendered by
  *   `scripts/render-welcome-3d.mjs` from `scripts/welcome-3d/scene.html`.
  *   Re-render there, never edit the webp.
  * - `dashboard-*.webp`: the demo dashboard (what `demoDashboardFor` renders with no
- *   Supabase configured) captured in both themes, shown through the
- *   `.theme-light-only` / `.theme-dark-only` pair. Recapture when its look changes.
+ *   Supabase configured) captured in every colour theme and mode, shown through
+ *   `.welcome-shot` (see `Screenshot`). Recapture when its look changes.
  * All are pre-compressed at display size and each has an `.avif` sibling, so
  * they are served as plain `<picture>`s (AVIF first, webp fallback) and
  * nothing depends on the image optimizer in the container.
@@ -70,9 +72,6 @@ const sectionTitle = "font-display text-[1.85rem] font-semibold leading-[1.12] [
    which grows on wide screens) for panels, hero and nav alike. */
 const panel = "welcome-panel welcome-container mx-auto rounded-[1.5rem]";
 
-/* `py-1` lifts each link past the 24px minimum touch target without spreading the columns. */
-const footerLink = "inline-flex min-h-11 items-center py-1 text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)] sm:min-h-0";
-
 export function WelcomeLanding() {
   const calendarEnabled = isGoogleCalendarEnabled();
   const faq = faqItems(calendarEnabled);
@@ -83,7 +82,7 @@ export function WelcomeLanding() {
 
       <main>
         {/* The nav is fixed, so the hero's top padding is what clears it. */}
-        <section className="welcome-hero relative px-3 pb-28 pt-28 sm:px-6 sm:pt-28 lg:pb-28 lg:pt-24 2xl:pt-28">
+        <section className="welcome-hero relative px-3 pb-10 pt-28 sm:px-6 sm:pt-28 lg:pb-6 lg:pt-24 2xl:pt-28">
           <div className="welcome-container mx-auto grid items-center gap-10 px-5 sm:px-9 lg:grid-cols-12 lg:gap-6 lg:px-10">
             <div className="lg:col-span-6">
               <h1 className="hero-title font-display text-[2.3rem] font-bold leading-[1.02] sm:text-[3.1rem] lg:text-[3.75rem] 2xl:text-[4.25rem]">
@@ -107,32 +106,33 @@ export function WelcomeLanding() {
         </section>
 
         <Suspense>
-          <div className="relative z-10 -mt-20 space-y-4 px-3 sm:space-y-5 sm:px-6">
+          {/* The product shot, straight after the hero with no heading: on the
+              page itself, not in a panel, in the light glass frame. */}
+          <section aria-label="The ShiftSentry dashboard" className="relative px-3 pb-16 sm:px-6 sm:pb-20 lg:pb-24">
+            <div className="welcome-container mx-auto">
+              <figure className="welcome-showcase relative pb-12 lg:pb-14">
+                <div className="showcase-tilt welcome-frame rounded-[1.25rem] p-1.5 sm:rounded-[1.5rem] sm:p-2">
+                  <Screenshot size="desktop" width={1440} height={952} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax." className="rounded-[0.9rem] sm:rounded-[1.1rem]" />
+                </div>
+                <div className="rv welcome-phone absolute bottom-0 right-[2%] w-[24%] min-w-28 rounded-[1.5rem] sm:right-[3%] lg:w-[19%]">
+                  <Screenshot size="mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" />
+                </div>
+                {/* Kept clear of the phone, which overhangs the frame. */}
+                <figcaption className="mt-4 max-w-[calc(100%-9rem)] px-1 text-[13px] text-[var(--muted-foreground)]">Dashboard shown with sample data.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <div className="relative z-10 space-y-4 px-3 sm:space-y-5 sm:px-6">
             <section id="week" aria-labelledby="week-heading" className={cn(panel, "scroll-mt-24 grid items-start gap-6 p-5 sm:p-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-12 lg:p-12")}>
               <div>
-                <h2 id="week-heading" className={sectionTitle}>Can you take Saturday&apos;s shift?</h2>
-                <p className="mt-4 max-w-sm text-[15px] leading-7 text-[var(--muted-foreground)]">Two jobs share a 20-hour cap in this example. Try a Saturday shift to see what fits.</p>
+                <h2 id="week-heading" className={sectionTitle}>See what fits before you say yes.</h2>
+                <p className="mt-4 max-w-sm text-[15px] leading-7 text-[var(--muted-foreground)]">Two jobs share a 20-hour cap in this example. Try adding a shift to see what fits.</p>
               </div>
               <WeekGauge />
             </section>
 
-            <section aria-labelledby="dashboard-title" className={cn(panel, "grid items-center gap-10 px-5 py-9 sm:p-10 lg:grid-cols-12 lg:gap-10 lg:p-12")}>
-              <div className="lg:col-span-4">
-                <h2 id="dashboard-title" className={sectionTitle}>Your whole week on one screen.</h2>
-                <p className="mt-4 text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">Logged and planned hours against your cap, net pay by job, and the last six months at a glance.</p>
-                {calendarEnabled && <p className="mt-3 text-[15px] leading-7 text-[var(--muted-foreground)] sm:text-base">Connect Google Calendar to spot clashes with class. Access is read-only, and nothing is written to Google.</p>}
-              </div>
-              <figure className="relative pb-10 lg:col-span-8 lg:pb-12">
-                <div className="rv rv-rise welcome-frame rounded-[1.25rem] p-1.5 sm:p-2">
-                  <Screenshot name="dashboard-desktop" width={1440} height={900} alt="The ShiftSentry dashboard with sample data: 16 of 20 weekly hours planned with 4 hours left, one job close to its own cap, the next shift, and $136.40 earned after tax." className="rounded-[0.9rem]" />
-                </div>
-                <div className="rv rv-rise welcome-phone absolute -bottom-2 right-[-2%] w-[26%] min-w-28 rounded-[1.5rem]">
-                  <Screenshot name="dashboard-mobile" width={390} height={844} alt="The same dashboard on a phone." className="rounded-[1.15rem]" />
-                </div>
-                {/* Kept clear of the phone, which is taller than the frame on small screens. */}
-                <figcaption className="mt-4 max-w-[calc(100%-8.5rem)] text-[13px] text-[var(--muted-foreground)]">Dashboard shown with sample data.</figcaption>
-              </figure>
-            </section>
+            <HowItWorks className={cn(panel, "scroll-mt-24 px-5 py-9 sm:p-10 lg:p-12")} titleClassName={sectionTitle} />
 
             <section id="rules" aria-labelledby="rules-title" className={cn(panel, "scroll-mt-24 p-3 pt-9 sm:p-5 sm:pt-12 lg:pt-14")}>
               <h2 id="rules-title" className={cn(sectionTitle, "px-5 sm:px-7")}>The rules it keeps for you.</h2>
@@ -145,34 +145,7 @@ export function WelcomeLanding() {
       </main>
 
       <Suspense>
-        <footer className="px-3 pb-3 pt-4 sm:px-6 sm:pb-6 sm:pt-5">
-          <div className={cn(panel, "px-6 sm:px-10 lg:px-12")}>
-            <div className="grid gap-9 pb-8 pt-10 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
-              <div>
-                <Brand size="compact" markClassName="size-7 rounded-lg" className="gap-2 text-sm" />
-                <p className="mt-4 max-w-[18rem] text-sm leading-6 text-[var(--muted-foreground)]">A work hours tracker for students and anyone with more than one job.</p>
-              </div>
-              <FooterColumn title="Product">
-                <li><a href="#week" className={footerLink}>How it works</a></li>
-                <li><a href="#faq" className={footerLink}>Questions</a></li>
-                {GUIDES.map((guide) => <li key={guide.slug}><Link href={`/guides/${guide.slug}`} className={footerLink}>{guide.navLabel}</Link></li>)}
-                <li><Link href="/about" className={footerLink}>About</Link></li>
-              </FooterColumn>
-              <FooterColumn title="Account">
-                <li><SignInLink href="/login" className={footerLink}>Sign in</SignInLink></li>
-                <li><SignInLink href="/login?mode=signup" className={footerLink}>Get started</SignInLink></li>
-              </FooterColumn>
-              <FooterColumn title="Legal">
-                <li><Link href="/privacy" className={footerLink}>Privacy Policy</Link></li>
-                <li><Link href="/terms" className={footerLink}>Terms of Service</Link></li>
-                <li><Link href="/cookies" className={footerLink}>Cookies and storage</Link></li>
-                <li><Link href="/open-source-licenses" className={footerLink}>Open-source licenses</Link></li>
-                <li><a href={`mailto:${LEGAL_CONTACT_EMAIL}`} className={footerLink}>Contact</a></li>
-              </FooterColumn>
-            </div>
-            <p className="border-t py-5 text-[13px] text-[var(--muted-foreground)]">© 2026 ShiftSentry</p>
-          </div>
-        </footer>
+        <WelcomeFooter className={panel} />
       </Suspense>
   </div>;
 }
@@ -198,28 +171,22 @@ function HeadlineGlyph({ icon: Icon, order }: { icon: ComponentType<LucideProps>
   return <span aria-hidden="true" className="hero-glyph" style={{ "--glyph-order": order } as CSSProperties}><Icon strokeWidth={2.6} /></span>;
 }
 
-/* The column titles are labels, not headings: as `<h2>`s they sat beside the
-   page's real section headings in the outline. */
-function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
-  return <div>
-    <p className="text-[13px] font-semibold">{title}</p>
-    <ul className="mt-3.5 space-y-2.5 text-sm">{children}</ul>
-  </div>;
-}
-
 /**
- * One screenshot in both themes; CSS shows the one matching the `.dark` class.
- * Each is a `<picture>`, AVIF first and the webp as the fallback. The theme
- * classes sit on the `<img>`, as they did before the `<picture>`s, so the
- * layout is unchanged. Both images are lazy: a browser never fetches a lazy
- * image that is `display: none`, so a visitor downloads only their theme's
- * pair, whichever theme that is.
+ * One screenshot, captured once per colour theme and mode (`captureName` in
+ * `src/lib/accent.ts`); the generated `.welcome-shot` rules (`ACCENT_CSS`)
+ * show only the one matching `<html data-accent>` and `.dark`. Each is a
+ * `<picture>`, AVIF first and the webp as the fallback. All are lazy: a
+ * browser never fetches a lazy image that is `display: none`, so a visitor
+ * downloads only the pair for their own theme and mode.
  */
-function Screenshot({ name, width, height, alt, className }: { name: string; width: number; height: number; alt: string; className?: string }) {
+function Screenshot({ size, width, height, alt, className }: { size: "desktop" | "mobile"; width: number; height: number; alt: string; className?: string }) {
   return <>
-    {(["light", "dark"] as const).map((theme) => <picture key={theme}>
-      <source type="image/avif" srcSet={`/welcome/${name}-${theme}.avif`} />
-      <img src={`/welcome/${name}-${theme}.webp`} width={width} height={height} alt={alt} loading="lazy" decoding="async" className={cn(theme === "light" ? "theme-light-only" : "theme-dark-only", "h-auto w-full", className)} />
-    </picture>)}
+    {ACCENTS.flatMap((accent) => (["light", "dark"] as const).map((mode) => {
+      const stem = captureName(size, accent.id, mode);
+      return <picture key={stem}>
+        <source type="image/avif" srcSet={`/welcome/${stem}.avif`} />
+        <img src={`/welcome/${stem}.webp`} data-shot={`${accent.id}-${mode}`} width={width} height={height} alt={alt} loading="lazy" decoding="async" className={cn("welcome-shot h-auto w-full", className)} />
+      </picture>;
+    }))}
   </>;
 }

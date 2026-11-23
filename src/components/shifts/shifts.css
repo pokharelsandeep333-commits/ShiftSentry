@@ -16,6 +16,7 @@ details.shift-check { display: block; }
 .shift-segment a:hover { color:var(--foreground); background:var(--surface-subtle); }
 .shift-segment a[aria-current] { color:var(--primary); background:var(--primary-soft); }
 .shift-segment a:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+@media (pointer: coarse) { .shift-segment a { min-height:44px; } }
 
 .shift-weeks { display:grid; gap:12px; }
 
@@ -84,12 +85,12 @@ details.shift-check { display: block; }
 
 .shift-icon-button { display:grid; place-items:center; width:36px; height:36px; border-radius:10px; color:var(--shift-copy); cursor:pointer; }
 .shift-icon-button:hover { color:var(--primary); background:var(--primary-soft); }
-.shift-menu { z-index:80; min-width:194px; padding:6px; background:var(--card); border:1px solid var(--border); border-radius:14px; color:var(--foreground); box-shadow:0 12px 30px -12px #3c2e7460; }
+.shift-menu { z-index:80; min-width:194px; padding:6px; background:var(--card); border:1px solid var(--border); border-radius:14px; color:var(--foreground); box-shadow:0 12px 30px -12px color-mix(in srgb,color-mix(in srgb,var(--primary) 45%,#000) 38%,transparent); }
 .shift-menu [role=menuitem] { display:flex; align-items:center; gap:10px; min-height:38px; padding:8px 10px; border-radius:8px; outline:0; font-size:13px; cursor:pointer; }
 .shift-menu [data-highlighted] { background:var(--primary-soft); color:var(--primary); }
 .shift-menu .delete-item { color:var(--danger-ink); }
 .shift-menu-rule { height:1px; background:var(--border); margin:4px; }
-.shift-button { background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 86%,white),var(--primary)); color:var(--primary-foreground); border-radius:12px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 20px; font-size:14px; font-weight:550; box-shadow:0 5px 13px -8px #6d5ce7aa; transition:filter .16s,transform .16s; cursor:pointer; }
+.shift-button { background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 86%,white),var(--primary)); color:var(--primary-foreground); border-radius:12px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 20px; font-size:14px; font-weight:550; box-shadow:0 5px 13px -8px color-mix(in srgb,var(--primary) 67%,transparent); transition:filter .16s,transform .16s; cursor:pointer; }
 .shift-button:hover { filter:brightness(1.04); }
 .shift-button:active { transform:translateY(1px); }
 .shift-button:disabled { opacity:.65; cursor:wait; }
@@ -135,7 +136,7 @@ details.shift-check { display: block; }
 .shift-editor { max-width:380px; }
 .shift-back { margin:-8px 0 14px -10px; color:var(--shift-copy); }
 .editor-heading { display:flex; justify-content:space-between; gap:16px; align-items:center; margin-bottom:22px; }
-.shift-editor-frame { padding:9px; border:1px solid var(--shift-edge); border-radius:25px; background:linear-gradient(145deg,color-mix(in srgb,var(--shift-white) 80%,var(--shift-tint)),color-mix(in srgb,var(--shift-white) 55%,var(--shift-tint))); box-shadow:0 10px 32px -24px #6c5ab45c; }
+.shift-editor-frame { padding:9px; border:1px solid var(--shift-edge); border-radius:25px; background:linear-gradient(145deg,color-mix(in srgb,var(--shift-white) 80%,var(--shift-tint)),color-mix(in srgb,var(--shift-white) 55%,var(--shift-tint))); box-shadow:0 10px 32px -24px color-mix(in srgb,color-mix(in srgb,var(--primary) 75%,#000) 36%,transparent); }
 .shift-editor-card { background:color-mix(in srgb,var(--shift-white) 97%,var(--shift-tint)); border:1px solid var(--shift-edge); border-radius:18px; padding:20px; }
 .shift-editor-heading { display:flex; align-items:center; gap:10px; margin:0 0 22px; }
 .shift-editor-heading a { display:grid; place-items:center; width:32px; height:36px; margin-left:-6px; border-radius:8px; }
@@ -251,7 +252,6 @@ details.shift-check { display: block; }
 .day-week-tile[data-today] > span { color:var(--primary); }
 .day-week-tile[aria-pressed=true] { border-color:var(--primary); background:var(--primary); }
 .day-week-tile[aria-pressed=true] > span { color:var(--primary-foreground); }
-.day-week-tile[aria-pressed=true] > span:first-child { color:color-mix(in srgb, var(--primary-foreground) 78%, transparent); }
 .day-week-tile[aria-pressed=true] > i[data-busy] { background:color-mix(in srgb, var(--primary-foreground) 70%, transparent); }
 
 .day-track { display:grid; gap:8px; }

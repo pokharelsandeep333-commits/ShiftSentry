@@ -15,7 +15,7 @@ export function AuditList({ rows, timeZone, empty = "No admin activity recorded 
       <span className="min-w-0 flex-1 basis-64 break-words text-sm">
         {describeAuditEvent(row.action, row.actor, null)}
         {row.target && <> {row.targetUserId && row.target !== "a deleted account"
-          ? <Link href={`/admin/users/${row.targetUserId}`} className="font-semibold text-[var(--primary)] underline-offset-4 hover:underline">{row.target}</Link>
+          ? <Link href={`/admin/users/${row.targetUserId}`} className="font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">{row.target}</Link>
           : <span className="font-semibold">{row.target}</span>}</>}
       </span>
       <span className="flex shrink-0 items-center gap-2 text-xs text-[var(--muted-foreground)]">

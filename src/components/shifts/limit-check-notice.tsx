@@ -96,7 +96,7 @@ export function LimitCheckNotice({ check, jobId, timeZone }: { check: LimitCheck
     <OctagonAlert aria-hidden="true" />
     <div className="min-w-0">
       <p className="font-semibold">This shift {reason(first, state, timeZone)}.</p>
-      <p className="mt-0.5 text-[var(--muted-foreground)]">{first.overlap ? "Change the times, or edit the other shift first." : <>Change the times, or raise the limit in <Link href={first.over === "job" ? `/jobs/${jobId}` : "/settings#week"} className="font-semibold text-[var(--primary)] underline-offset-4 hover:underline">{first.over === "job" ? state.jobName : "Settings"}</Link>.</>}</p>
+      <p className="mt-0.5 text-[var(--muted-foreground)]">{first.overlap ? "Change the times, or edit the other shift first." : <>Change the times, or raise the limit in <Link href={first.over === "job" ? `/jobs/${jobId}` : "/settings#week"} className="font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">{first.over === "job" ? state.jobName : "Settings"}</Link>.</>}</p>
     </div>
   </div>;
 

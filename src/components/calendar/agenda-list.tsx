@@ -12,7 +12,7 @@ export function AgendaList({ days, today, anchor, items, timeZone }: { days: str
     {emptyDay && <section className="rounded-2xl border bg-[var(--card)] p-4">
       <h2 className="font-display text-base font-semibold">{formatInTimeZone(`${anchor}T12:00:00Z`, "UTC", "EEEE, MMM d")}</h2>
       <p className="mt-1 text-sm text-[var(--muted-foreground)]">{withItems.length ? "Nothing scheduled on this day." : "Nothing scheduled in this range."}</p>
-      <Link href={`/shifts/new?date=${anchor}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Plan a shift on this date</Link>
+      <Link href={`/shifts/new?date=${anchor}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Plan a shift on this date</Link>
     </section>}
     {withItems.map(({ day, dayItems }) => <section key={day}>
       <h2 className={cn("text-sm font-semibold", day === today && "text-[var(--primary)]")}>{day === today ? "Today · " : ""}{formatInTimeZone(`${day}T12:00:00.000Z`, "UTC", "EEEE, MMM d")}</h2>

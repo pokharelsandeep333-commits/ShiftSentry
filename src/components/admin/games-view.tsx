@@ -46,7 +46,7 @@ export function GamesView({ rooms, now }: { rooms: ModerationRoom[]; now: Date }
                       <span className="truncate text-sm font-semibold">{seat.name}</span>
                       {seat.userId === room.hostId && <Crown className="size-3.5 shrink-0 text-[var(--primary)]" aria-label="Host" />}
                     </span>
-                    {seat.email ? <Link href={`/admin/users/${seat.userId}`} className="block truncate text-xs text-[var(--muted-foreground)] underline-offset-4 hover:text-[var(--primary)] hover:underline">{seat.email}</Link> : <span className="block text-xs text-[var(--muted-foreground)]">Deleted account</span>}
+                    {seat.email ? <Link href={`/admin/users/${seat.userId}`} className="block truncate text-xs text-[var(--muted-foreground)] hover:text-[var(--primary)]">{seat.email}</Link> : <span className="block text-xs text-[var(--muted-foreground)]">Deleted account</span>}
                   </span>
                   <span className="flex shrink-0 items-center">
                     <ModerationButton kind="reset" roomId={room.id} code={room.code} userId={seat.userId} label="Reset name" question={`Reset "${seat.name}"?`} detail="Their name in this room becomes Player N. They can rename again; disable the account if it keeps happening." />

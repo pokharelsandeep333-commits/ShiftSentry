@@ -125,8 +125,8 @@ export function PayClimb({ steps, days, jobs, weekStartsAt, weekEndsAt, snapshot
     </ol>}
 
     <div className={styles.climbFoot}>
-      {next ? <p className="min-w-0 text-sm text-[var(--muted-foreground)]">Next step: <Link href={`/shifts/${next.id}/edit`} className="font-semibold text-[var(--foreground)] underline-offset-4 hover:underline">{formatInTimeZone(next.startsAt, timeZone, "EEE h:mm a")}</Link>, <span title={next.jobName}>{next.jobName}</span>, <span className={styles.climbMoney}>+{formatCents(next.plannedNetCents)}</span></p>
-        : steps.length === 0 ? <Link href="/shifts/new" className="text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Add a shift</Link>
+      {next ? <p className="min-w-0 text-sm text-[var(--muted-foreground)]">Next step: <Link href={`/shifts/${next.id}/edit`} className="font-semibold text-[var(--foreground)] transition-colors hover:text-[var(--primary)]">{formatInTimeZone(next.startsAt, timeZone, "EEE h:mm a")}</Link>, <span title={next.jobName}>{next.jobName}</span>, <span className={styles.climbMoney}>+{formatCents(next.plannedNetCents)}</span></p>
+        : steps.length === 0 ? <Link href="/shifts/new" className="text-sm font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Add a shift</Link>
         : <p className="text-sm text-[var(--muted-foreground)]">That&apos;s the week. Nothing else planned.</p>}
       <JobLimits jobs={jobs} />
     </div>
@@ -147,6 +147,6 @@ function JobLimits({ jobs }: { jobs: JobSummary[] }) {
         <span className="tabular-nums"><span className={cn("font-semibold", TONE_TEXT[row.tone])}>{formatMinutes(row.plannedMinutes)}</span><span className="text-[var(--muted-foreground)]"> / {formatMinutes(row.limitMinutes ?? 0)}</span></span>
       </li>)}
     </ul>
-    {warned && <Link href="/jobs" className="inline-flex min-h-11 items-center text-xs font-semibold text-[var(--primary)] underline-offset-4 hover:underline sm:min-h-8">Review limits</Link>}
+    {warned && <Link href="/jobs" className="inline-flex min-h-11 items-center text-xs font-semibold text-[var(--primary)] sm:min-h-8 transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Review limits</Link>}
   </div>;
 }

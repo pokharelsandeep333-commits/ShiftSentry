@@ -27,7 +27,7 @@ function Hint({ children }: { children: React.ReactNode }) {
   return <small className="block text-xs font-normal leading-5 text-[var(--muted-foreground)]">{children}</small>;
 }
 
-const linkClass = "font-semibold text-[var(--primary)] underline-offset-4 hover:underline";
+const linkClass = "font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]";
 
 function ColorField({ defaultValue }: { defaultValue: string }) {
   const [color, setColor] = useState(defaultValue);

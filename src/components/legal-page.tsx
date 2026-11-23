@@ -9,7 +9,7 @@ import { Brand } from "@/components/brand";
  */
 export const LEGAL_CONTACT_EMAIL = "contact@sandeeppokharel.com.np";
 
-export const legalLink = "font-semibold text-[var(--primary)] underline underline-offset-4 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)]";
+export const legalLink = "font-semibold text-[var(--primary)] rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]";
 
 /**
  * The shell shared by /privacy and /terms. Both are public, static, and linked

@@ -39,7 +39,8 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "ShiftSentry", item: `${origin}/` },
-          { "@type": "ListItem", position: 2, name: guide.heading, item: url },
+          { "@type": "ListItem", position: 2, name: "Guides", item: `${origin}/guides` },
+          { "@type": "ListItem", position: 3, name: guide.heading, item: url },
         ],
       },
     ],

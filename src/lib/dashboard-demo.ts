@@ -6,7 +6,7 @@ import { bucketWorkedShiftsByMonth, combineMonthTotals } from "@/lib/period-tota
 import { weekStartFor } from "@/lib/time";
 import { allocateWeekMinutes } from "@/lib/week-meter";
 
-const CAMPUS = { id: "job-campus", name: "Campus desk", color: "#9486ff" };
+const CAMPUS = { id: "job-campus", name: "Campus desk", color: "var(--primary-bright)" };
 const CAFE = { id: "job-cafe", name: "River café", color: "#32d583" };
 
 const sampleJobs = [
@@ -60,7 +60,7 @@ export const demoDashboard: DashboardData = {
   },
   monthlyJobAllocation: {
     series: [
-      { id: "job-campus", key: "job-job-campus", name: "Campus desk", color: "#9486ff" },
+      { id: "job-campus", key: "job-job-campus", name: "Campus desk", color: "var(--primary-bright)" },
       { id: "job-cafe", key: "job-job-cafe", name: "River café", color: "#32d583" },
     ],
     months: [
@@ -93,7 +93,7 @@ export function demoDashboardFor(now: Date): DashboardData {
   let ahead = (5 - noon(0).getUTCDay() + 7) % 7;
   if (ahead === 0 && formatInTimeZone(now, timeZone, "HH:mm") >= "11:00") ahead = 7;
   const friday = noon(ahead).toISOString().slice(0, 10);
-  const shift = { id: "demo-1", jobId: "job-campus", jobName: "Campus desk", jobColor: "#9486ff", startsAt: fromZonedTime(`${friday}T11:00:00`, timeZone).toISOString(), endsAt: fromZonedTime(`${friday}T14:00:00`, timeZone).toISOString(), notes: null };
+  const shift = { id: "demo-1", jobId: "job-campus", jobName: "Campus desk", jobColor: "var(--primary-bright)", startsAt: fromZonedTime(`${friday}T11:00:00`, timeZone).toISOString(), endsAt: fromZonedTime(`${friday}T14:00:00`, timeZone).toISOString(), notes: null };
   const weekStart = formatInTimeZone(weekStartFor(now, timeZone, 0), timeZone, "yyyy-MM-dd");
   const sample = (id: string, job: typeof CAMPUS, date: string, start: string, end: string, rate: number): DashboardShift => ({ id, jobId: job.id, jobName: job.name, jobColor: job.color, startsAt: fromZonedTime(`${date}T${start}:00`, timeZone), endsAt: fromZonedTime(`${date}T${end}:00`, timeZone), hourlyRateCents: rate, taxRateBasisPoints: 1_200, deductions: [] });
   const worked = [

@@ -17,14 +17,14 @@ function ConnectLink({ label }: { label: string }) {
 }
 
 /** Streams in under Suspense: listing calendars waits on Google, and the rest of Settings -- and its Save -- must not. */
-export function GoogleCalendarCardSkeleton() {
-  return <SettingsSection id="google-calendar" icon={CalendarDays} title="Google Calendar" description={DESCRIPTION}>
+export function GoogleCalendarCardSkeleton({ plain = false }: { plain?: boolean }) {
+  return <SettingsSection id="google-calendar" icon={CalendarDays} title="Google Calendar" description={DESCRIPTION} plain={plain}>
     <div className="grid gap-3"><div className="skeleton h-5 w-56" /><div className="skeleton h-11" /><div className="skeleton h-11" /></div>
   </SettingsSection>;
 }
 
 /** Rendered only when the feature flag is on. */
-export async function GoogleCalendarCard({ userId }: { userId: string }) {
+export async function GoogleCalendarCard({ userId, plain = false }: { userId: string; plain?: boolean }) {
   const summary = await getConnectionSummary(userId);
   const calendars = summary?.status === "active" ? await withCalendarAccess(userId, (token) => listCalendars(token)) : null;
   const needsReconnect = summary?.status === "needs_reconnect" || calendars?.status === "needs_reconnect";
@@ -33,7 +33,7 @@ export async function GoogleCalendarCard({ userId }: { userId: string }) {
     : calendars?.status === "unavailable" ? <Badge variant="muted">Unreachable</Badge>
     : <Badge variant="success">Connected</Badge>;
 
-  return <SettingsSection id="google-calendar" icon={CalendarDays} title="Google Calendar" description={DESCRIPTION} status={status}>
+  return <SettingsSection id="google-calendar" icon={CalendarDays} title="Google Calendar" description={DESCRIPTION} status={status} plain={plain}>
     {!summary ? <div className="grid gap-4">
       <ul className="grid gap-2 text-sm leading-6 text-[var(--muted-foreground)]">
         <li>See your events next to your shifts on the Calendar page.</li>
@@ -49,7 +49,7 @@ export async function GoogleCalendarCard({ userId }: { userId: string }) {
       {needsReconnect && <div className="grid gap-3"><p className="text-sm text-[var(--muted-foreground)]">Access was revoked or has expired. Reconnect to see your events again.</p><div><ConnectLink label="Reconnect" /></div></div>}
       {calendars?.status === "unavailable" && <p className="text-sm text-[var(--muted-foreground)]">Couldn&apos;t reach Google Calendar right now. Your settings are kept; try again in a moment.</p>}
       {calendars?.status === "ok" && <CalendarPickerForm calendars={calendars.value} selected={summary.selectedCalendarIds} />}
-      <p className="border-t pt-5 text-xs leading-5 text-[var(--muted-foreground)]">To have a job&apos;s events become shifts automatically, turn that on in the job&apos;s settings on <Link href="/jobs" className="font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Jobs</Link>.</p>
+      <p className="border-t pt-5 text-xs leading-5 text-[var(--muted-foreground)]">To have a job&apos;s events become shifts automatically, turn that on in the job&apos;s settings on <Link href="/jobs" className="font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Jobs</Link>.</p>
     </div>}
   </SettingsSection>;
 }

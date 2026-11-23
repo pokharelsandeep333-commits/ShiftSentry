@@ -1,14 +1,14 @@
-import { Suspense } from "react";
-import { CalendarClock, Palette, ShieldCheck } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { Suspense, type ReactNode } from "react";
+import { CalendarClock, CalendarRange, Palette, ShieldCheck } from "lucide-react";
 import { SavedToast } from "@/components/saved-toast";
 import { AccountLinks } from "@/components/settings/account-links";
 import { BreakPeriodsForm } from "@/components/settings/break-periods-form";
 import { GoogleCalendarCard, GoogleCalendarCardSkeleton } from "@/components/settings/google-calendar-card";
-import { SETTINGS_SECTIONS } from "@/components/settings/sections";
+import { SETTINGS_SECTIONS, type SettingsSectionId } from "@/components/settings/sections";
 import { SettingsForm } from "@/components/settings/settings-form";
-import { SettingsNav } from "@/components/settings/settings-nav";
+import { SettingsDialog } from "@/components/settings/settings-dialog";
 import { SettingsSection } from "@/components/settings/settings-section";
+import { AccentChoice } from "@/components/settings/accent-choice";
 import { ThemeChoice } from "@/components/settings/theme-choice";
 import { requireUser } from "@/lib/auth";
 import type { BreakPeriod } from "@/lib/break-periods";
@@ -47,39 +47,39 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const savedMessage = typeof saved === "string" ? SAVED_MESSAGES[saved] : undefined;
   const googleProblem = typeof google === "string" ? GOOGLE_PROBLEMS[google] : undefined;
   const googleOn = isGoogleCalendarEnabled();
-  const sections = SETTINGS_SECTIONS.filter((section) => googleOn || section.id !== "google-calendar");
   const periods = await loadBreakPeriods(profile.id);
+  /* Back from Google (connected, disconnected or refused) opens on its pane. */
+  const initial: SettingsSectionId = googleOn && (googleProblem || (typeof saved === "string" && saved.startsWith("google"))) ? "google-calendar" : "week";
+
+  const content: Record<SettingsSectionId, ReactNode> = {
+    week: <SettingsSection plain id="week" icon={CalendarClock} title="Profile and week" description="Your name, and how your week and its limit are counted.">
+      <SettingsForm
+        email={profile.email}
+        displayName={profile.display_name ?? ""}
+        timeZone={profile.time_zone}
+        timeZones={timeZoneOptions(profile.time_zone)}
+        weekStartsOn={profile.week_starts_on}
+        globalWeeklyLimitMinutes={profile.global_weekly_limit_minutes}
+        profileSaved={saved === "1"}
+      />
+    </SettingsSection>,
+    "break-periods": <SettingsSection plain id="break-periods" icon={CalendarRange} title="Break periods" description="When the first day of your workweek falls within these dates, the break cap applies for the whole week. Both dates count. Per-job limits still apply.">
+      {periods ? <BreakPeriodsForm periods={periods} bare /> : <p role="alert" className="text-sm text-[var(--danger)]">Couldn&apos;t load break periods. Refresh to try again.</p>}
+    </SettingsSection>,
+    "google-calendar": <Suspense fallback={<GoogleCalendarCardSkeleton plain />}><GoogleCalendarCard userId={profile.id} plain /></Suspense>,
+    appearance: <SettingsSection plain id="appearance" icon={Palette} title="Appearance" description="How ShiftSentry looks on this device. The moon and sun in the header switch light and dark too.">
+      <ThemeChoice />
+      <AccentChoice />
+    </SettingsSection>,
+    account: <SettingsSection plain id="account" icon={ShieldCheck} title="Account and privacy" description="These tools open on their own page and work even when the workspace is locked.">
+      <AccountLinks />
+    </SettingsSection>,
+  };
+  const panes = SETTINGS_SECTIONS.filter((section) => googleOn || section.id !== "google-calendar").map((section) => ({ ...section, content: content[section.id] }));
 
   return <>
     {savedMessage && <SavedToast message={savedMessage} />}
     {googleProblem && <SavedToast message={googleProblem} clearParams={["google"]} />}
-    <PageHeader title="Settings" description="Your profile, how your week is counted, connected calendars, and your account." />
-    <div className="grid min-w-0 gap-6">
-      <SettingsNav sections={sections} />
-      <div className="grid min-w-0 gap-6">
-        <SettingsSection id="week" icon={CalendarClock} title="Profile and week" description="Your name, and the time zone, week and weekly limit every total is measured against.">
-          <SettingsForm
-            email={profile.email}
-            displayName={profile.display_name ?? ""}
-            timeZone={profile.time_zone}
-            timeZones={timeZoneOptions(profile.time_zone)}
-            weekStartsOn={profile.week_starts_on}
-            globalWeeklyLimitMinutes={profile.global_weekly_limit_minutes}
-            profileSaved={saved === "1"}
-          />
-          {periods ? <BreakPeriodsForm periods={periods} /> : <p role="alert" className="mt-5 border-t pt-5 text-sm text-[var(--danger)]">Couldn&apos;t load break periods. Refresh to try again.</p>}
-        </SettingsSection>
-
-        {googleOn && <Suspense fallback={<GoogleCalendarCardSkeleton />}><GoogleCalendarCard userId={profile.id} /></Suspense>}
-
-        <SettingsSection id="appearance" icon={Palette} title="Appearance" description="How ShiftSentry looks on this device. The moon and sun in the header switch it too.">
-          <ThemeChoice />
-        </SettingsSection>
-
-        <SettingsSection id="account" icon={ShieldCheck} title="Account and privacy" description="These tools open on their own page and work even when the workspace is locked.">
-          <AccountLinks />
-        </SettingsSection>
-      </div>
-    </div>
+    <SettingsDialog panes={panes} initial={initial} />
   </>;
 }

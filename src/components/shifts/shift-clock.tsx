@@ -156,7 +156,7 @@ function RunningClock({ timer, timeZone, weekStartsOn, snapshotAt, stopState: st
       {/* A refused Stop says why below; the live line would only repeat it. */}
       {!state.message && <ClockOutlook outlook={outlook} now={now} elapsed={elapsed} archived={timer.jobArchived} timeZone={timeZone} />}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        {!overDay && <Link href={editHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline sm:min-h-9">Stopped earlier? Set end time</Link>}
+        {!overDay && <Link href={editHref} className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--primary)] sm:min-h-9 transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Stopped earlier? Set end time</Link>}
         <form action={discardShiftTimer} className="ml-auto">
           <input type="hidden" name="startedAt" value={timer.startedAt} />
           <ConfirmSubmit label="Discard" confirmLabel="Discard this timer?" detail="The clock stops and nothing is logged." />
@@ -234,7 +234,7 @@ function ClockOutlook({ outlook, now, elapsed, archived, timeZone }: { outlook: 
 
 function Problem({ message, href, linkLabel }: { message: string; href: string | null; linkLabel: string }) {
   return <p role="alert" className="relative mt-3 rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2.5 text-sm leading-6 text-[var(--danger-ink)]">
-    {message}{href && <> <Link href={href} className="font-semibold underline underline-offset-4">{linkLabel}</Link></>}
+    {message}{href && <> <Link href={href} className="font-semibold transition-colors hover:text-[var(--primary)]">{linkLabel}</Link></>}
   </p>;
 }
 

@@ -215,7 +215,7 @@ export function ShiftLogView({ groups, currentKey, timeZone, weeks, filters, not
     </Card>
       : filtered && !groups.length ? <Card className="px-6 py-10 text-center">
         <p className="text-sm text-[var(--muted-foreground)]">No shifts match these filters{olderCount ? " in the weeks loaded" : ""}.</p>
-        <Link href={shiftLogHref(weeks, { show: "all", job: "" })} className="mt-3 inline-block text-sm font-semibold text-[var(--primary)] underline-offset-4 hover:underline">Clear filters</Link>
+        <Link href={shiftLogHref(weeks, { show: "all", job: "" })} className="mt-3 inline-block text-sm font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]">Clear filters</Link>
       </Card>
       : <div className="shift-weeks">{groups.map((group) => <ShiftWeek key={group.key} group={group} current={group.key === currentKey} timeZone={timeZone} weeks={weeks} filters={filters} notes={notes} canAdd={jobs.length > 0} now={now} />)}</div>}
 

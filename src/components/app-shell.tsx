@@ -17,6 +17,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { Brand, BrandMark } from "@/components/brand";
 import { LEGAL_CONTACT_EMAIL } from "@/components/legal-page";
 import dashboardShell from "./quiet-dashboard-shell.module.css";
+import { LAST_PAGE_KEY } from "@/components/settings/settings-dialog";
 
 /**
  * The work the app is for. These five are the bottom tab bar on a phone, where
@@ -160,7 +161,7 @@ function NavigationLink({ item, active, transitionTypes, onNavigate }: { item: N
     "press group relative isolate flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]",
     active ? "text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
   )}>
-    {active && <NavPill className="rounded-xl bg-[color-mix(in_srgb,var(--primary)_11%,var(--card))]" />}
+    {active && <NavPill className="rounded-xl bg-[color-mix(in_srgb,var(--accent-wash,var(--primary))_var(--tint-strength,11%),var(--card))]" />}
     <Icon className="size-5" strokeWidth={1.85} />
     {item.label}
   </Link>;
@@ -207,10 +208,10 @@ function SidebarLink({ item, active, transitionTypes, iconOnly = false }: { item
   return <>
     <Link ref={ref} href={item.href} transitionTypes={transitionTypes} aria-current={active ? "page" : undefined} aria-label={iconOnly ? item.label : undefined} onClick={hide} onMouseEnter={showIfCollapsed} onMouseLeave={hide} onFocus={showIfCollapsed} onBlur={hide} className={cn("group outline-none", dashboardShell.row)}>
       <span className={cn("press relative isolate grid size-10 place-items-center justify-self-center rounded-[11px] transition-colors group-focus-visible:ring-2 group-focus-visible:ring-[var(--primary)]", active ? "text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] group-hover:bg-[var(--surface-subtle)] group-hover:text-[var(--foreground)]")}>
-        {active && <NavPill name="nav-pill-side" className="rounded-[11px] bg-[color-mix(in_srgb,var(--primary)_11%,var(--card))]" />}
+        {active && <NavPill name="nav-pill-side" className="rounded-[11px] bg-[color-mix(in_srgb,var(--accent-wash,var(--primary))_var(--tint-strength,11%),var(--card))]" />}
         <Icon aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />
       </span>
-      {!iconOnly && <span className={cn(dashboardShell.label, active ? "bg-[color-mix(in_srgb,var(--primary)_11%,var(--card))] font-semibold text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] group-hover:bg-[var(--surface-subtle)] group-hover:text-[var(--foreground)]")}>{item.label}</span>}
+      {!iconOnly && <span className={cn(dashboardShell.label, active ? "bg-[color-mix(in_srgb,var(--accent-wash,var(--primary))_var(--tint-strength,11%),var(--card))] font-semibold text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] group-hover:bg-[var(--surface-subtle)] group-hover:text-[var(--foreground)]")}>{item.label}</span>}
     </Link>
     <RailTooltip label={item.label} position={tooltip} />
   </>;
@@ -263,11 +264,11 @@ function BottomNavigationLink({ item, active, transitionTypes }: { item: Navigat
   const Icon = item.icon;
 
   return <Link href={item.href} transitionTypes={transitionTypes} aria-current={active ? "page" : undefined} className={cn(
-    "press flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 pb-1.5 pt-2 text-[11px] font-medium leading-none",
+    "press flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-0.5 pb-1.5 pt-2 text-[11px] font-medium leading-none",
     active ? "text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
   )}>
-    <span className="relative isolate grid h-7 w-12 place-items-center">
-      {active && <NavPill name="nav-pill-bar" className="rounded-full bg-[color-mix(in_srgb,var(--primary)_9%,var(--card))]" />}
+    <span className="relative isolate grid h-7 w-full max-w-12 place-items-center">
+      {active && <NavPill name="nav-pill-bar" className="rounded-full bg-[color-mix(in_srgb,var(--accent-wash,var(--primary))_var(--tint-strength,9%),var(--card))]" />}
       <Icon className="size-5" strokeWidth={1.75} />
     </span>
     {item.label}
@@ -284,7 +285,7 @@ function BottomNavigationLink({ item, active, transitionTypes }: { item: Navigat
  */
 function BottomNavigation({ pathname }: { pathname: string }) {
   return <nav aria-label="Primary" className="app-bottom-bar fixed inset-x-0 bottom-0 z-30 border-t bg-[var(--card)]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
-    <div className="mx-auto flex max-w-md items-stretch gap-1 px-2 py-1">
+    <div className="mx-auto flex max-w-md items-stretch gap-0.5 px-1.5 py-1 min-[360px]:gap-1 min-[360px]:px-2">
       {navigation.map((item, index) => <BottomNavigationLink key={item.href} item={item} active={isNavigationActive(pathname, item.href)} transitionTypes={navDirection(navigation, pathname, index)} />)}
     </div>
   </nav>;
@@ -450,6 +451,12 @@ function WeekMeterPlaceholder() {
 
 export function AppShell({ children, isAdmin = false, isDemo = false, userEmail, userName, weekMeter }: { children: React.ReactNode; isAdmin?: boolean; isDemo?: boolean; userEmail?: string; userName?: string | null; weekMeter?: Promise<WeekMeterSource | null> }) {
   const pathname = usePathname();
+  /* Settings opens as a window over the app; its Close returns to the last
+     page that was not Settings, recorded here. */
+  useEffect(() => {
+    if (pathname.startsWith("/settings")) return;
+    try { window.sessionStorage.setItem(LAST_PAGE_KEY, `${pathname}${window.location.search}`); } catch { /* storage blocked: Close goes to the dashboard */ }
+  }, [pathname]);
   const railExtras = isAdmin ? [...railExtraNavigation, ADMIN_ITEM] : railExtraNavigation;
   const railItems = [...railMainNavigation, ...railExtras, ...railSettings];
   const section = railItems.find((item) => isNavigationActive(pathname, item.href));

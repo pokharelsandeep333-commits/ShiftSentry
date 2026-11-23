@@ -52,9 +52,12 @@ export function WelcomeNav() {
           <BrandMark size="default" className="size-9 rounded-xl" />
           <span className="welcome-nav-word font-display text-[1.0625rem] font-semibold text-[var(--foreground)]">ShiftSentry</span>
         </Link>
-        <nav aria-label="Page" className="hidden items-center gap-1 md:flex">
-          <a href="#week" className={navLink}>How it works</a>
-          <Link href="/privacy" className={navLink}>Privacy</Link>
+        {/* From lg only: at tablet widths four links collide with the buttons. Privacy is in the footer. */}
+        <nav aria-label="Page" className="hidden items-center gap-1 lg:flex">
+          <a href="#how" className={navLink}>How it works</a>
+          <a href="#week" className={navLink}>Example week</a>
+          <Link href="/guides" className={navLink}>Guides</Link>
+          <a href="#faq" className={navLink}>FAQ</a>
         </nav>
         <div className="flex items-center gap-1.5 justify-self-end sm:gap-2">
           <ThemeSwitch />

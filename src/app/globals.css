@@ -54,6 +54,9 @@
   --surface-subtle: color-mix(in srgb, var(--muted) 76%, var(--card));
   --primary-soft: color-mix(in srgb, var(--primary) 13%, transparent);
   --primary-glow: color-mix(in srgb, var(--primary) 24%, transparent);
+  /* A light fill of the accent that carries dark ink, the same in both themes
+     (`src/lib/accent.ts`, `bright`). */
+  --primary-bright: #9486ff;
   --shadow-color: 229 231 235;
   /* Secondary text pulled toward the ink, for tinted surfaces where plain
      --muted-foreground drops under 4.5:1. Declared here only: it resolves
@@ -105,6 +108,30 @@
   --primary-soft: color-mix(in srgb, var(--primary) 16%, transparent);
   --primary-glow: color-mix(in srgb, var(--primary) 28%, transparent);
   --shadow-color: 0 0 0;
+}
+
+/*
+ * The other colour themes (Settings > Appearance) are not written here: their
+ * `<html data-accent>` rules are generated from the list in `src/lib/accent.ts`
+ * (`ACCENT_CSS`) and rendered once by `src/app/layout.tsx`. The tokens above
+ * are the default, Violet.
+ */
+
+/* The colour-theme picker's swatches: each theme's two colours, split on the
+   diagonal (`swatch` in src/lib/accent.ts). */
+.accent-swatch {
+  background: linear-gradient(135deg, var(--swatch-a) 50%, var(--swatch-b) 50%);
+  color: #ffffff;
+}
+.accent-swatch svg { filter: drop-shadow(0 0 1.5px rgb(0 0 0 / 0.7)); }
+
+/* Keyboard focus rings. Many controls ring themselves in --primary-soft on
+   focus, a 13% wash that is barely visible against a white card. One
+   unlayered rule gives every such ring a clearly visible colour (unlayered,
+   so it wins over the Tailwind utility), so focus shows wherever you Tab. */
+.focus-visible\:ring-\[var\(--primary-soft\)\]:focus-visible,
+.has-\[\:focus-visible\]\:ring-\[var\(--primary-soft\)\]:has(:focus-visible) {
+  --tw-ring-color: color-mix(in srgb, var(--primary) 60%, transparent);
 }
 
 /*
@@ -301,14 +328,18 @@ body {
  * scroll-driven (`animation-timeline: view()`), gated on support: without it
  * the content simply shows, which is the state every animation ends in.
  */
-.theme-dark-only { display: none; }
-.dark .theme-dark-only { display: block; }
-.dark .theme-light-only { display: none; }
 
 .welcome-page {
-  --w-ground: color-mix(in srgb, var(--primary) 6%, var(--background));
-  --w-glow: color-mix(in srgb, var(--primary) 13%, transparent);
-  --w-glow-soft: color-mix(in srgb, var(--primary) 8%, transparent);
+  /* Secondary text on the lavender ground reads at 4.5:1 or better only in the
+     stronger grey the tinted cards already use (#667085 measured 3.7:1 on the
+     sign-in page's wash and 4.4:1 on the landing's). */
+  --muted-foreground: var(--muted-strong);
+  /* The washes mix from --accent-wash, which only Wasp's light mode sets
+     (yellow glows behind black buttons); everywhere else it is --primary. */
+  --w-wash: var(--accent-wash, var(--primary));
+  --w-ground: color-mix(in srgb, var(--w-wash) 6%, var(--background));
+  --w-glow: color-mix(in srgb, var(--w-wash) 13%, transparent);
+  --w-glow-soft: color-mix(in srgb, var(--w-wash) 8%, transparent);
   --w-sheen: color-mix(in srgb, var(--card) 80%, transparent);
   --w-glass: color-mix(in srgb, var(--card) 58%, transparent);
   --w-glass-tile: color-mix(in srgb, var(--card) 82%, transparent);
@@ -369,6 +400,7 @@ body {
   background: radial-gradient(circle at 34% 28%, var(--card) 0%, color-mix(in srgb, var(--primary) 8%, var(--card)) 50%, color-mix(in srgb, var(--primary) 18%, var(--card)) 100%);
   box-shadow: 0 40px 80px -52px color-mix(in srgb, var(--primary) 50%, transparent), inset 0 1px 0 var(--w-glass-edge);
 }
+
 
 /* A section panel: frosted white glass without the blur (see the note at the
    top of this block). The gradient brightens the top-left like light on
@@ -517,6 +549,99 @@ body {
   outline-offset: 2px;
 }
 
+/* The dashboard shot under the hero (`welcome-landing.tsx`). It sits on the
+   page's own ground rather than in a panel, so it reads as the hero's product
+   shot. A wide violet halo behind it (a gradient, not a blurred element)
+   carries the hero's glow down to it, and on scroll the frame tips up from a
+   slight backward lean to flat (`.showcase-tilt`, in the scroll-reveal
+   block). */
+.welcome-showcase { perspective: 2400px; isolation: isolate; }
+/* The maker's links in the footer: a hairline circle that takes the violet
+   on hover. */
+.footer-social { border-color: color-mix(in srgb, var(--primary) 16%, var(--border)); }
+.footer-social:hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+  background: var(--primary-soft);
+}
+.welcome-showcase::before {
+  content: "";
+  position: absolute;
+  inset: -6% -4% 4%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--primary) 20%, transparent), transparent);
+}
+.dark .welcome-showcase::before {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--primary) 14%, transparent), transparent);
+}
+
+/* "How it works" (how-it-works.tsx): small illustrations of floating app
+   pieces over a soft violet halo, joined by dashed connectors whose dashes
+   march slowly toward the next step. The cards sit in the components layer so
+   Tailwind's border utilities (dashed, danger) can still restyle one. */
+.hiw-art::before {
+  content: "";
+  position: absolute;
+  inset: -8% -6%;
+  z-index: -1;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--primary) 13%, transparent), transparent);
+}
+.hiw-art { isolation: isolate; }
+@layer components {
+  .hiw-card {
+    border: 1px solid color-mix(in srgb, var(--primary) 12%, var(--border));
+    border-radius: 0.875rem;
+    background: var(--card);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--w-shade) 6%, transparent), 0 18px 34px -20px color-mix(in srgb, var(--w-shade) 34%, transparent);
+  }
+}
+.hiw-button {
+  background: var(--primary);
+  box-shadow: 0 10px 22px -10px var(--primary-glow), inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.hiw-float { animation: hiw-float 5.5s ease-in-out var(--hiw-delay, 0ms) infinite alternate; }
+.hiw-link path {
+  stroke: color-mix(in srgb, var(--primary) 55%, transparent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 3 7;
+  animation: hiw-dash 1.6s linear infinite;
+}
+@keyframes hiw-float {
+  from { translate: 0 0; }
+  to { translate: 0 -7px; }
+}
+@keyframes hiw-dash {
+  to { stroke-dashoffset: -20; }
+}
+@supports (animation-timeline: view()) {
+  .hiw-bar, .hiw-fill {
+    animation: hiw-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 40%;
+  }
+  .hiw-bar { transform-origin: bottom; }
+  .hiw-fill { transform-origin: left; animation-name: rv-grow; }
+}
+@keyframes hiw-rise {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* The landing's questions (welcome-faq.tsx): an opened answer eases open
+   where the browser can transition to `auto` and style `::details-content`;
+   elsewhere it simply appears, as a plain `<details>` does. */
+@supports (interpolate-size: allow-keywords) and selector(::details-content) {
+  .faq-item { interpolate-size: allow-keywords; }
+  .faq-item::details-content {
+    block-size: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: block-size 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease, content-visibility 320ms allow-discrete;
+  }
+  .faq-item[open]::details-content { block-size: auto; opacity: 1; }
+}
+
 /* The phone screenshot: a device bezel in --card over the desktop frame. */
 .welcome-phone {
   border: 5px solid var(--card);
@@ -589,6 +714,12 @@ body {
   .rv-drop { animation-name: rv-drop; animation-range: entry 30% cover 45%; }
   .rv-pop { animation-name: rv-pop; animation-range: entry 35% cover 45%; }
   .rv-grow { animation-name: rv-grow; animation-range: entry 20% cover 40%; transform-origin: left center; }
+  .showcase-tilt {
+    transform-origin: 50% 100%;
+    animation: showcase-tilt linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 45%;
+  }
 }
 
 @keyframes hero-rise {
@@ -627,6 +758,10 @@ body {
   40% { transform: translateX(5px); }
   60% { transform: translateX(-3px); }
   80% { transform: translateX(2px); }
+}
+@keyframes showcase-tilt {
+  from { opacity: 0.5; transform: rotateX(16deg) scale(0.94); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes rv-rise {
   from { opacity: 0; transform: translateY(28px); }
@@ -791,6 +926,17 @@ html:active-view-transition-type(to-login)::view-transition-group(sign-in-box) {
    closing frames are still painted in the top layer (Chromium; elsewhere the
    close is instant). Unlayered: the backdrop colour must not lose to a
    utility, or the scrim would never fade. */
+/* The Settings window (settings-dialog.tsx). Its own backdrop element dims
+   the app, so it looks the same before hydration (the server renders the
+   dialog `open`, in place) and after (`showModal()`, top layer). The page
+   behind does not scroll while it is open. */
+.settings-dialog::backdrop { background: transparent; }
+.settings-backdrop { background: rgb(10 12 18 / 0.45); animation: settings-fade var(--dur-quick) ease-out both; }
+.settings-window { box-shadow: 0 40px 100px -30px rgb(0 0 0 / 0.45); animation: settings-rise var(--dur-page) var(--ease-out) both; }
+body:has(.settings-dialog[open]) { overflow: hidden; }
+@keyframes settings-fade { from { opacity: 0; } }
+@keyframes settings-rise { from { opacity: 0; translate: 0 10px; scale: 0.985; } }
+
 .dialog-pop {
   opacity: 0;
   translate: 0 8px;

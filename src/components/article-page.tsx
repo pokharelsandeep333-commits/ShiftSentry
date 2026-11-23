@@ -7,7 +7,7 @@ import { GUIDES } from "@/lib/guides";
 const footerLink = `${legalLink} inline-flex min-h-11 items-center sm:min-h-0`;
 
 /**
- * The shell for the public reading pages, `/about` and the guides: the legal
+ * The shell for the public reading pages, `/about`, `/guides` and each guide: the legal
  * pages' column and type, with links on to the other public pages so none of
  * them is a dead end. Public and session-free, like the legal pages.
  */
@@ -19,11 +19,12 @@ export function ArticlePage({ title, lede, children, cta = true }: { title: stri
       <p className="mt-4 text-lg leading-8 text-[var(--muted-foreground)]">{lede}</p>
       {children}
       {cta && <p className="mt-12 rounded-2xl bg-[var(--primary-soft)] p-5 leading-7">
-        ShiftSentry is free. Add your jobs and your hour limit, and it does the counting. <Link href="/login?mode=signup" className={legalLink}>Get started</Link>
+        ShiftSentry is free. Add your jobs and your hour limit, and it does the counting. {/* A deeper violet: the brand violet reads 3.9:1 on this tint. */}<Link href="/login?mode=signup" className={`${legalLink} !text-[color-mix(in_srgb,var(--primary)_78%,var(--foreground))]`}>Get started</Link>
       </p>}
       <nav aria-label="More from ShiftSentry" className="mt-12 border-t pt-6">
         <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
           <li><Link href="/" className={footerLink}>Home</Link></li>
+          <li><Link href="/guides" className={footerLink}>Guides</Link></li>
           {GUIDES.map((guide) => <li key={guide.slug}><Link href={`/guides/${guide.slug}`} className={footerLink}>{guide.navLabel}</Link></li>)}
           <li><Link href="/about" className={footerLink}>About</Link></li>
           <li><Link href="/privacy" className={footerLink}>Privacy Policy</Link></li>

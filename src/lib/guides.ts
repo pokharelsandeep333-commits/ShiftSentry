@@ -1,7 +1,7 @@
 /**
  * The public guides at `/guides/<slug>`: one page per question someone types
- * into a search box before they know ShiftSentry exists. The landing's footer,
- * the sitemap and `/llms.txt` list them from here.
+ * into a search box before they know ShiftSentry exists. The `/guides` index,
+ * the landing's footer, the sitemap and `/llms.txt` list them from here.
  *
  * The landing's rule holds here too: every behaviour a guide describes is one
  * the app or the database enforces (the 80/90/100 ladder, the per-job cap, the

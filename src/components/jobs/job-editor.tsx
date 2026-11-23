@@ -14,7 +14,7 @@ import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { formatCents } from "@/lib/earnings";
 import { payScheduleFromColumns, type JobPayColumns } from "@/lib/pay-period";
 
-const linkClass = "font-semibold text-[var(--primary)] underline-offset-4 hover:underline";
+const linkClass = "font-semibold text-[var(--primary)] transition-colors hover:text-[color-mix(in_srgb,var(--primary)_72%,var(--foreground))]";
 
 function Stat({ label, value }: { label: string; value: string }) {
   return <div className="min-w-0 px-4 py-3 first:pl-0 sm:px-5 sm:first:pl-0">
