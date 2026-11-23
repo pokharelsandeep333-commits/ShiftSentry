@@ -16,7 +16,7 @@ const SHOWS: { value: ShiftShow; label: string }[] = [
 
 function Chip({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   return <Link href={href} aria-current={active ? "true" : undefined} scroll={false} className={cn(
-    "press inline-flex min-h-9 shrink-0 snap-start items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-semibold outline-none sm:max-w-full sm:shrink focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
+    "press inline-flex min-h-9 min-w-0 max-w-full items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-semibold outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary-soft)]",
     active ? "border-[color-mix(in_srgb,var(--primary)_35%,var(--border))] bg-[var(--primary-soft)] text-[var(--primary)]" : "bg-[var(--card)]/60 text-[var(--muted-foreground)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]",
   )}>{children}</Link>;
 }
@@ -35,14 +35,15 @@ export function ShiftLogHeader({ weeks, filters, jobs, openableWeeks, clock }: {
       description="Everything you have worked or scheduled, week by week. Open a shift to change it."
     />
     {clock}
-    {/* One row that scrolls sideways on a phone (it wrapped to three rows
-        there, pushing the log down); from sm it wraps as before. */}
-    {jobs.length > 0 && <nav aria-label="Filter shifts" className="shift-scroller -mx-4 mb-4 flex snap-x scroll-px-4 items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:mb-5 sm:flex-wrap sm:overflow-visible sm:p-0">
-      <span className="shift-segment shrink-0 snap-start">
+    {/* Wraps at every width: the sideways scroller it used on phones hid
+        every job past the first one or two (owner's call, 2026-11-22). The
+        divider only shows from sm, where the row rarely wraps. */}
+    {jobs.length > 0 && <nav aria-label="Filter shifts" className="mb-4 flex flex-wrap items-center gap-2 sm:mb-5">
+      <span className="shift-segment shrink-0">
         {SHOWS.map((show) => <Link key={show.value} href={shiftLogHref(weeks, { ...filters, show: show.value })} aria-current={filters.show === show.value ? "true" : undefined} scroll={false}>{show.label}</Link>)}
       </span>
       {jobs.length > 1 && <>
-        <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-[var(--border)]" />
+        <span aria-hidden="true" className="mx-1 hidden h-5 w-px shrink-0 bg-[var(--border)] sm:block" />
         <Chip href={shiftLogHref(weeks, { ...filters, job: "" })} active={!filters.job}>All jobs</Chip>
         {jobs.map((job) => <Chip key={job.id} href={shiftLogHref(weeks, { ...filters, job: job.id })} active={filters.job === job.id}>
           <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: job.color }} />
