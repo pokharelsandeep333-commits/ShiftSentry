@@ -1205,16 +1205,48 @@ select {
   }
 
   html { overflow-y: visible; }
-  body { background: #ffffff; padding: 0; }
+  body { min-height: 0; background: #ffffff; padding: 0; }
   .app-canvas, .app-frame, :root[data-sidebar="collapsed"] .app-frame { display: block; background: #ffffff; }
+  .app-frame:has(.timesheet) { min-height: 0; }
   .app-sidebar, .app-bottom-bar, section[aria-label="Announcement"] { display: none !important; }
   .premium-card { box-shadow: none !important; }
 
-  .timesheet { font-size: 10.5pt; }
-  .timesheet h1 { font-size: 18pt; }
-  .timesheet table { border-collapse: collapse; }
+  .timesheet { font-size: 10pt; letter-spacing: normal; --success-ink: var(--foreground); }
+  .timesheet-print-header { display: block; break-inside: avoid; }
+  .timesheet-print-title { display: flex; justify-content: space-between; gap: 12pt; align-items: start; }
+  .timesheet-print-title h1 { font-size: 24pt; font-weight: 650; line-height: 1.1; }
+  .timesheet-print-title p { margin-top: 4pt; }
+  .timesheet-print-brand { color: var(--muted-foreground); font-size: 9pt; font-weight: 600; }
+  .timesheet-print-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12pt;
+    margin-top: 10pt;
+    padding-block: 7pt;
+    border-block: 1px solid var(--border);
+  }
+  .timesheet-print-meta dt { color: var(--muted-foreground); font-size: 8pt; }
+  .timesheet-print-meta dd { font-size: 9pt; font-weight: 600; overflow-wrap: anywhere; }
+  .timesheet .timesheet-section { margin-top: 10pt; overflow: visible; border: 0; border-radius: 0; }
+  .timesheet-section > h2 {
+    padding: 0 0 4pt;
+    border-bottom-color: var(--muted-foreground);
+    break-after: avoid;
+    font: 650 11pt/1.25 var(--font-sans);
+    letter-spacing: normal;
+  }
+  .timesheet-summary, .timesheet-weekly { break-inside: avoid; }
+  .timesheet-verdict { padding: 4pt 0; }
+  .timesheet-verdict p { margin-top: 0; font: 9pt/1.3 var(--font-sans); letter-spacing: normal; }
+  .timesheet-verdict p:first-child { font-weight: 650; }
+  .timesheet table { border-collapse: collapse; font-size: 9pt; line-height: 1.3; }
+  .timesheet :is(th, td) { padding-block: 1.5pt; vertical-align: top; }
   .timesheet tr, .timesheet-day { break-inside: avoid; }
+  .timesheet-day > tr:first-child { break-after: avoid; }
   .timesheet thead { display: table-header-group; }
-  .timesheet section { break-inside: auto; }
-  .timesheet-dot { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .timesheet tfoot { display: table-row-group; }
+  .timesheet .timesheet-dot { display: none; }
+  .timesheet-cap-note, .timesheet-note { font-size: 8pt; line-height: 1.35; }
+  .timesheet-cap-note { padding: 3pt 0 0; }
+  .timesheet-note { margin-top: 6pt; break-inside: avoid; }
 }

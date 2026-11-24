@@ -177,11 +177,13 @@ export function formatPayDay(day: string, withWeekday = false) {
   return (withWeekday ? WITH_WEEKDAY : SHORT).format(noon(day));
 }
 
-/** "Oct 15 – Oct 28", with years only when the period crosses one. */
-export function formatPayPeriod(period: PayPeriod) {
+/** "Oct 15 – Oct 28", with years on both sides when the period crosses one. */
+export function formatPayPeriod(period: PayPeriod, withYear = false) {
   const last = lastDayOf(period);
-  const format = period.start.slice(0, 4) === last.slice(0, 4) ? SHORT : SHORT_WITH_YEAR;
-  return `${format.format(noon(period.start))} – ${format.format(noon(last))}`;
+  const crossesYear = period.start.slice(0, 4) !== last.slice(0, 4);
+  const startFormat = crossesYear ? SHORT_WITH_YEAR : SHORT;
+  const endFormat = crossesYear || withYear ? SHORT_WITH_YEAR : SHORT;
+  return `${startFormat.format(noon(period.start))} – ${endFormat.format(noon(last))}`;
 }
 
 export type PayPeriodAmount = { minutes: number; grossCents: number; netCents: number };

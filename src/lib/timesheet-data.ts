@@ -1,8 +1,9 @@
 import { formatInTimeZone } from "date-fns-tz";
+import type { BreakPeriod } from "@/lib/break-periods";
 import type { DeductionSnapshot } from "@/lib/earnings";
-import { JOB_PAY_COLUMNS, describePaySchedule, payPeriodFor, payPeriodsBack, payScheduleFromColumns, type JobPayColumns, type PayPeriod } from "@/lib/pay-period";
+import { JOB_PAY_COLUMNS, describePaySchedule, payPeriodsBack, payScheduleFromColumns, type JobPayColumns, type PayPeriod } from "@/lib/pay-period";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { buildTimesheet, timesheetQueryWindow, type CapShift, type Timesheet, type TimesheetParams, type TimesheetScope, type TimesheetShift } from "@/lib/timesheet";
+import { buildTimesheet, timesheetPeriodFor, timesheetQueryWindow, type CapShift, type Timesheet, type TimesheetParams, type TimesheetScope, type TimesheetShift } from "@/lib/timesheet";
 
 /** How many periods the picker offers, newest first: a year of biweekly pay. */
 export const TIMESHEET_PERIOD_OPTIONS = 26;
@@ -63,7 +64,7 @@ export async function getTimesheet(profile: Profile, params: TimesheetParams, no
   const chosen = scheduled.find(({ row }) => row.id === params.job) ?? scheduled[0];
   if (!chosen) return { jobs, selected: null, periods: [], today, scope: params.scope, sheet: null };
 
-  const period = payPeriodFor(params.start ?? today, chosen.schedule);
+  const period = timesheetPeriodFor(params.start, today, chosen.schedule);
   const periods = payPeriodsBack(today, chosen.schedule, TIMESHEET_PERIOD_OPTIONS);
   if (!periods.some((option) => option.start === period.start)) periods.push(period);
   periods.sort((a, b) => b.start.localeCompare(a.start));
@@ -71,7 +72,7 @@ export async function getTimesheet(profile: Profile, params: TimesheetParams, no
   const window = timesheetQueryWindow(period, profile.time_zone, profile.week_starts_on);
   const jobOnly = params.scope === "job";
 
-  const [shiftRows, capRows] = await Promise.all([
+  const [shiftRows, capRows, breakPeriods] = await Promise.all([
     allPages<ShiftRow>((from, to) => {
       let query = supabase.from("shifts").select("id,job_id,starts_at,ends_at,hourly_rate_cents,tax_rate_basis_points,deductions_snapshot,jobs!inner(name,color)")
         .eq("user_id", profile.id).is("jobs.archived_at", null)
@@ -86,6 +87,10 @@ export async function getTimesheet(profile: Profile, params: TimesheetParams, no
       if (jobOnly) query = query.eq("job_id", chosen.row.id);
       return query.order("starts_at").order("id").range(from, to);
     }),
+    jobOnly ? [] : allPages<BreakPeriod>((from, to) => supabase.from("break_periods")
+      .select("id,start_date,end_date,weekly_limit_minutes,label").eq("user_id", profile.id)
+      .lte("start_date", window.lastWeekDate).gte("end_date", window.firstWeekDate)
+      .order("start_date").order("id").range(from, to)),
   ]);
 
   const shifts: TimesheetShift[] = shiftRows.map((row) => ({
@@ -110,6 +115,7 @@ export async function getTimesheet(profile: Profile, params: TimesheetParams, no
     weekStartsOn: profile.week_starts_on,
     limitMinutes: jobOnly ? chosen.row.weekly_limit_minutes : profile.global_weekly_limit_minutes,
     limitLabel: jobOnly ? `${chosen.row.name}: ` : "",
+    breakPeriods,
   });
 
   return {

@@ -33,7 +33,7 @@ function PeriodRow({ period, jobId }: { period: PayPeriodHistoryEntry; jobId: st
   return <li className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-0.5 px-5 py-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_5rem_7rem] sm:px-6", period.isCurrent && "bg-[color-mix(in_srgb,var(--primary)_5%,var(--card))]", empty && !period.isCurrent && "text-[var(--muted-foreground)]")}>
     {/* The badge wraps under the dates on a narrow phone rather than cutting them short. */}
     <p className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-sm font-semibold tabular-nums">
-      <Link href={timesheetHref("/pay-periods/timesheet", { job: jobId, start: period.start, scope: "all" })} title="Open this period's timesheet" className="-my-3 min-w-0 truncate py-3 outline-none hover:text-[var(--primary)]">{formatPayPeriod(period)}</Link>
+      <Link href={timesheetHref("/pay-periods/timesheet", { job: jobId, start: period.start, scope: "job" })} title="Open this period's timesheet" className="-my-3 min-w-0 truncate py-3 outline-none hover:text-[var(--primary)]">{formatPayPeriod(period)}</Link>
       {period.isCurrent && <span className="shrink-0 rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,var(--card))] px-2 py-0.5 text-[11px] font-semibold text-[color-mix(in_srgb,var(--primary)_88%,var(--foreground))]">Current</span>}
     </p>
     <p className={cn("text-right font-display text-base font-semibold tabular-nums sm:order-last", !empty && MONEY)}>{formatCents(period.worked.netCents)}<span className="block font-sans text-xs font-normal text-[var(--muted-foreground)]">Estimated net</span></p>
@@ -61,7 +61,7 @@ export function PayHistoryView({ history, count, today }: { history: PayHistory;
   </>;
 
   return <>
-    <PageHeader title="Pay periods" description={`${job.scheduleLabel}. Estimated net, after tax and deductions. Open a period for its timesheet.`} actions={<Link href={timesheetHref("/pay-periods/timesheet", { job: job.id, start: today, scope: "all" })} className={buttonVariants({ variant: "outline" })}><FileSpreadsheet aria-hidden="true" className="size-4" />Timesheet</Link>} />
+    <PageHeader title="Pay periods" description={`${job.scheduleLabel}. Estimated net, after tax and deductions. Open a period for its timesheet.`} actions={<Link href={timesheetHref("/pay-periods/timesheet", { job: job.id, start: today, scope: "job" })} className={buttonVariants({ variant: "outline" })}><FileSpreadsheet aria-hidden="true" className="size-4" />Timesheet</Link>} />
     {jobs.length > 1 && <nav aria-label="Job" className="mb-5 flex flex-wrap gap-2">
       {jobs.map((entry) => {
         const active = entry.id === job.id;

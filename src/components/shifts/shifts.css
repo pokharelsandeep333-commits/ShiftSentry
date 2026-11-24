@@ -203,7 +203,7 @@ details.shift-check { display: block; }
 /* Adding or editing a shift: an ordinary page with the form in one white
    card, in the shift log's language. Sections are divided by hairlines, not
    boxed. "When" is a week of date tiles over the picked day's 24-hour track
-   (owner's pick, 2026-11-17); a sticky footer carries net pay, the week with
+   (owner's pick, 2026-11-17); the footer carries net pay, the week with
    the shift in, and Save. */
 .shift-page { max-width:72rem; }
 .shift-page-back { display:inline-flex; align-items:center; gap:6px; min-height:36px; margin:-4px 0 10px -6px; padding:0 8px; border-radius:10px; color:var(--muted-foreground); font-size:13px; font-weight:600; }
@@ -316,9 +316,11 @@ details.shift-check { display: block; }
 
 .composer-checks { padding:0 26px 18px; }
 
-/* What Save would mean, next to it, kept in view while the form scrolls. */
-.composer-footer { position:sticky; bottom:0; z-index:5; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px 24px; padding:16px 26px; border-top:1px solid var(--hair); background:var(--card); }
+/* Keep the pay preview next to Save, below the form fields. */
+.composer-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px 24px; padding:16px 26px; border-top:1px solid var(--hair); background:var(--card); }
+.shift-composer[data-mode="edit"] > .composer-footer { position:sticky; bottom:0; z-index:5; }
 .composer-sum { display:grid; gap:3px; min-width:0; }
+.sum-label { color:var(--foreground); font-size:14px; font-weight:600; }
 .sum-net { display:flex; align-items:baseline; gap:6px; }
 .sum-net strong { font-family:var(--font-display); font-size:28px; font-weight:600; line-height:1.05; letter-spacing:-.03em; color:var(--shift-green); font-variant-numeric:tabular-nums; }
 .sum-net span { font-size:13px; color:var(--shift-copy); }
@@ -381,9 +383,9 @@ details.shift-check { display: block; }
   .day-week-tile > span:nth-child(2) { font-size:17px; }
   .composer-note-hint { display:none; }
 }
-/* The phone's bottom bar is fixed under the page: the footer stops above it. */
+/* The edit footer stops above the phone's fixed navigation. */
 @media (max-width:1023px) {
-  .composer-footer { bottom:calc(4.75rem + env(safe-area-inset-bottom)); }
+  .shift-composer[data-mode="edit"] > .composer-footer { bottom:calc(4.75rem + env(safe-area-inset-bottom)); }
 }
 @media (max-width:639px) {
   .composer-section { padding:18px 16px; }

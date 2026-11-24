@@ -11,6 +11,7 @@ const single = (value: string | string[] | undefined) => Array.isArray(value) ? 
 export default async function TimesheetPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const profile = await requireUser();
   const params = await searchParams;
-  const data = await getTimesheet(profile, readTimesheetParams((name) => single(params[name])));
-  return <TimesheetView data={data} viewerName={profile.display_name || profile.email} timeZone={profile.time_zone} />;
+  const generatedAt = new Date();
+  const data = await getTimesheet(profile, readTimesheetParams((name) => single(params[name])), generatedAt);
+  return <TimesheetView data={data} viewerName={profile.display_name || profile.email} timeZone={profile.time_zone} generatedAt={generatedAt} />;
 }
