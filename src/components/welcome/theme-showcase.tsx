@@ -36,7 +36,8 @@ import { cn } from "@/lib/utils";
  * off the browser makes smooth scrolling instant, and a click jumped while a
  * swipe still glided (Sandeep, 2026-11-24). While that glide runs, `settle`
  * waits, so the page sweeps once, to the slide it lands on; touching the
- * strip mid-glide hands it back to the visitor.
+ * strip mid-glide hands it back to the visitor, and a resize mid-glide
+ * re-aims it at the same slide.
  */
 const DESKTOP_SHOT_SIZES = "(min-width: 1760px) 76rem, (min-width: 1440px) 68rem, (min-width: 1152px) 62rem, calc(88vw - 2rem)";
 const SETTLE_MS = 140;
@@ -153,6 +154,25 @@ export function ThemeShowcase({ alt, phoneAlt }: { alt: string; phoneAlt: string
 
   // Start on the visitor's own theme, without a sweep.
   useEffect(() => { scrollToIndex(savedIndex, false); }, [savedIndex, scrollToIndex]);
+
+  // A glide aims at a pixel offset worked out when it started. If the strip
+  // changes width mid-glide (a window resize, a phone turning), that offset
+  // now points at another slide and the page would sweep to the wrong theme,
+  // so the glide restarts toward the same slide. At rest the browser re-snaps
+  // to the slide it was on by itself.
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track || typeof ResizeObserver === "undefined") return;
+    let width = track.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (track.clientWidth === width) return;
+      width = track.clientWidth;
+      const glide = glideRef.current;
+      if (glide) scrollToIndex(glide.target);
+    });
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [scrollToIndex]);
   // Preview only: leaving the landing puts the saved theme back.
   useEffect(() => () => { stopGlide(); applyAccent(accentPreference.read()); }, [stopGlide]);
 
