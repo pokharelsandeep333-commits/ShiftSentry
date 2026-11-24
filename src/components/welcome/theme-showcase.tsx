@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ACCENTS, accentPreference, applyAccent, captureName, SMALL_CAPTURE_SUFFIX, SMALL_CAPTURE_WIDTH, type AccentId } from "@/lib/accent";
+import { animateScrollLeft } from "@/lib/animate-scroll";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,6 +30,13 @@ import { cn } from "@/lib/utils";
  * fetched, so a visitor downloads only what they scroll to. Each slide also
  * carries that theme's phone capture, so the phone moves with its slide (a
  * single shared phone over the strip stood still while the slides moved).
+ *
+ * Dots and arrows glide the strip with `animateScrollLeft`, frame by frame,
+ * not `scrollTo({ behavior: "smooth" })`: with Windows "Animation effects"
+ * off the browser makes smooth scrolling instant, and a click jumped while a
+ * swipe still glided (Sandeep, 2026-11-24). While that glide runs, `settle`
+ * waits, so the page sweeps once, to the slide it lands on; touching the
+ * strip mid-glide hands it back to the visitor.
  */
 const DESKTOP_SHOT_SIZES = "(min-width: 1760px) 76rem, (min-width: 1440px) 68rem, (min-width: 1152px) 62rem, calc(88vw - 2rem)";
 const SETTLE_MS = 140;
@@ -82,50 +90,92 @@ export function ThemeShowcase({ alt, phoneAlt }: { alt: string; phoneAlt: string
   const activeRef = useRef(active);
   useEffect(() => { activeRef.current = active; }, [active]);
 
+  // The running glide, if any, and the slide it is heading for (so a second
+  // arrow click counts on from there, not from the slide still shown).
+  const glideRef = useRef<{ cancel: () => void; target: number } | null>(null);
+
   const slideAt = useCallback((index: number) => trackRef.current?.querySelectorAll<HTMLElement>("[data-slide]")[index] ?? null, []);
 
-  const scrollToIndex = useCallback((index: number, behavior: ScrollBehavior = "smooth") => {
+  // When the strip comes to rest, the slide nearest its centre is the theme.
+  const settle = useCallback(() => {
+    const track = trackRef.current;
+    if (!track || glideRef.current) return;
+    const centre = track.scrollLeft + track.clientWidth / 2;
+    const slides = Array.from(track.querySelectorAll<HTMLElement>("[data-slide]"));
+    if (slides.length === 0) return;
+    let nearest = 0;
+    slides.forEach((slide, index) => {
+      const distance = Math.abs(slide.offsetLeft + slide.offsetWidth / 2 - centre);
+      const best = Math.abs(slides[nearest].offsetLeft + slides[nearest].offsetWidth / 2 - centre);
+      if (distance < best) nearest = index;
+    });
+    if (nearest === activeRef.current) return;
+    const direction: Direction = nearest > activeRef.current ? "forward" : "back";
+    activeRef.current = nearest;
+    setMoved(nearest);
+    sweepTo(ACCENTS[nearest].id, direction);
+  }, []);
+
+  const stopGlide = useCallback(() => {
+    const glide = glideRef.current;
+    glideRef.current = null;
+    glide?.cancel();
+  }, []);
+
+  const scrollToIndex = useCallback((index: number, animate = true) => {
     const track = trackRef.current;
     const slide = slideAt(index);
     if (!track || !slide) return;
-    track.scrollTo({ left: slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2, behavior });
-  }, [slideAt]);
+    const left = slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2;
+    stopGlide();
+    if (!animate) {
+      track.scrollTo({ left, behavior: "instant" });
+      return;
+    }
+    // A glide of under a pixel ends inside animateScrollLeft, before it
+    // returns, so only a glide still running is kept.
+    let ended = false;
+    const glide = { target: index, cancel: () => {} };
+    glide.cancel = animateScrollLeft(track, left, {
+      onEnd: (completed) => {
+        ended = true;
+        if (glideRef.current === glide) glideRef.current = null;
+        if (completed) settle();
+      },
+    });
+    if (!ended) glideRef.current = glide;
+  }, [settle, slideAt, stopGlide]);
+
+  const step = (by: number) => {
+    const from = glideRef.current?.target ?? active;
+    scrollToIndex(Math.min(ACCENTS.length - 1, Math.max(0, from + by)));
+  };
 
   // Start on the visitor's own theme, without a sweep.
-  useEffect(() => { scrollToIndex(savedIndex, "instant"); }, [savedIndex, scrollToIndex]);
+  useEffect(() => { scrollToIndex(savedIndex, false); }, [savedIndex, scrollToIndex]);
   // Preview only: leaving the landing puts the saved theme back.
-  useEffect(() => () => applyAccent(accentPreference.read()), []);
+  useEffect(() => () => { stopGlide(); applyAccent(accentPreference.read()); }, [stopGlide]);
 
-  // When the strip comes to rest, the slide nearest its centre is the theme.
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
     let timer: number | undefined;
-    const settle = () => {
-      window.clearTimeout(timer);
-      const centre = track.scrollLeft + track.clientWidth / 2;
-      const slides = Array.from(track.querySelectorAll<HTMLElement>("[data-slide]"));
-      let nearest = 0;
-      slides.forEach((slide, index) => {
-        const distance = Math.abs(slide.offsetLeft + slide.offsetWidth / 2 - centre);
-        const best = Math.abs(slides[nearest].offsetLeft + slides[nearest].offsetWidth / 2 - centre);
-        if (distance < best) nearest = index;
-      });
-      if (nearest === activeRef.current) return;
-      const direction: Direction = nearest > activeRef.current ? "forward" : "back";
-      activeRef.current = nearest;
-      setMoved(nearest);
-      sweepTo(ACCENTS[nearest].id, direction);
-    };
+    const onSettle = () => { window.clearTimeout(timer); settle(); };
     // `scrollend` where it exists; a short pause in `scroll` events elsewhere.
-    const onScroll = () => { window.clearTimeout(timer); timer = window.setTimeout(settle, SETTLE_MS); };
+    const onScroll = () => { window.clearTimeout(timer); timer = window.setTimeout(onSettle, SETTLE_MS); };
     const hasScrollEnd = "onscrollend" in window;
-    track.addEventListener(hasScrollEnd ? "scrollend" : "scroll", hasScrollEnd ? settle : onScroll, { passive: true });
+    // The visitor taking hold of the strip mid-glide stops the glide; their
+    // own scroll then settles as usual.
+    const takeOver = () => { if (glideRef.current) stopGlide(); };
+    const takeOverEvents = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+    track.addEventListener(hasScrollEnd ? "scrollend" : "scroll", hasScrollEnd ? onSettle : onScroll, { passive: true });
+    takeOverEvents.forEach((type) => track.addEventListener(type, takeOver, { passive: true }));
     return () => {
       window.clearTimeout(timer);
-      track.removeEventListener(hasScrollEnd ? "scrollend" : "scroll", hasScrollEnd ? settle : onScroll);
+      track.removeEventListener(hasScrollEnd ? "scrollend" : "scroll", hasScrollEnd ? onSettle : onScroll);
+      takeOverEvents.forEach((type) => track.removeEventListener(type, takeOver));
     };
-  }, []);
+  }, [settle, stopGlide]);
 
   const current = ACCENTS[active];
 
@@ -160,7 +210,7 @@ export function ThemeShowcase({ alt, phoneAlt }: { alt: string; phoneAlt: string
     </div>
 
     <div className="mt-4 flex items-center justify-center gap-4 lg:mt-6">
-      <button type="button" onClick={() => scrollToIndex(Math.max(0, active - 1))} disabled={active === 0} aria-label="Previous theme" className="welcome-ghost hidden size-10 place-items-center sm:grid rounded-full transition-opacity disabled:opacity-40 sm:size-10"><ChevronLeft className="size-4" aria-hidden="true" /></button>
+      <button type="button" onClick={() => step(-1)} disabled={active === 0} aria-label="Previous theme" className="welcome-ghost hidden size-10 place-items-center sm:grid rounded-full transition-opacity disabled:opacity-40 sm:size-10"><ChevronLeft className="size-4" aria-hidden="true" /></button>
       {/* Phones: no arrows (the strip swipes) and no gaps, so all eight dots fit one line. */}
       <div role="group" aria-label="Colour themes" className="flex items-center justify-center sm:gap-1.5">
         {ACCENTS.map((accent, index) => {
@@ -178,10 +228,9 @@ export function ThemeShowcase({ alt, phoneAlt }: { alt: string; phoneAlt: string
           </button>;
         })}
       </div>
-      <button type="button" onClick={() => scrollToIndex(Math.min(ACCENTS.length - 1, active + 1))} disabled={active === ACCENTS.length - 1} aria-label="Next theme" className="welcome-ghost hidden size-10 place-items-center sm:grid rounded-full transition-opacity disabled:opacity-40 sm:size-10"><ChevronRight className="size-4" aria-hidden="true" /></button>
+      <button type="button" onClick={() => step(1)} disabled={active === ACCENTS.length - 1} aria-label="Next theme" className="welcome-ghost hidden size-10 place-items-center sm:grid rounded-full transition-opacity disabled:opacity-40 sm:size-10"><ChevronRight className="size-4" aria-hidden="true" /></button>
     </div>
-    <p aria-live="polite" className="mt-3 text-center text-sm text-[var(--muted-strong)]">
-      <span className="font-semibold text-[var(--foreground)]">{current.label}</span> theme · scroll sideways to try another
-    </p>
+    {/* No visible caption (Sandeep removed it, 2026-11-24); screen readers still hear the theme change. */}
+    <p aria-live="polite" className="sr-only">{current.label} theme</p>
   </div>;
 }
