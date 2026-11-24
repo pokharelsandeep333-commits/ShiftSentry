@@ -290,9 +290,11 @@ function lengthOf(times: LastTimes) {
 function ShiftSum({ preview, repeatWeeks, check, checkStatus, timeZone, weekStartsOn }: { checkStatus: ReturnType<typeof useLimitCheck>["status"]; preview: { minutes: number; pay: ReturnType<typeof calculateEarnings>; snapshot: PaySnapshot } | null; repeatWeeks: number; check: LimitCheck | null; timeZone: string; weekStartsOn: number }) {
   if (repeatWeeks > 1) {
     const estimate = check && preview ? repeatPayEstimate(check.occurrences, preview.snapshot) : null;
-    const hint = checkStatus === "incomplete" ? "Choose the start and end times." : checkStatus === "unavailable" ? "Preview unavailable. Saving will check each shift." : "Checking weekly limits and overlaps…";
+    const hint = checkStatus === "incomplete" ? "Set start and end times." : checkStatus === "unavailable" ? "Preview unavailable. Saving will check each shift." : "Checking weekly limits and overlaps…";
     return <div className="composer-sum" role="status">
-      <p className="sum-net" data-empty={!estimate?.count || undefined}><strong>{estimate ? formatCents(estimate.netCents) : "–"}</strong><span>estimated net</span></p>
+      {estimate
+        ? <p className="sum-net" data-empty={estimate.count === 0 || undefined}><strong>{formatCents(estimate.netCents)}</strong><span>estimated net pay</span></p>
+        : <p className="sum-label">Estimated net pay</p>}
       <p className="sum-detail">{estimate ? <><b>{estimate.count} of {repeatWeeks} shifts fit</b> · {formatMinutes(estimate.minutes)}</> : hint}</p>
     </div>;
   }
@@ -301,10 +303,12 @@ function ShiftSum({ preview, repeatWeeks, check, checkStatus, timeZone, weekStar
   const thisWeek = weekStartDate(formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd"), weekStartsOn);
   const weekName = week ? formatInTimeZone(week.weekStart, timeZone, "yyyy-MM-dd") === thisWeek ? "This week" : `Week of ${formatInTimeZone(week.weekStart, timeZone, "MMM d")}` : "";
   return <div className="composer-sum" aria-live="polite">
-    <p className="sum-net" data-empty={!preview || undefined}><strong>{preview ? formatCents(preview.pay.netCents) : "–"}</strong><span>net</span></p>
+    {preview
+      ? <p className="sum-net"><strong>{formatCents(preview.pay.netCents)}</strong><span>estimated net pay</span></p>
+      : <p className="sum-label">Estimated net pay</p>}
     <p className="sum-detail">{preview
       ? <>{formatMinutes(preview.minutes)} · {formatCents(preview.pay.grossCents)} gross − {formatCents(preview.pay.taxCents + preview.pay.deductionCents)} tax and deductions</>
-      : "Pick the times to see what it pays"}</p>
+      : "Set start and end times."}</p>
     {check && week && <p className="sum-week" data-near={isNearLimit(check, week) || undefined}>
       <span>{weekName} with it</span>
       <span><b>{formatMinutes(week.globalAfter)}</b>{week.globalLimit !== null && ` of ${formatMinutes(week.globalLimit)}`}</span>
