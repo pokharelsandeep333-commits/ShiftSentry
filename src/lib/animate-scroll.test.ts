@@ -41,16 +41,17 @@ function fakeScroll() {
   const frames = new Map<number, (time: number) => void>();
   let time = 1000;
   let nextHandle = 0;
-  const el = {
+  const fake = {
     scrollLeft: 20,
     clientWidth: 200,
     style: { scrollSnapType: "x mandatory" },
     scrollTo(options: ScrollToOptions) {
-      assert.equal(this.style.scrollSnapType, "none");
+      assert.equal(fake.style.scrollSnapType, "none");
       writes.push(options);
-      this.scrollLeft = options.left ?? this.scrollLeft;
+      fake.scrollLeft = options.left ?? fake.scrollLeft;
     },
-  } as unknown as HTMLElement;
+  };
+  const el = fake as unknown as HTMLElement;
 
   return {
     el,
