@@ -22,9 +22,10 @@ export async function GET(request: Request) {
 
   const search = new URL(request.url).searchParams;
   const params = readTimesheetParams((name) => search.get(name));
+  const generatedAt = new Date();
   let data;
   try {
-    data = await getTimesheet(profile, params);
+    data = await getTimesheet(profile, params, generatedAt);
   } catch (error) {
     console.error("timesheet export failed", error instanceof Error ? error.message : "unknown error");
     return new NextResponse("The timesheet could not be prepared. Please try again.", { status: 503, headers });
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     title: scope === "all" ? "All jobs" : selected.name,
     scopeLabel: scope === "all" ? `All active jobs (pay period from ${selected.name}'s schedule)` : `${selected.name} only`,
     timeZone: profile.time_zone,
-    generatedAt: new Date(),
+    generatedAt,
   });
   return new NextResponse(csv, {
     headers: {

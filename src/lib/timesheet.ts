@@ -1,7 +1,8 @@
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { z } from "zod";
+import { breakPeriodForWeek, type BreakPeriod } from "@/lib/break-periods";
 import { csvDocument, csvRow } from "@/lib/csv";
-import { addDays, formatPayDay, formatPayPeriod, isCalendarDate, lastDayOf, type PayPeriod } from "@/lib/pay-period";
+import { addDays, formatPayDay, formatPayPeriod, isCalendarDate, lastDayOf, payPeriodFor, type PayPeriod, type PaySchedule } from "@/lib/pay-period";
 import { addWorkedMinutes, createTotals, type TotalsAccumulator, type WorkedShift } from "@/lib/period-totals";
 import { allocateShiftMinutes, weekEndFor, weekStartFor } from "@/lib/time";
 import type { EarningsSummary } from "@/lib/types";
@@ -54,6 +55,18 @@ export function timesheetHref(base: "/pay-periods/timesheet" | "/pay-periods/tim
   return `${base}?${search}`;
 }
 
+/** A valid URL date can still resolve to a period outside the supported calendar. */
+export function timesheetPeriodFor(requestedDay: string | undefined, today: string, schedule: PaySchedule) {
+  if (requestedDay) {
+    const period = payPeriodFor(requestedDay, schedule);
+    // The adjacent cap weeks also need to fit the four-digit calendar.
+    if (isCalendarDate(period.start) && isCalendarDate(period.end)
+      && period.start >= "0001-01-07" && period.end <= "9999-12-25"
+      && period.start <= requestedDay && requestedDay < period.end) return period;
+  }
+  return payPeriodFor(today, schedule);
+}
+
 /** A row shift: a `WorkedShift` with its id, so a shift split at midnight can be followed across days. */
 export type TimesheetShift = WorkedShift & { id: string };
 
@@ -71,6 +84,7 @@ export type TimesheetEntry = {
   /** This day's part of the shift, as instants. */
   startsAt: Date;
   endsAt: Date;
+  endsAtNextMidnight: boolean;
   continuesFromPreviousDay: boolean;
   continuesNextDay: boolean;
   status: "worked" | "in_progress" | "scheduled";
@@ -98,12 +112,15 @@ export type TimesheetWeek = {
   /** The week has begun; a provisional week that has not is entirely planned. */
   started: boolean;
   limitMinutes: number | null;
+  breakCap: boolean;
   over: boolean;
 };
 
 export type TimesheetVerdict = {
   kind: "no_cap" | "under" | "at_cap" | "over";
+  /** Shared limit when every week has the same cap. */
   limitMinutes: number | null;
+  limitsVary: boolean;
   /** The busiest week, by its cap total. */
   peakMinutes: number;
   peakWeekStart: string | null;
@@ -145,12 +162,15 @@ function minutesWithin(shift: { startsAt: Date; endsAt: Date }, start: Date, end
  */
 export function weeksTouching(period: PayPeriod, timeZone: string, weekStartsOn: number) {
   const weeks: { start: string; end: string; startsAt: Date; endsAt: Date }[] = [];
-  const periodEnd = localMidnight(period.end, timeZone);
-  let cursor = weekStartFor(localMidnight(period.start, timeZone), timeZone, weekStartsOn);
-  while (cursor < periodEnd) {
+  // A skipped midnight may convert to the previous date. Find the first week from noon.
+  let cursor = weekStartFor(fromZonedTime(`${period.start}T12:00:00`, timeZone), timeZone, weekStartsOn);
+  let start = formatInTimeZone(cursor, timeZone, "yyyy-MM-dd");
+  while (start < period.end) {
     const next = weekEndFor(cursor, timeZone, weekStartsOn);
-    weeks.push({ start: formatInTimeZone(cursor, timeZone, "yyyy-MM-dd"), end: formatInTimeZone(next, timeZone, "yyyy-MM-dd"), startsAt: cursor, endsAt: next });
+    const end = formatInTimeZone(next, timeZone, "yyyy-MM-dd");
+    weeks.push({ start, end, startsAt: cursor, endsAt: next });
     cursor = next;
+    start = end;
   }
   return weeks;
 }
@@ -163,10 +183,12 @@ export function timesheetQueryWindow(period: PayPeriod, timeZone: string, weekSt
     periodEnd: localMidnight(period.end, timeZone),
     weeksStart: weeks[0].startsAt,
     weeksEnd: weeks[weeks.length - 1].endsAt,
+    firstWeekDate: weeks[0].start,
+    lastWeekDate: weeks[weeks.length - 1].start,
   };
 }
 
-export function buildTimesheet({ period, shifts, capShifts, now, timeZone, weekStartsOn, limitMinutes, limitLabel = "" }: {
+export function buildTimesheet({ period, shifts, capShifts, now, timeZone, weekStartsOn, limitMinutes, limitLabel = "", breakPeriods = [] }: {
   period: PayPeriod;
   /** Shifts shown as rows: active jobs only, as everywhere else. */
   shifts: TimesheetShift[];
@@ -178,6 +200,8 @@ export function buildTimesheet({ period, shifts, capShifts, now, timeZone, weekS
   limitMinutes: number | null;
   /** Prefix for the verdict when the cap is not the overall one, e.g. "Library: ". */
   limitLabel?: string;
+  /** Only the overall cap can be replaced by a break period. */
+  breakPeriods?: readonly BreakPeriod[];
 }): Timesheet {
   const within = (day: string) => day >= period.start && day < period.end;
   type EntryAcc = Omit<TimesheetEntry, "worked" | "scheduled"> & { worked: TotalsAccumulator; scheduled: TotalsAccumulator };
@@ -189,7 +213,6 @@ export function buildTimesheet({ period, shifts, capShifts, now, timeZone, weekS
 
   for (const shift of [...shifts].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.jobName.localeCompare(b.jobName))) {
     const jobRef = { id: shift.jobId, name: shift.jobName, color: shift.jobColor };
-    const status: TimesheetEntry["status"] = shift.endsAt <= now ? "worked" : shift.startsAt < now ? "in_progress" : "scheduled";
     const firstDay = formatInTimeZone(shift.startsAt, timeZone, "yyyy-MM-dd");
     const lastDay = formatInTimeZone(new Date(shift.endsAt.getTime() - 1), timeZone, "yyyy-MM-dd");
 
@@ -199,13 +222,16 @@ export function buildTimesheet({ period, shifts, capShifts, now, timeZone, weekS
       if (!entry) {
         const dayStart = localMidnight(date, timeZone);
         const dayEnd = localMidnight(addDays(date, 1), timeZone);
+        const startsAt = shift.startsAt > dayStart ? shift.startsAt : dayStart;
+        const endsAt = shift.endsAt < dayEnd ? shift.endsAt : dayEnd;
         entry = {
           shiftId: shift.id, jobId: shift.jobId, jobName: shift.jobName, jobColor: shift.jobColor, date,
-          startsAt: shift.startsAt > dayStart ? shift.startsAt : dayStart,
-          endsAt: shift.endsAt < dayEnd ? shift.endsAt : dayEnd,
+          startsAt, endsAt,
+          endsAtNextMidnight: endsAt.getTime() === dayEnd.getTime(),
           continuesFromPreviousDay: date > firstDay,
           continuesNextDay: date < lastDay,
-          status, hourlyRateCents: shift.hourlyRateCents, worked: createTotals(), scheduled: createTotals(),
+          status: endsAt <= now ? "worked" : startsAt < now ? "in_progress" : "scheduled",
+          hourlyRateCents: shift.hourlyRateCents, worked: createTotals(), scheduled: createTotals(),
         };
         entries.set(key, entry);
       }
@@ -253,6 +279,8 @@ export function buildTimesheet({ period, shifts, capShifts, now, timeZone, weekS
       minutes += minutesWithin(shift, week.startsAt, week.endsAt);
       inPeriodMinutes += minutesWithin(shift, inStart, inEnd);
     }
+    const breakPeriod = breakPeriodForWeek(breakPeriods, week.start);
+    const weekLimit = breakPeriod?.weekly_limit_minutes ?? limitMinutes;
     return {
       start: week.start,
       end: week.end,
@@ -261,8 +289,9 @@ export function buildTimesheet({ period, shifts, capShifts, now, timeZone, weekS
       extendsOutsidePeriod: week.start < period.start || week.end > period.end,
       provisional: week.endsAt > now,
       started: week.startsAt <= now,
-      limitMinutes,
-      over: limitMinutes !== null && minutes > limitMinutes,
+      limitMinutes: weekLimit,
+      breakCap: breakPeriod !== null,
+      over: weekLimit !== null && minutes > weekLimit,
     };
   });
 
@@ -273,7 +302,7 @@ export function buildTimesheet({ period, shifts, capShifts, now, timeZone, weekS
     weeks,
     worked: amountOf(worked),
     scheduled: amountOf(scheduled),
-    verdict: weeklyVerdict(weeks, limitMinutes, limitLabel),
+    verdict: weeklyVerdict(weeks, limitLabel),
   };
 }
 
@@ -288,29 +317,34 @@ export function decimalHours(minutes: number) {
  * A week still in progress counts its planned shifts, as the trigger does, so
  * the answer for a current period reads as a forecast, not a record.
  */
-export function weeklyVerdict(weeks: TimesheetWeek[], limitMinutes: number | null, limitLabel = ""): TimesheetVerdict {
+function weeklyVerdict(weeks: TimesheetWeek[], limitLabel: string): TimesheetVerdict {
   const peak = weeks.reduce<TimesheetWeek | null>((best, week) => (!best || week.minutes > best.minutes ? week : best), null);
   const peakMinutes = peak?.minutes ?? 0;
   const peakWeekStart = peak && peak.minutes > 0 ? peak.start : null;
   const overWeeks = weeks.filter((week) => week.over).length;
   const provisional = weeks.some((week) => week.provisional);
+  const capped = weeks.filter((week) => week.limitMinutes !== null);
+  const limitsVary = new Set(weeks.map((week) => week.limitMinutes)).size > 1;
+  const limitMinutes = limitsVary ? null : capped[0]?.limitMinutes ?? null;
   const peakText = peakWeekStart ? `Busiest week: ${formatMinutes(peakMinutes)}, week of ${formatPayDay(peakWeekStart)}.` : "No hours in any of these weeks.";
-  const planned = provisional ? " Weeks still in progress include planned shifts." : "";
-  const base = { limitMinutes, peakMinutes, peakWeekStart, overWeeks, provisional };
+  const planned = provisional ? " Weeks that haven't ended include planned shifts." : "";
+  const varying = limitsVary ? " The table shows the cap that applies to each week." : "";
+  const base = { limitMinutes, limitsVary, peakMinutes, peakWeekStart, overWeeks, provisional };
 
-  if (limitMinutes === null) {
-    return { ...base, kind: "no_cap", headline: `${limitLabel}No weekly cap set`, detail: `${peakText} Set a weekly limit to check these weeks against it.` };
+  if (capped.length === 0) {
+    return { ...base, kind: "no_cap", headline: `${limitLabel}No weekly cap set`, detail: `${peakText}${planned}` };
   }
-  const cap = decimalHours(limitMinutes);
+  const cap = limitMinutes === null ? "the cap" : decimalHours(limitMinutes);
   const weekWord = (count: number) => `${count} ${count === 1 ? "week" : "weeks"}`;
   if (overWeeks > 0) {
-    return { ...base, kind: "over", headline: `${limitLabel}Over ${cap} in ${overWeeks} of ${weekWord(weeks.length)}`, detail: `${peakText}${planned}` };
+    return { ...base, kind: "over", headline: `${limitLabel}Over ${cap} in ${overWeeks} of ${weekWord(capped.length)}${capped.length < weeks.length ? " with a cap" : ""}`, detail: `${peakText}${varying}${planned}` };
   }
   const lead = provisional ? "On track to stay" : "Stayed";
-  if (peakMinutes === limitMinutes) {
-    return { ...base, kind: "at_cap", headline: `${limitLabel}${lead} within ${cap} each week`, detail: `${peakText} Reaching the cap exactly is allowed.${planned}` };
+  const whichWeeks = capped.length < weeks.length ? " in weeks with a cap" : " each week";
+  if (capped.some((week) => week.minutes === week.limitMinutes)) {
+    return { ...base, kind: "at_cap", headline: `${limitLabel}${lead} within ${cap}${whichWeeks}`, detail: `${peakText}${varying} Reaching the cap exactly is allowed.${planned}` };
   }
-  return { ...base, kind: "under", headline: `${limitLabel}${lead} under ${cap} each week`, detail: `${peakText}${planned}` };
+  return { ...base, kind: "under", headline: `${limitLabel}${lead} under ${cap}${whichWeeks}`, detail: `${peakText}${varying}${planned}` };
 }
 
 /** Cents as a plain decimal for a spreadsheet: integer arithmetic, no float rounding. */
@@ -340,13 +374,13 @@ export function timesheetCsv(sheet: Timesheet, meta: { title: string; scopeLabel
   const money = (amount: TimesheetAmount) => [centsDecimal(amount.earnings.grossCents), centsDecimal(amount.earnings.taxCents), centsDecimal(amount.earnings.deductionCents), centsDecimal(amount.earnings.netCents)];
   const lines = [
     csvRow(["ShiftSentry timesheet"]),
-    csvRow(["Pay period", formatPayPeriod(sheet.period)]),
+    csvRow(["Pay period", formatPayPeriod(sheet.period, true)]),
     csvRow(["First day", sheet.period.start]),
     csvRow(["Last day", lastDayOf(sheet.period)]),
     csvRow(["Timesheet for", meta.title]),
     csvRow(["Jobs included", meta.scopeLabel]),
     csvRow(["Time zone", meta.timeZone]),
-    csvRow(["Weekly cap", sheet.verdict.limitMinutes === null ? "none" : hoursDecimal(sheet.verdict.limitMinutes)]),
+    csvRow(["Weekly cap", sheet.verdict.limitsVary ? "Varies by week" : sheet.verdict.limitMinutes === null ? "none" : hoursDecimal(sheet.verdict.limitMinutes)]),
     csvRow(["Weekly cap check", sheet.verdict.headline]),
     csvRow(["", sheet.verdict.detail]),
     csvRow(["Worked hours", hoursDecimal(sheet.worked.minutes)]),
@@ -362,7 +396,7 @@ export function timesheetCsv(sheet: Timesheet, meta: { title: string; scopeLabel
       formatInTimeZone(entry.startsAt, meta.timeZone, "EEE"),
       entry.jobName,
       time(entry.startsAt),
-      entry.continuesNextDay ? "24:00" : time(entry.endsAt),
+      entry.endsAtNextMidnight ? "24:00" : time(entry.endsAt),
       [entry.continuesFromPreviousDay && "continued from previous day", entry.continuesNextDay && "continues next day"].filter(Boolean).join("; "),
       entryStatusLabel(entry.status),
       entry.worked.minutes,

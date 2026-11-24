@@ -43,6 +43,7 @@ test("monthly: the 21st up to the 21st of the next month", () => {
   assert.deepEqual(payPeriodFor("2027-01-05", MONTHLY_21ST), { start: "2026-12-21", end: "2027-01-21" });
   assert.equal(formatPayPeriod(payPeriodFor("2027-01-05", MONTHLY_21ST)), "Dec 21, 2026 – Jan 20, 2027");
   assert.equal(formatPayPeriod(payPeriodFor("2026-10-15", MONTHLY_21ST)), "Sep 21 – Oct 20");
+  assert.equal(formatPayPeriod(payPeriodFor("2026-10-15", MONTHLY_21ST), true), "Sep 21 – Oct 20, 2026");
 });
 
 test("monthly: a day past a short month's end falls back to its last day, and periods still meet", () => {
